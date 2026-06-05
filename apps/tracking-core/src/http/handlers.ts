@@ -1,0 +1,65 @@
+import { createTrackingApp, type TrackingApp } from "../app/tracking-app.js";
+import { badRequest, ok, serverError } from "./response.js";
+import type { HttpRequest, HttpResponse } from "./types.js";
+import { parseAppointmentInput, parseLeadInput } from "./validation.js";
+
+export interface PaymentsSyncQuery {
+  since?: string;
+}
+
+export class TrackingHttpHandlers {
+  constructor(private readonly app: TrackingApp) {}
+
+  async postLead(request: HttpRequest): Promise<HttpResponse> {
+    const input = parseLeadInput(request.body);
+    if (!input) {
+      return badRequest("invalid lead payload");
+    }
+
+    try {
+      const result = await this.app.captureLead(input);
+      return ok(result, 201);
+    } catch (error) {
+      return serverError("failed to capture lead", {
+        message: toErrorMessage(error),
+      });
+    }
+  }
+
+  async postDentalinkAppointment(request: HttpRequest): Promise<HttpResponse> {
+    const input = parseAppointmentInput(request.body);
+    if (!input) {
+      return badRequest("invalid appointment payload");
+    }
+
+    try {
+      const result = await this.app.processAppointment(input);
+      return ok(result, 202);
+    } catch (error) {
+      return serverError("failed to process appointment", {
+        message: toErrorMessage(error),
+      });
+    }
+  }
+
+  async postPaymentsSync(
+    request: HttpRequest<unknown, PaymentsSyncQuery>,
+  ): Promise<HttpResponse> {
+    try {
+      const result = await this.app.syncPayments(request.query?.since);
+      return ok(result, 202);
+    } catch (error) {
+      return serverError("failed to sync payments", {
+        message: toErrorMessage(error),
+      });
+    }
+  }
+}
+
+export function createTrackingHttpHandlers(): TrackingHttpHandlers {
+  return new TrackingHttpHandlers(createTrackingApp());
+}
+
+function toErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "unknown error";
+}

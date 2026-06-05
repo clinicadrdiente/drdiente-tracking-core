@@ -1,0 +1,79 @@
+export type DentalinkMode = "stub" | "api";
+
+export interface DentalinkConfig {
+  mode: DentalinkMode;
+  baseUrl: string;
+  apiToken: string;
+  patientsPathTemplate: string;
+  paymentsPath: string;
+  treatmentsPathTemplate: string;
+  patientUpdatePathTemplate: string;
+  patientIdField: string;
+  patientFirstNameField: string;
+  patientLastNameField: string;
+  patientPhoneField: string;
+  patientEmailField: string;
+  patientBranchField: string;
+  paymentIdField: string;
+  paymentPatientIdField: string;
+  paymentTreatmentIdField: string;
+  paymentAmountField: string;
+  paymentVoidedField: string;
+  paymentDateField: string;
+  treatmentIdField: string;
+  treatmentBudgetTotalField: string;
+  treatmentNameField: string;
+  additionalFieldsContainer: string;
+  elevatorIdField: string;
+}
+
+function getEnv(name: string, fallback = ""): string {
+  return process.env[name] ?? fallback;
+}
+
+export function getDentalinkConfig(): DentalinkConfig {
+  return {
+    mode: getEnv("DENTALINK_MODE", "stub") === "api" ? "api" : "stub",
+    baseUrl: getEnv("DENTALINK_BASE_URL"),
+    apiToken: getEnv("DENTALINK_API_TOKEN"),
+    patientsPathTemplate: getEnv("DENTALINK_PATIENTS_PATH_TEMPLATE", "/patients/{id}"),
+    paymentsPath: getEnv("DENTALINK_PAYMENTS_PATH", "/payments"),
+    treatmentsPathTemplate: getEnv(
+      "DENTALINK_TREATMENTS_PATH_TEMPLATE",
+      "/treatments/{id}",
+    ),
+    patientUpdatePathTemplate: getEnv(
+      "DENTALINK_PATIENT_UPDATE_PATH_TEMPLATE",
+      "/patients/{id}",
+    ),
+    patientIdField: getEnv("DENTALINK_PATIENT_ID_FIELD", "id_paciente"),
+    patientFirstNameField: getEnv("DENTALINK_PATIENT_FIRST_NAME_FIELD", "nombre"),
+    patientLastNameField: getEnv("DENTALINK_PATIENT_LAST_NAME_FIELD", "apellido"),
+    patientPhoneField: getEnv("DENTALINK_PATIENT_PHONE_FIELD", "telefono"),
+    patientEmailField: getEnv("DENTALINK_PATIENT_EMAIL_FIELD", "email"),
+    patientBranchField: getEnv("DENTALINK_PATIENT_BRANCH_FIELD", "sucursal"),
+    paymentIdField: getEnv("DENTALINK_PAYMENT_ID_FIELD", "id"),
+    paymentPatientIdField: getEnv(
+      "DENTALINK_PAYMENT_PATIENT_ID_FIELD",
+      "id_paciente",
+    ),
+    paymentTreatmentIdField: getEnv(
+      "DENTALINK_PAYMENT_TREATMENT_ID_FIELD",
+      "id_tratamiento",
+    ),
+    paymentAmountField: getEnv("DENTALINK_PAYMENT_AMOUNT_FIELD", "monto"),
+    paymentVoidedField: getEnv("DENTALINK_PAYMENT_VOIDED_FIELD", "anulado"),
+    paymentDateField: getEnv("DENTALINK_PAYMENT_DATE_FIELD", "fecha"),
+    treatmentIdField: getEnv("DENTALINK_TREATMENT_ID_FIELD", "id"),
+    treatmentBudgetTotalField: getEnv(
+      "DENTALINK_TREATMENT_BUDGET_TOTAL_FIELD",
+      "valor_total",
+    ),
+    treatmentNameField: getEnv("DENTALINK_TREATMENT_NAME_FIELD", "nombre"),
+    additionalFieldsContainer: getEnv(
+      "DENTALINK_ADDITIONAL_FIELDS_CONTAINER",
+      "campos_adicionales",
+    ),
+    elevatorIdField: getEnv("DENTALINK_ELEVATOR_ID_FIELD", "elevator_id"),
+  };
+}
