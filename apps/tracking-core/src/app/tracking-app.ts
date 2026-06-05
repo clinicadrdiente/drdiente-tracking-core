@@ -7,6 +7,35 @@ import type { AppointmentEvent, LeadInput } from "../types/domain.js";
 export class TrackingApp {
   constructor(private readonly services: AppServices) {}
 
+  async getStatus() {
+    const state = await this.services.stateStore.getPaymentSyncState();
+
+    return {
+      ok: true,
+      service: "drdiente-tracking-core",
+      generatedAt: new Date().toISOString(),
+      config: {
+        elevatorMode: process.env.ELEVATOR_MODE ?? "stub",
+        dentalinkMode: process.env.DENTALINK_MODE ?? "stub",
+        stateStoreMode: process.env.STATE_STORE_MODE ?? "file",
+        defaultCurrency: this.services.config.defaultCurrency,
+        highTicketThreshold: this.services.config.highTicketThreshold,
+        paymentsSyncLookbackMinutes:
+          this.services.config.paymentsSyncLookbackMinutes,
+        trackingSecretConfigured: Boolean(process.env.TRACKING_API_SECRET),
+      },
+      paymentSync: {
+        lastCheckIso: state.lastCheckIso ?? null,
+        processedPaymentCount: state.processedPaymentIds.length,
+      },
+      integrations: {
+        elevator: process.env.ELEVATOR_MODE ?? "stub",
+        dentalink: process.env.DENTALINK_MODE ?? "stub",
+        stape: "stub",
+      },
+    };
+  }
+
   async captureLead(input: LeadInput) {
     this.services.logger.info("capturing lead", { branch: input.branch });
     return handleLeadCapture(this.services.elevatorClient, input);

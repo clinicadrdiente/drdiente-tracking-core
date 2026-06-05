@@ -47,7 +47,10 @@ Esto deja el proyecto listo para conectar handlers HTTP reales o cron jobs sobre
 Ya existe una capa de entrada minima para exponer el core:
 
 - `api/health.ts`: health check del despliegue
+- `api/status.ts`: estado operativo para dashboard
 - `api/lead.ts`: captura de leads
+- `api/dev/test-lead.ts`: prueba interna de lead demo
+- `api/dev/test-payment-sync.ts`: prueba interna de sync de pagos
 - `api/webhooks/dentalink/appointment.ts`: webhook de citas
 - `api/cron/payments-sync.ts`: sync manual/cron de pagos
 - `src/http/handlers.ts`: handlers de `lead`, `appointment` y `payments sync`
@@ -64,6 +67,12 @@ x-tracking-secret: <TRACKING_API_SECRET>
 ```
 
 `/api/health` queda abierto para verificar el despliegue.
+
+## Dashboard
+
+`public/index.html` contiene un dashboard operativo interno. El dashboard guarda el
+`TRACKING_API_SECRET` solo en `localStorage` del navegador y lo manda como header
+en cada llamada protegida.
 
 ## Estado operativo
 

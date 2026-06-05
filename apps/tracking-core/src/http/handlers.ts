@@ -11,6 +11,22 @@ export interface PaymentsSyncQuery {
 export class TrackingHttpHandlers {
   constructor(private readonly app: TrackingApp) {}
 
+  async getStatus(request: HttpRequest): Promise<HttpResponse> {
+    const authError = requireTrackingSecret(request);
+    if (authError) {
+      return authError;
+    }
+
+    try {
+      const result = await this.app.getStatus();
+      return ok(result);
+    } catch (error) {
+      return serverError("failed to get status", {
+        message: toErrorMessage(error),
+      });
+    }
+  }
+
   async postLead(request: HttpRequest): Promise<HttpResponse> {
     const authError = requireTrackingSecret(request);
     if (authError) {

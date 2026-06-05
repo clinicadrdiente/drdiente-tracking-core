@@ -1,14 +1,378 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>DrDiente Tracking Core</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #101412;
+        --surface: #171d1a;
+        --surface-2: #202822;
+        --line: #334139;
+        --ink: #f0f4ef;
+        --muted: #a3ada6;
+        --faint: #68736d;
+        --ok: #64d492;
+        --warn: #e5bd65;
+        --bad: #ed7c72;
+        --accent: #78c2ad;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background:
+          linear-gradient(180deg, rgba(120, 194, 173, 0.08), transparent 320px),
+          var(--bg);
+        color: var(--ink);
+        font-family:
+          ui-sans-serif,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+
+      button,
+      input {
+        font: inherit;
+      }
+
+      .shell {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 28px;
+      }
+
+      header {
+        display: flex;
+        justify-content: space-between;
+        gap: 18px;
+        align-items: flex-start;
+        padding: 14px 0 24px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      h1 {
+        margin: 0 0 6px;
+        font-size: 28px;
+        letter-spacing: 0;
+      }
+
+      .sub {
+        margin: 0;
+        color: var(--muted);
+      }
+
+      .secret {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        min-width: min(460px, 100%);
+      }
+
+      .secret input {
+        width: 100%;
+        height: 42px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #0d110f;
+        color: var(--ink);
+        padding: 0 12px;
+      }
+
+      .secret button,
+      .action {
+        height: 42px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--surface-2);
+        color: var(--ink);
+        padding: 0 14px;
+        cursor: pointer;
+      }
+
+      .secret button:hover,
+      .action:hover {
+        border-color: var(--accent);
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(12, 1fr);
+        gap: 14px;
+        margin-top: 18px;
+      }
+
+      .panel {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 16px;
+      }
+
+      .span-3 {
+        grid-column: span 3;
+      }
+
+      .span-4 {
+        grid-column: span 4;
+      }
+
+      .span-6 {
+        grid-column: span 6;
+      }
+
+      .span-8 {
+        grid-column: span 8;
+      }
+
+      .span-12 {
+        grid-column: span 12;
+      }
+
+      .label {
+        color: var(--faint);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin-bottom: 8px;
+      }
+
+      .metric {
+        font-size: 24px;
+        margin: 0;
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+
+      .status {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--warn);
+      }
+
+      .dot.ok {
+        background: var(--ok);
+      }
+
+      .dot.bad {
+        background: var(--bad);
+      }
+
+      .rows {
+        display: grid;
+        gap: 10px;
+      }
+
+      .row {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 10px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      }
+
+      .row:last-child {
+        border-bottom: 0;
+      }
+
+      .pill {
+        color: var(--ink);
+        background: #0d110f;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 2px 9px;
+        font-size: 13px;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      pre {
+        margin: 0;
+        min-height: 220px;
+        overflow: auto;
+        white-space: pre-wrap;
+        color: #d8e7de;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      @media (max-width: 820px) {
+        .shell {
+          padding: 18px;
+        }
+
+        header {
+          flex-direction: column;
+        }
+
+        .span-3,
+        .span-4,
+        .span-6,
+        .span-8,
+        .span-12 {
+          grid-column: span 12;
+        }
+      }
+    </style>
   </head>
   <body>
-    <main>
-      <h1>DrDiente Tracking Core</h1>
-      <p>API service is deployed.</p>
-    </main>
+    <div class="shell">
+      <header>
+        <div>
+          <h1>DrDiente Tracking Core</h1>
+          <p class="sub">Panel operativo interno de atribucion y webhooks.</p>
+        </div>
+        <div class="secret">
+          <input
+            id="secret"
+            type="password"
+            autocomplete="off"
+            placeholder="TRACKING_API_SECRET"
+          />
+          <button id="saveSecret" type="button">Guardar</button>
+        </div>
+      </header>
+
+      <section class="grid">
+        <div class="panel span-3">
+          <div class="label">Sistema</div>
+          <p class="metric status"><span id="statusDot" class="dot"></span><span id="statusText">Sin verificar</span></p>
+        </div>
+        <div class="panel span-3">
+          <div class="label">Elevator</div>
+          <p id="elevatorMode" class="metric">-</p>
+        </div>
+        <div class="panel span-3">
+          <div class="label">Dentalink</div>
+          <p id="dentalinkMode" class="metric">-</p>
+        </div>
+        <div class="panel span-3">
+          <div class="label">Stape</div>
+          <p id="stapeMode" class="metric">stub</p>
+        </div>
+
+        <div class="panel span-8">
+          <div class="label">Estado operativo</div>
+          <div class="rows">
+            <div class="row"><span class="muted">Ultimo sync</span><span id="lastCheck">-</span></div>
+            <div class="row"><span class="muted">Pagos procesados</span><span id="processedPayments">-</span></div>
+            <div class="row"><span class="muted">Umbral alto ticket</span><span id="threshold">-</span></div>
+            <div class="row"><span class="muted">Secret configurado</span><span id="secretConfigured">-</span></div>
+          </div>
+        </div>
+
+        <div class="panel span-4">
+          <div class="label">Acciones</div>
+          <div class="actions">
+            <button id="refresh" class="action" type="button">Actualizar estado</button>
+            <button id="testLead" class="action" type="button">Probar lead demo</button>
+            <button id="testSync" class="action" type="button">Probar sync pagos</button>
+          </div>
+        </div>
+
+        <div class="panel span-12">
+          <div class="label">Consola</div>
+          <pre id="console">Pega el TRACKING_API_SECRET y presiona "Actualizar estado".</pre>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      const secretInput = document.getElementById("secret");
+      const output = document.getElementById("console");
+      const savedSecret = localStorage.getItem("trackingSecret");
+
+      if (savedSecret) {
+        secretInput.value = savedSecret;
+      }
+
+      document.getElementById("saveSecret").addEventListener("click", () => {
+        localStorage.setItem("trackingSecret", secretInput.value);
+        writeOutput({ ok: true, message: "Secret guardado localmente en este navegador." });
+      });
+
+      document.getElementById("refresh").addEventListener("click", refreshStatus);
+      document.getElementById("testLead").addEventListener("click", () => postAction("/api/dev/test-lead"));
+      document.getElementById("testSync").addEventListener("click", () => postAction("/api/dev/test-payment-sync"));
+
+      async function refreshStatus() {
+        const result = await request("/api/status", { method: "GET" });
+        writeOutput(result);
+
+        if (!result.ok) {
+          setHealth(false, result.status === 401 ? "No autorizado" : "Error");
+          return;
+        }
+
+        setHealth(true, "Healthy");
+        document.getElementById("elevatorMode").textContent = result.body.integrations.elevator;
+        document.getElementById("dentalinkMode").textContent = result.body.integrations.dentalink;
+        document.getElementById("stapeMode").textContent = result.body.integrations.stape;
+        document.getElementById("lastCheck").textContent = result.body.paymentSync.lastCheckIso || "Sin sync";
+        document.getElementById("processedPayments").textContent = result.body.paymentSync.processedPaymentCount;
+        document.getElementById("threshold").textContent = `${result.body.config.highTicketThreshold} ${result.body.config.defaultCurrency}`;
+        document.getElementById("secretConfigured").textContent = result.body.config.trackingSecretConfigured ? "si" : "no";
+      }
+
+      async function postAction(path) {
+        const result = await request(path, { method: "POST" });
+        writeOutput(result);
+        await refreshStatus();
+      }
+
+      async function request(path, options) {
+        const secret = secretInput.value.trim();
+        const response = await fetch(path, {
+          ...options,
+          headers: {
+            "content-type": "application/json",
+            "x-tracking-secret": secret,
+          },
+        });
+
+        let body;
+        try {
+          body = await response.json();
+        } catch {
+          body = await response.text();
+        }
+
+        return {
+          ok: response.ok,
+          status: response.status,
+          body,
+        };
+      }
+
+      function writeOutput(value) {
+        output.textContent = JSON.stringify(value, null, 2);
+      }
+
+      function setHealth(ok, text) {
+        const dot = document.getElementById("statusDot");
+        dot.className = ok ? "dot ok" : "dot bad";
+        document.getElementById("statusText").textContent = text;
+      }
+    </script>
   </body>
 </html>
