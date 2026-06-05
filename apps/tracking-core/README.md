@@ -57,6 +57,14 @@ Ya existe una capa de entrada minima para exponer el core:
 
 Con esto ya se puede montar despues una API real sin reescribir el dominio.
 
+Los endpoints operativos requieren:
+
+```text
+x-tracking-secret: <TRACKING_API_SECRET>
+```
+
+`/api/health` queda abierto para verificar el despliegue.
+
 ## Estado operativo
 
 El proyecto ya incluye una capa minima de estado para `payments sync`:

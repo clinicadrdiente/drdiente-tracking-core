@@ -1,4 +1,5 @@
 import { createTrackingApp, type TrackingApp } from "../app/tracking-app.js";
+import { requireTrackingSecret } from "./auth.js";
 import { badRequest, ok, serverError } from "./response.js";
 import type { HttpRequest, HttpResponse } from "./types.js";
 import { parseAppointmentInput, parseLeadInput } from "./validation.js";
@@ -11,6 +12,11 @@ export class TrackingHttpHandlers {
   constructor(private readonly app: TrackingApp) {}
 
   async postLead(request: HttpRequest): Promise<HttpResponse> {
+    const authError = requireTrackingSecret(request);
+    if (authError) {
+      return authError;
+    }
+
     const input = parseLeadInput(request.body);
     if (!input) {
       return badRequest("invalid lead payload");
@@ -27,6 +33,11 @@ export class TrackingHttpHandlers {
   }
 
   async postDentalinkAppointment(request: HttpRequest): Promise<HttpResponse> {
+    const authError = requireTrackingSecret(request);
+    if (authError) {
+      return authError;
+    }
+
     const input = parseAppointmentInput(request.body);
     if (!input) {
       return badRequest("invalid appointment payload");
@@ -45,6 +56,11 @@ export class TrackingHttpHandlers {
   async postPaymentsSync(
     request: HttpRequest<unknown, PaymentsSyncQuery>,
   ): Promise<HttpResponse> {
+    const authError = requireTrackingSecret(request);
+    if (authError) {
+      return authError;
+    }
+
     try {
       const result = await this.app.syncPayments(request.query?.since);
       return ok(result, 202);

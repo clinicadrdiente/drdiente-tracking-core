@@ -14,6 +14,13 @@ export function badRequest(
   };
 }
 
+export function unauthorized(error = "unauthorized"): HttpResponse<ErrorBody> {
+  return {
+    status: 401,
+    body: { error },
+  };
+}
+
 export function serverError(
   error: string,
   details?: Record<string, unknown>,

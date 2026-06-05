@@ -4,6 +4,7 @@ export * from "./app/bootstrap.js";
 export * from "./app/tracking-app.js";
 export * from "./lib/normalize.js";
 export * from "./http/types.js";
+export * from "./http/auth.js";
 export * from "./http/response.js";
 export * from "./http/validation.js";
 export * from "./http/handlers.js";
