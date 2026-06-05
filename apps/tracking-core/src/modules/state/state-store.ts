@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { dirname, isAbsolute, resolve } from "node:path";
 
 export interface PaymentSyncState {
   lastCheckIso?: string;
@@ -89,6 +90,10 @@ export class FileStateStore implements StateStore {
   }
 
   private absolutePath(): string {
+    if (!isAbsolute(this.filePath) && process.env.VERCEL) {
+      return resolve(tmpdir(), this.filePath);
+    }
+
     return resolve(process.cwd(), this.filePath);
   }
 }
