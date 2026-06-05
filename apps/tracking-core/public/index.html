@@ -311,13 +311,15 @@
         writeOutput({ ok: true, message: "Secret guardado localmente en este navegador." });
       });
 
-      document.getElementById("refresh").addEventListener("click", refreshStatus);
+      document.getElementById("refresh").addEventListener("click", () => refreshStatus(true));
       document.getElementById("testLead").addEventListener("click", () => postAction("/api/dev/test-lead"));
       document.getElementById("testSync").addEventListener("click", () => postAction("/api/dev/test-payment-sync"));
 
-      async function refreshStatus() {
+      async function refreshStatus(shouldWriteOutput = true) {
         const result = await request("/api/status", { method: "GET" });
-        writeOutput(result);
+        if (shouldWriteOutput) {
+          writeOutput(result);
+        }
 
         if (!result.ok) {
           setHealth(false, result.status === 401 ? "No autorizado" : "Error");
@@ -337,7 +339,7 @@
       async function postAction(path) {
         const result = await request(path, { method: "POST" });
         writeOutput(result);
-        await refreshStatus();
+        await refreshStatus(false);
       }
 
       async function request(path, options) {
