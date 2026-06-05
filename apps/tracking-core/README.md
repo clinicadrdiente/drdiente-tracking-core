@@ -46,6 +46,10 @@ Esto deja el proyecto listo para conectar handlers HTTP reales o cron jobs sobre
 
 Ya existe una capa de entrada minima para exponer el core:
 
+- `api/health.ts`: health check del despliegue
+- `api/lead.ts`: captura de leads
+- `api/webhooks/dentalink/appointment.ts`: webhook de citas
+- `api/cron/payments-sync.ts`: sync manual/cron de pagos
 - `src/http/handlers.ts`: handlers de `lead`, `appointment` y `payments sync`
 - `src/http/validation.ts`: validacion basica de payloads
 - `src/http/vercel-adapters.ts`: adaptador para requests estilo Vercel
