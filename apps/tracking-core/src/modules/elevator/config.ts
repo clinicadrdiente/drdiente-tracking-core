@@ -8,6 +8,7 @@ export interface ElevatorConfig {
   apiVersion: string;
   contactsPath: string;
   searchPath: string;
+  duplicateSearchPath: string;
   stagePathTemplate: string;
   idField: string;
   phoneField: string;
@@ -32,6 +33,10 @@ export function getElevatorConfig(): ElevatorConfig {
     apiVersion: getEnv("ELEVATOR_API_VERSION", "2021-07-28"),
     contactsPath: getEnv("ELEVATOR_CONTACTS_PATH", "/contacts/"),
     searchPath: getEnv("ELEVATOR_SEARCH_PATH", "/contacts/search"),
+    duplicateSearchPath: getEnv(
+      "ELEVATOR_DUPLICATE_SEARCH_PATH",
+      "/contacts/search/duplicate",
+    ),
     stagePathTemplate: getEnv(
       "ELEVATOR_STAGE_PATH_TEMPLATE",
       "",

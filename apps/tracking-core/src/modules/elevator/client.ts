@@ -89,6 +89,16 @@ export class ApiElevatorClient implements ElevatorClient {
     phone: string,
     email?: string | null,
   ): Promise<CanonicalLead[]> {
+    const duplicateRecords = await this.findDuplicateContacts(phone, email);
+    if (duplicateRecords.length > 0) {
+      return duplicateRecords.map((record) =>
+        mapElevatorRecordToCanonicalLead(
+          this.config,
+          record,
+        ),
+      );
+    }
+
     const payload = buildSearchPayload(this.config, phone, email);
     const response = await this.request("POST", this.config.searchPath, payload);
     const records = unwrapCollection(response);
@@ -99,6 +109,28 @@ export class ApiElevatorClient implements ElevatorClient {
         record,
       ),
     );
+  }
+
+  private async findDuplicateContacts(
+    phone: string,
+    email?: string | null,
+  ): Promise<Record<string, unknown>[]> {
+    const queries = buildDuplicateQueries(this.config.locationId, phone, email);
+
+    for (const query of queries) {
+      const response = await this.request(
+        "GET",
+        this.config.duplicateSearchPath,
+        undefined,
+        query,
+      );
+      const records = unwrapDuplicateRecords(response);
+      if (records.length > 0) {
+        return records;
+      }
+    }
+
+    return [];
   }
 
   async updateLeadStage(elevatorId: string, stage: string): Promise<void> {
@@ -112,18 +144,24 @@ export class ApiElevatorClient implements ElevatorClient {
   }
 
   private async request(
-    method: "POST" | "PATCH",
+    method: "GET" | "POST" | "PATCH",
     path: string,
     body?: Record<string, unknown>,
+    query?: Record<string, string>,
   ): Promise<unknown> {
-    const response = await this.fetchImpl(new URL(path, this.config.baseUrl), {
+    const url = new URL(path, this.config.baseUrl);
+    for (const [key, value] of Object.entries(query ?? {})) {
+      url.searchParams.set(key, value);
+    }
+
+    const response = await this.fetchImpl(url, {
       method,
       headers: {
         Authorization: `Bearer ${this.config.apiKey}`,
         "Content-Type": "application/json",
         Version: this.config.apiVersion,
       },
-      body: body ? JSON.stringify(body) : undefined,
+      body: body && method !== "GET" ? JSON.stringify(body) : undefined,
     });
 
     if (!response.ok) {
@@ -133,6 +171,38 @@ export class ApiElevatorClient implements ElevatorClient {
 
     return (await response.json()) as unknown;
   }
+}
+
+function buildDuplicateQueries(
+  locationId: string,
+  phone: string,
+  email?: string | null,
+): Record<string, string>[] {
+  const queries: Record<string, string>[] = [];
+  const phoneVariants = buildPhoneVariants(phone);
+
+  for (const number of phoneVariants) {
+    queries.push({ locationId, number });
+  }
+
+  const normalizedEmail = normalizeEmail(email);
+  if (normalizedEmail) {
+    queries.push({ locationId, email: normalizedEmail });
+  }
+
+  return queries;
+}
+
+function buildPhoneVariants(phone: string): string[] {
+  const trimmed = phone.trim();
+  const normalized = normalizePhone(trimmed);
+  const variants = [trimmed];
+
+  if (normalized) {
+    variants.push(normalized, `+${normalized}`);
+  }
+
+  return [...new Set(variants.filter(Boolean))];
 }
 
 class ElevatorApiError extends Error {
@@ -210,6 +280,29 @@ function unwrapCollection(response: unknown): Record<string, unknown>[] {
 
   if (isRecord(response) && Array.isArray(response.data)) {
     return response.data.filter(isRecord);
+  }
+
+  return [];
+}
+
+function unwrapDuplicateRecords(response: unknown): Record<string, unknown>[] {
+  const records = unwrapCollection(response);
+  if (records.length > 0) {
+    return records;
+  }
+
+  if (isRecord(response) && isRecord(response.contact)) {
+    return [response.contact];
+  }
+
+  if (isRecord(response) && typeof response.contactId === "string") {
+    return [
+      {
+        id: response.contactId,
+        firstName:
+          typeof response.contactName === "string" ? response.contactName : "",
+      },
+    ];
   }
 
   return [];
