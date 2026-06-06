@@ -51,13 +51,16 @@ export function mapPaymentRecord(
   record: DentalinkRecord,
   treatment: DentalinkTreatment,
 ): PaymentEvent {
+  const paymentAmount = readNumber(record, config.paymentAmountField);
+  const hasTreatmentBudget = treatment.budgetTotal > 0;
+
   return {
     paymentId: readNumber(record, config.paymentIdField),
     patientId: readNumber(record, config.paymentPatientIdField),
     treatmentId: readNumber(record, config.paymentTreatmentIdField),
-    treatmentName: treatment.name ?? null,
-    paymentAmount: readNumber(record, config.paymentAmountField),
-    budgetTotal: treatment.budgetTotal,
+    treatmentName: treatment.name ?? "Pago Dentalink",
+    paymentAmount,
+    budgetTotal: hasTreatmentBudget ? treatment.budgetTotal : paymentAmount,
     currency: treatment.currency ?? "MXN",
     isVoided: readBooleanish(record, config.paymentVoidedField),
     paidAt: readString(record, config.paymentDateField) ?? new Date().toISOString(),
