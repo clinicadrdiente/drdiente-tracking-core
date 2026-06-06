@@ -4,6 +4,8 @@ export interface ElevatorConfig {
   mode: ElevatorMode;
   baseUrl: string;
   apiKey: string;
+  locationId: string;
+  apiVersion: string;
   contactsPath: string;
   searchPath: string;
   stagePathTemplate: string;
@@ -24,13 +26,15 @@ function getEnv(name: string, fallback = ""): string {
 export function getElevatorConfig(): ElevatorConfig {
   return {
     mode: getEnv("ELEVATOR_MODE", "stub") === "api" ? "api" : "stub",
-    baseUrl: getEnv("ELEVATOR_BASE_URL"),
+    baseUrl: getEnv("ELEVATOR_BASE_URL", "https://services.leadconnectorhq.com"),
     apiKey: getEnv("ELEVATOR_API_KEY"),
-    contactsPath: getEnv("ELEVATOR_CONTACTS_PATH", "/contacts"),
+    locationId: getEnv("ELEVATOR_LOCATION_ID"),
+    apiVersion: getEnv("ELEVATOR_API_VERSION", "2021-07-28"),
+    contactsPath: getEnv("ELEVATOR_CONTACTS_PATH", "/contacts/"),
     searchPath: getEnv("ELEVATOR_SEARCH_PATH", "/contacts/search"),
     stagePathTemplate: getEnv(
       "ELEVATOR_STAGE_PATH_TEMPLATE",
-      "/contacts/{id}/stage",
+      "",
     ),
     idField: getEnv("ELEVATOR_ID_FIELD", "id"),
     phoneField: getEnv("ELEVATOR_PHONE_FIELD", "phone"),

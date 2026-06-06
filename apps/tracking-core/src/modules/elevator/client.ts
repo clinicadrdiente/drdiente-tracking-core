@@ -62,9 +62,10 @@ export class ApiElevatorClient implements ElevatorClient {
   async createLead(input: LeadInput): Promise<CanonicalLead> {
     const payload = buildCreateLeadPayload(this.config, input);
     const response = await this.request("POST", this.config.contactsPath, payload);
+    const record = unwrapRecord(response, "contact");
     return mapElevatorRecordToCanonicalLead(
       this.config,
-      response as Record<string, unknown>,
+      record,
     );
   }
 
@@ -74,20 +75,21 @@ export class ApiElevatorClient implements ElevatorClient {
   ): Promise<CanonicalLead[]> {
     const payload = buildSearchPayload(this.config, phone, email);
     const response = await this.request("POST", this.config.searchPath, payload);
+    const records = unwrapCollection(response);
 
-    if (!Array.isArray(response)) {
-      return [];
-    }
-
-    return response.map((record) =>
+    return records.map((record) =>
       mapElevatorRecordToCanonicalLead(
         this.config,
-        record as Record<string, unknown>,
+        record,
       ),
     );
   }
 
   async updateLeadStage(elevatorId: string, stage: string): Promise<void> {
+    if (!this.config.stagePathTemplate) {
+      return;
+    }
+
     const path = this.config.stagePathTemplate.replace("{id}", elevatorId);
     const payload = buildStagePayload(this.config, stage);
     await this.request("PATCH", path, payload);
@@ -103,15 +105,56 @@ export class ApiElevatorClient implements ElevatorClient {
       headers: {
         Authorization: `Bearer ${this.config.apiKey}`,
         "Content-Type": "application/json",
+        Version: this.config.apiVersion,
       },
       body: body ? JSON.stringify(body) : undefined,
     });
 
     if (!response.ok) {
-      throw new Error(`Elevator API request failed with status ${response.status}`);
+      const details = await readErrorDetails(response);
+      throw new Error(
+        `Elevator API request failed with status ${response.status}${details}`,
+      );
     }
 
     return (await response.json()) as unknown;
+  }
+}
+
+function unwrapRecord(response: unknown, preferredKey: string): Record<string, unknown> {
+  if (isRecord(response) && isRecord(response[preferredKey])) {
+    return response[preferredKey];
+  }
+
+  return isRecord(response) ? response : {};
+}
+
+function unwrapCollection(response: unknown): Record<string, unknown>[] {
+  if (Array.isArray(response)) {
+    return response.filter(isRecord);
+  }
+
+  if (isRecord(response) && Array.isArray(response.contacts)) {
+    return response.contacts.filter(isRecord);
+  }
+
+  if (isRecord(response) && Array.isArray(response.data)) {
+    return response.data.filter(isRecord);
+  }
+
+  return [];
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+async function readErrorDetails(response: Response): Promise<string> {
+  try {
+    const body = await response.text();
+    return body ? `: ${body.slice(0, 300)}` : "";
+  } catch {
+    return "";
   }
 }
 

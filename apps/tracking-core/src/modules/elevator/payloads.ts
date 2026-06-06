@@ -24,12 +24,16 @@ export function buildCreateLeadPayload(
   input: LeadInput,
 ): ElevatorRecord {
   return {
+    locationId: config.locationId,
     [config.firstNameField]: input.firstName,
     [config.lastNameField]: input.lastName ?? null,
     [config.phoneField]: normalizePhone(input.phone),
     [config.emailField]: normalizeEmail(input.email),
-    [config.branchField]: input.branch,
-    ...toAttributionFields(input.attribution, config.attributionFieldPrefix),
+    source: input.attribution.utmSource ?? "DrDiente Tracking Core",
+    tags: ["tracking-core", input.branch].filter(Boolean),
+    customFields: Object.entries(
+      toAttributionFields(input.attribution, config.attributionFieldPrefix),
+    ).map(([key, value]) => ({ key, field_value: value })),
   };
 }
 
@@ -38,9 +42,28 @@ export function buildSearchPayload(
   phone: string,
   email?: string | null,
 ): ElevatorRecord {
+  const filters = [
+    {
+      field: config.phoneField,
+      operator: "eq",
+      value: normalizePhone(phone),
+    },
+  ];
+  const normalizedEmail = normalizeEmail(email);
+
+  if (normalizedEmail) {
+    filters.push({
+      field: config.emailField,
+      operator: "eq",
+      value: normalizedEmail,
+    });
+  }
+
   return {
-    [config.phoneField]: normalizePhone(phone),
-    [config.emailField]: normalizeEmail(email),
+    locationId: config.locationId,
+    page: 1,
+    pageLimit: 20,
+    filters,
   };
 }
 

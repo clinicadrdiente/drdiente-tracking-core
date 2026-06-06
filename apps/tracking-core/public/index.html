@@ -650,6 +650,10 @@
                   <strong>Probar Dentalink</strong>
                   <span>Valida conexion y endpoints principales.</span>
                 </button>
+                <button id="testElevator" class="action-card" type="button">
+                  <strong>Probar Elevator</strong>
+                  <span>Valida token, location y busqueda de contactos.</span>
+                </button>
                 <button id="diagnosePayments" class="action-card" type="button">
                   <strong>Diagnosticar pagos</strong>
                   <span>Cuenta pagos por 7, 30 y 90 dias y muestra pagos recientes.</span>
@@ -678,7 +682,7 @@
                   <tr>
                     <td>Elevator</td>
                     <td id="tableElevator">-</td>
-                    <td><span class="pill">Pendiente real</span></td>
+                    <td><span id="elevatorPill" class="pill">Pendiente prueba</span></td>
                   </tr>
                   <tr>
                     <td>Stape</td>
@@ -743,6 +747,7 @@
       document.getElementById("testLead").addEventListener("click", () => postAction("/api/dev/test-lead"));
       document.getElementById("testSync").addEventListener("click", () => postAction("/api/dev/test-payment-sync"));
       document.getElementById("testDentalink").addEventListener("click", () => getAction("/api/dev/dentalink-ping"));
+      document.getElementById("testElevator").addEventListener("click", () => getAction("/api/dev/elevator-ping"));
       document.getElementById("diagnosePayments").addEventListener("click", diagnosePayments);
       document.getElementById("diagnosePaymentsTop").addEventListener("click", diagnosePayments);
 
@@ -774,6 +779,7 @@
         setText("tableElevator", body.integrations.elevator);
         setText("tableDentalink", body.integrations.dentalink);
         setText("tableStape", body.integrations.stape);
+        setElevatorPill(body.integrations.elevator);
         setText("lastCheck", body.paymentSync.lastCheckIso ? shortDate(body.paymentSync.lastCheckIso) : "Sin sync");
         setText("processedPayments", body.paymentSync.processedPaymentCount);
         setText("threshold", `${body.config.highTicketThreshold} ${body.config.defaultCurrency}`);
@@ -910,6 +916,16 @@
         if (element) {
           element.textContent = value ?? "-";
         }
+      }
+
+      function setElevatorPill(mode) {
+        const element = document.getElementById("elevatorPill");
+        if (!element) {
+          return;
+        }
+
+        element.textContent = mode === "api" ? "Listo para probar" : "Pendiente real";
+        element.classList.toggle("ok", mode === "api");
       }
 
       function shortDate(value) {
