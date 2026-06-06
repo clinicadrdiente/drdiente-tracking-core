@@ -60,6 +60,11 @@ export class ApiElevatorClient implements ElevatorClient {
   ) {}
 
   async createLead(input: LeadInput): Promise<CanonicalLead> {
+    const existingLeads = await this.findLeadsByIdentity(input.phone, null);
+    if (existingLeads[0]) {
+      return existingLeads[0];
+    }
+
     const payload = buildCreateLeadPayload(this.config, input);
     const response = await this.request("POST", this.config.contactsPath, payload);
     const record = unwrapRecord(response, "contact");

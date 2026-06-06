@@ -67,8 +67,13 @@ export function mapElevatorRecordToCanonicalLead(
 
   return {
     elevatorId: readString(record, config.idField) ?? "unknown",
-    firstName: readString(record, config.firstNameField) ?? "",
-    lastName: readString(record, config.lastNameField),
+    firstName:
+      readString(record, "firstName") ??
+      readString(record, config.firstNameField) ??
+      "",
+    lastName:
+      readString(record, "lastName") ??
+      readString(record, config.lastNameField),
     phoneRaw,
     phoneNormalized: normalizePhone(phoneRaw),
     emailRaw,
