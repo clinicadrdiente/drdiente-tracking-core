@@ -1,4 +1,5 @@
 import { trackingHttpHandlers } from "../../src/index.js";
+import { getAppConfig } from "../../src/config/app-config.js";
 import {
   methodNotAllowed,
   send,
@@ -15,6 +16,15 @@ export default async function handler(
     methodNotAllowed(response);
     return;
   }
+
+  const config = getAppConfig();
+  const since = new Date(
+    Date.now() - config.paymentsSyncLookbackMinutes * 60_000,
+  ).toISOString();
+  request.query = {
+    ...request.query,
+    since,
+  };
 
   const result = await trackingHttpHandlers.postPaymentsSync(
     toHttpRequest(request),
