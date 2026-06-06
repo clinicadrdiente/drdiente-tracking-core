@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/button";
 import { XIcon } from "lucide-react";
 
 const latestChange = {
-	badge: "UPDATE",
-	title: "Smarter shipping quotes",
-	description: "Real-time rates at checkout now.", // TIP: Use a single line of text for the description. (max 5 words)
-	readMore: { href: "#", label: "Changelog" },
+	badge: "SISTEMA",
+	title: "Dentalink conectado",
+	description: "Revenue mensual en vivo.",
+	readMore: { href: "#/status", label: "Ver estado" },
 } as const;
 
 export function LatestChange() {

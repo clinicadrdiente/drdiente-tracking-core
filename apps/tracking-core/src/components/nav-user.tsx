@@ -14,12 +14,12 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { UserIcon, BellIcon, CommandIcon, LifeBuoyIcon, BookOpenIcon, CreditCardIcon, LogOutIcon } from "lucide-react";
+import { UserIcon, BellIcon, CommandIcon, LifeBuoyIcon, BookOpenIcon, ShieldIcon, LogOutIcon } from "lucide-react";
 
 const user = {
-	name: "Shaban Haider",
-	email: "shaban@efferd.com",
-	avatar: "https://github.com/shabanhr.png",
+	name: "DrDiente Ops",
+	email: "marketingclinicadrdiente@gmail.com",
+	avatar: "",
 };
 
 export function NavUser() {
@@ -45,7 +45,7 @@ export function NavUser() {
 								{user.email}
 							</div>
 							<div className="mt-0.5 text-[10px] text-muted-foreground">
-								Store owner
+								Panel interno
 							</div>
 						</div>
 					</DropdownMenuLabel>
@@ -55,7 +55,7 @@ export function NavUser() {
 					<DropdownMenuItem>
 						<UserIcon
 						/>
-						Profile
+						Perfil
 					</DropdownMenuItem>
 				</DropdownMenuGroup>
 				<DropdownMenuSeparator />
@@ -63,12 +63,12 @@ export function NavUser() {
 					<DropdownMenuItem>
 						<BellIcon
 						/>
-						Notifications
+						Notificaciones
 					</DropdownMenuItem>
 					<DropdownMenuItem>
 						<CommandIcon
 						/>
-						Keyboard shortcuts
+						Atajos del panel
 					</DropdownMenuItem>
 				</DropdownMenuGroup>
 				<DropdownMenuSeparator />
@@ -76,20 +76,20 @@ export function NavUser() {
 					<DropdownMenuItem>
 						<LifeBuoyIcon
 						/>
-						Seller help
+						Ayuda interna
 					</DropdownMenuItem>
 					<DropdownMenuItem>
 						<BookOpenIcon
 						/>
-						Seller guides
+						Documentacion
 					</DropdownMenuItem>
 				</DropdownMenuGroup>
 				<DropdownMenuSeparator />
 				<DropdownMenuGroup>
 					<DropdownMenuItem>
-						<CreditCardIcon
+						<ShieldIcon
 						/>
-						Plan & billing
+						Acceso y seguridad
 					</DropdownMenuItem>
 				</DropdownMenuGroup>
 				<DropdownMenuSeparator />
@@ -100,7 +100,7 @@ export function NavUser() {
 					>
 						<LogOutIcon
 						/>
-						Log out
+						Salir
 					</DropdownMenuItem>
 				</DropdownMenuGroup>
 			</DropdownMenuContent>

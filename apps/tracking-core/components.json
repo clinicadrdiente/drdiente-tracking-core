@@ -21,7 +21,5 @@
   },
   "menuColor": "default",
   "menuAccent": "subtle",
-  "registries": {
-    "@efferd": "https://efferd.com/r/radix-nova/{name}.json"
-  }
+  "registries": {}
 }

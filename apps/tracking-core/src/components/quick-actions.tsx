@@ -14,40 +14,38 @@ import {
 	ItemMedia,
 	ItemTitle,
 } from "@/components/ui/item";
-import { PackagePlusIcon, TruckIcon, SettingsIcon, DownloadIcon, ChevronRightIcon } from "lucide-react";
+import {
+	CalendarDaysIcon,
+	ChevronRightIcon,
+	DownloadIcon,
+	RefreshCwIcon,
+	SendIcon,
+} from "lucide-react";
 
 const actions = [
 	{
-		title: "Add product",
-		description: "Create a new SKU.",
-		href: "#",
-		icon: (
-			<PackagePlusIcon aria-hidden="true" />
-		),
+		title: "Actualizar Dentalink",
+		description: "Traer pagos y pacientes recientes.",
+		href: "#/dentalink",
+		icon: <RefreshCwIcon aria-hidden="true" />,
 	},
 	{
-		title: "Review unfulfilled",
-		description: "Orders waiting to ship.",
-		href: "#",
-		icon: (
-			<TruckIcon aria-hidden="true" />
-		),
+		title: "Revisar matching",
+		description: "Cruzar pagos contra Elevator.",
+		href: "#/elevator/matching",
+		icon: <SendIcon aria-hidden="true" />,
 	},
 	{
-		title: "Store settings",
-		description: "Payments, checkouts etc.",
-		href: "#",
-		icon: (
-			<SettingsIcon aria-hidden="true" />
-		),
+		title: "Bloques del mes",
+		description: "Dia 1 al ultimo dia.",
+		href: "#/dentalink/payments",
+		icon: <CalendarDaysIcon aria-hidden="true" />,
 	},
 	{
-		title: "Export sales",
-		description: "CSV for accountings.",
-		href: "#",
-		icon: (
-			<DownloadIcon aria-hidden="true" />
-		),
+		title: "Exportar reporte",
+		description: "Revenue y pacientes del mes.",
+		href: "#/reports",
+		icon: <DownloadIcon aria-hidden="true" />,
 	},
 ] as const;
 
@@ -55,8 +53,8 @@ export function QuickActions() {
 	return (
 		<Card>
 			<CardHeader>
-				<CardTitle>Quick actions</CardTitle>
-				<CardDescription>Shortcuts to same destinations.</CardDescription>
+				<CardTitle>Acciones rapidas</CardTitle>
+				<CardDescription>Atajos operativos de la clinica.</CardDescription>
 			</CardHeader>
 			<CardContent>
 				<ItemGroup className="gap-0">

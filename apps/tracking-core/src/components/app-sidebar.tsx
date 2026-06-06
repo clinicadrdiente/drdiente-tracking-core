@@ -1,6 +1,5 @@
 "use client";
 
-import { LogoIcon } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import {
 	Sidebar,
@@ -15,7 +14,7 @@ import {
 import { NavGroup } from "@/components/nav-group";
 import { footerNavLinks, navGroups } from "@/components/app-shared";
 import { LatestChange } from "@/components/latest-change";
-import { PlusIcon, SearchIcon } from "lucide-react";
+import { RefreshCwIcon, SearchIcon } from "lucide-react";
 
 export function AppSidebar() {
 	return (
@@ -23,8 +22,10 @@ export function AppSidebar() {
 			<SidebarHeader className="h-14 justify-center">
 				<SidebarMenuButton asChild>
 					<a href="#link">
-						<LogoIcon />
-						<span className="font-medium">Efferd</span>
+						<span className="grid size-7 place-items-center rounded-lg bg-emerald-300 font-bold text-black text-xs">
+							DD
+						</span>
+						<span className="font-medium">CLINICA DR DIENTE</span>
 					</a>
 				</SidebarMenuButton>
 			</SidebarHeader>
@@ -33,21 +34,21 @@ export function AppSidebar() {
 					<SidebarMenuItem className="flex items-center gap-2">
 						<SidebarMenuButton
 							className="min-w-8 bg-primary text-primary-foreground duration-200 ease-linear hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground"
-							tooltip="Add product"
+							tooltip="Actualizar Dentalink"
 						>
-							<PlusIcon
+							<RefreshCwIcon
 							/>
-							<span>Add product</span>
+							<span>Actualizar datos</span>
 						</SidebarMenuButton>
 						<Button
-							aria-label="Search store"
+							aria-label="Buscar paciente"
 							className="size-8 group-data-[collapsible=icon]:opacity-0"
 							size="icon"
 							variant="outline"
 						>
 							<SearchIcon
 							/>
-							<span className="sr-only">Search store</span>
+							<span className="sr-only">Buscar paciente</span>
 						</Button>
 					</SidebarMenuItem>
 				</SidebarGroup>

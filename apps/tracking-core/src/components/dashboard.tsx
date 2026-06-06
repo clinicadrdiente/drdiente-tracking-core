@@ -152,10 +152,10 @@ export function Dashboard() {
       <section className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="font-medium text-emerald-400 text-xs tracking-[0.32em] uppercase">
-            Dentalink revenue room
+            CLINICA DR DIENTE
           </p>
           <h1 className="text-balance font-semibold text-4xl tracking-tight md:text-6xl">
-            DrDiente revenue dashboard.
+            Panel operativo de CLINICA DR DIENTE.
           </h1>
           <p className="mt-2 text-muted-foreground">
             Pagos reales del mes, pacientes y conversiones listas para Elevator + Stape.

@@ -19,7 +19,7 @@ import {
 import { Delta, DeltaIcon, DeltaValue } from "@/components/delta";
 import { ArrowRightIcon } from "lucide-react";
 
-/** Daily return rate (% of fulfilled orders returned), last 7 days (demo). */
+/** Daily adjustment rate (% of clinical payments adjusted), last 7 days (demo). */
 const returnDaily7 = [
 	{ day: "Mon", returnRate: 2.2 },
 	{ day: "Tue", returnRate: 1.5 },
@@ -30,7 +30,7 @@ const returnDaily7 = [
 	{ day: "Sun", returnRate: 3.9 },
 ] as const;
 
-/** Share of orders that were refunded over the same window (demo). */
+/** Share of payments that were adjusted over the same window (demo). */
 const REFUNDED_SHARE_OF_ORDERS_PCT = 2.6;
 
 const chartConfig = {
@@ -59,7 +59,7 @@ export function RefundReturnRateChart() {
 					<CardTitle className="text-right">
 						{REFUNDED_SHARE_OF_ORDERS_PCT}%
 					</CardTitle>
-					<CardDescription>of orders refunded</CardDescription>
+					<CardDescription>de pagos ajustados</CardDescription>
 				</div>
 			</CardHeader>
 			<CardContent className="mt-auto">
@@ -108,7 +108,7 @@ export function RefundReturnRateChart() {
 					size="xs"
 					variant="ghost"
 				>
-					<a href="#/orders/returns">
+					<a href="#/dentalink/adjustments">
 						Returns desk
 						<ArrowRightIcon aria-hidden="true" data-icon="inline-end" />
 					</a>

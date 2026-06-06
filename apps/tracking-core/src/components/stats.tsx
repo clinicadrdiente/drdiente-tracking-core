@@ -22,7 +22,7 @@ const stats: readonly Stat[] = [
 		hint: "vs prior 30 days",
 	},
 	{
-		label: "Orders",
+		label: "Pagos",
 		value: "1,842",
 		delta: 4.1,
 		hint: "vs prior 30 days",
@@ -34,7 +34,7 @@ const stats: readonly Stat[] = [
 		hint: "vs prior 30 days",
 	},
 	{
-		label: "Store conversion",
+		label: "Conversion clinica",
 		value: "3.06%",
 		delta: 0.6,
 		hint: "vs prior 30 days",
