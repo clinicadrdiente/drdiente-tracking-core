@@ -1,6 +1,7 @@
 import type {
   AppointmentEvent,
   DentalinkPatient,
+  DentalinkTreatment,
   PaymentEvent,
 } from "../../types/domain.js";
 import { getDentalinkConfig, type DentalinkConfig } from "./config.js";
@@ -84,18 +85,54 @@ export class ApiDentalinkClient implements DentalinkClient {
   async listRecentPayments(sinceIso: string): Promise<PaymentEvent[]> {
     const query = buildPaymentsQuery(sinceIso);
     const path = `${this.config.paymentsPath}?${query}`;
-    const response = await this.request("GET", path);
-    const paymentRecords = unwrapCollection(response);
+    const response = await this.requestWithFallbackForBadFilter(path);
+    const paymentRecords = unwrapCollection(response).filter((record) =>
+      isRecordOnOrAfter(record, this.config.paymentDateField, sinceIso),
+    );
     const payments: PaymentEvent[] = [];
 
     for (const paymentRecord of paymentRecords) {
       const record = paymentRecord;
       const treatmentId = record[this.config.paymentTreatmentIdField];
-      const treatment = await this.getTreatment(Number(treatmentId));
+      const treatment = await this.getTreatmentIfAvailable(Number(treatmentId));
       payments.push(mapPaymentRecord(this.config, record, treatment));
     }
 
     return payments;
+  }
+
+  private async requestWithFallbackForBadFilter(path: string): Promise<unknown> {
+    try {
+      return await this.request("GET", path);
+    } catch (error) {
+      if (
+        error instanceof DentalinkRequestError &&
+        error.status === 400 &&
+        path.includes("?")
+      ) {
+        return this.request("GET", this.config.paymentsPath);
+      }
+
+      throw error;
+    }
+  }
+
+  private async getTreatmentIfAvailable(
+    treatmentId: number,
+  ): Promise<DentalinkTreatment> {
+    if (!Number.isFinite(treatmentId) || treatmentId <= 0) {
+      return emptyTreatment(treatmentId);
+    }
+
+    try {
+      return await this.getTreatment(treatmentId);
+    } catch (error) {
+      if (error instanceof DentalinkRequestError && error.status === 404) {
+        return emptyTreatment(treatmentId);
+      }
+
+      throw error;
+    }
   }
 
   private async getTreatment(treatmentId: number) {
@@ -127,12 +164,23 @@ export class ApiDentalinkClient implements DentalinkClient {
     });
 
     if (!response.ok) {
-      throw new Error(
+      throw new DentalinkRequestError(
+        response.status,
         `Dentalink API request failed with status ${response.status} for ${url.pathname}`,
       );
     }
 
     return (await response.json()) as unknown;
+  }
+}
+
+class DentalinkRequestError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = "DentalinkRequestError";
   }
 }
 
@@ -169,4 +217,27 @@ function unwrapCollection(response: unknown): Record<string, unknown>[] {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function isRecordOnOrAfter(
+  record: Record<string, unknown>,
+  dateField: string,
+  sinceIso: string,
+): boolean {
+  const value = record[dateField];
+
+  if (typeof value !== "string" || value.trim() === "") {
+    return true;
+  }
+
+  const date = Date.parse(value);
+  return Number.isNaN(date) ? true : date >= Date.parse(sinceIso);
+}
+
+function emptyTreatment(treatmentId: number): DentalinkTreatment {
+  return {
+    treatmentId,
+    name: null,
+    budgetTotal: 0,
+  };
 }
