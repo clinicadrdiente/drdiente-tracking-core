@@ -116,7 +116,8 @@ export class ApiDentalinkClient implements DentalinkClient {
     path: string,
     body?: Record<string, unknown>,
   ): Promise<unknown> {
-    const response = await this.fetchImpl(new URL(path, this.config.baseUrl), {
+    const url = new URL(path.replace(/^\/+/, ""), this.config.baseUrl);
+    const response = await this.fetchImpl(url, {
       method,
       headers: {
         Authorization: `${this.config.apiAuthScheme} ${this.config.apiToken}`,
@@ -126,7 +127,9 @@ export class ApiDentalinkClient implements DentalinkClient {
     });
 
     if (!response.ok) {
-      throw new Error(`Dentalink API request failed with status ${response.status}`);
+      throw new Error(
+        `Dentalink API request failed with status ${response.status} for ${url.pathname}`,
+      );
     }
 
     return (await response.json()) as unknown;
