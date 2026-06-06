@@ -54,7 +54,7 @@ export class TrackingApp {
     );
   }
 
-  async syncPayments(sinceIso?: string) {
+  async syncPayments(sinceIso?: string, maxPayments?: number) {
     const state = await this.services.stateStore.getPaymentSyncState();
     const resolvedSinceIso =
       sinceIso ??
@@ -72,6 +72,7 @@ export class TrackingApp {
       this.services.stateStore,
       resolvedSinceIso,
       this.services.config.highTicketThreshold,
+      maxPayments,
     );
   }
 }

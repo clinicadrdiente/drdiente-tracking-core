@@ -6,6 +6,7 @@ import { parseAppointmentInput, parseLeadInput } from "./validation.js";
 
 export interface PaymentsSyncQuery {
   since?: string;
+  maxPayments?: string | number;
 }
 
 export class TrackingHttpHandlers {
@@ -78,7 +79,11 @@ export class TrackingHttpHandlers {
     }
 
     try {
-      const result = await this.app.syncPayments(request.query?.since);
+      const maxPayments = Number(request.query?.maxPayments);
+      const result = await this.app.syncPayments(
+        request.query?.since,
+        Number.isFinite(maxPayments) ? maxPayments : undefined,
+      );
       return ok(result, 202);
     } catch (error) {
       return serverError("failed to sync payments", {

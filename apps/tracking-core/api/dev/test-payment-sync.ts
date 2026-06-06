@@ -20,6 +20,7 @@ export default async function handler(
   request.query = {
     ...request.query,
     since,
+    maxPayments: "10",
   };
 
   const result = await trackingHttpHandlers.postPaymentsSync(

@@ -1,4 +1,5 @@
 import type { DentalinkClient } from "../modules/dentalink/client.js";
+import { DentalinkRequestError } from "../modules/dentalink/client.js";
 import type { ElevatorClient } from "../modules/elevator/client.js";
 import type { StapeClient } from "../modules/stape/client.js";
 import { buildPurchaseEvent } from "../modules/payments/build-purchase-event.js";
@@ -15,18 +16,33 @@ export async function handlePaymentsSync(
   stateStore: StateStore,
   sinceIso: string,
   highTicketThreshold: number,
+  maxPayments?: number,
 ) {
-  const payments = await dentalinkClient.listRecentPayments(sinceIso);
+  const payments = await dentalinkClient.listRecentPayments(sinceIso, maxPayments);
   const unprocessedPayments = await filterUnprocessedPayments(
     stateStore,
     payments,
   );
   let matchedLeads = 0;
   let unmatchedLeads = 0;
+  let rateLimitedPatients = 0;
   let dispatched = 0;
+  const safeToMarkProcessed = [];
 
   for (const payment of unprocessedPayments) {
-    const patient = await dentalinkClient.getPatient(payment.patientId);
+    let patient;
+    try {
+      patient = await dentalinkClient.getPatient(payment.patientId);
+    } catch (error) {
+      if (error instanceof DentalinkRequestError && error.status === 429) {
+        rateLimitedPatients += 1;
+        continue;
+      }
+
+      throw error;
+    }
+
+    safeToMarkProcessed.push(payment);
     const leads = await elevatorClient.findLeadsByIdentity(
       patient.phone ?? "",
       patient.email,
@@ -48,7 +64,7 @@ export async function handlePaymentsSync(
     dispatched += 1;
   }
 
-  await markPaymentsProcessed(stateStore, unprocessedPayments);
+  await markPaymentsProcessed(stateStore, safeToMarkProcessed);
   await stateStore.savePaymentSyncState({
     lastCheckIso: new Date().toISOString(),
     processedPaymentIds: (
@@ -63,8 +79,10 @@ export async function handlePaymentsSync(
     paymentsFound: payments.length,
     alreadyProcessed: payments.length - unprocessedPayments.length,
     newPayments: unprocessedPayments.length,
+    maxPayments: maxPayments ?? null,
     matchedLeads,
     unmatchedLeads,
+    rateLimitedPatients,
     dispatched,
   };
 }

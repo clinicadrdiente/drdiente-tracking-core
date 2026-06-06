@@ -16,7 +16,7 @@ import {
 export interface DentalinkClient {
   getPatient(patientId: number): Promise<DentalinkPatient>;
   setPatientElevatorId(patientId: number, elevatorId: string): Promise<void>;
-  listRecentPayments(sinceIso: string): Promise<PaymentEvent[]>;
+  listRecentPayments(sinceIso: string, limit?: number): Promise<PaymentEvent[]>;
 }
 
 export class StubDentalinkClient implements DentalinkClient {
@@ -38,7 +38,10 @@ export class StubDentalinkClient implements DentalinkClient {
     return;
   }
 
-  async listRecentPayments(_sinceIso: string): Promise<PaymentEvent[]> {
+  async listRecentPayments(
+    _sinceIso: string,
+    limit?: number,
+  ): Promise<PaymentEvent[]> {
     return [
       {
         paymentId: 9123,
@@ -51,7 +54,7 @@ export class StubDentalinkClient implements DentalinkClient {
         isVoided: false,
         paidAt: new Date().toISOString(),
       },
-    ];
+    ].slice(0, limit);
   }
 }
 
@@ -82,13 +85,15 @@ export class ApiDentalinkClient implements DentalinkClient {
     await this.request("PUT", path, payload);
   }
 
-  async listRecentPayments(sinceIso: string): Promise<PaymentEvent[]> {
+  async listRecentPayments(sinceIso: string, limit?: number): Promise<PaymentEvent[]> {
     const query = buildPaymentsQuery(this.config.paymentDateField, sinceIso);
     const path = `${this.config.paymentsPath}?${query}`;
     const response = await this.request("GET", path);
-    const paymentRecords = unwrapCollection(response).filter((record) =>
-      isRecordOnOrAfter(record, this.config.paymentDateField, sinceIso),
-    );
+    const paymentRecords = unwrapCollection(response)
+      .filter((record) =>
+        isRecordOnOrAfter(record, this.config.paymentDateField, sinceIso),
+      )
+      .slice(0, limit);
     const payments: PaymentEvent[] = [];
 
     for (const paymentRecord of paymentRecords) {
@@ -158,7 +163,7 @@ export class ApiDentalinkClient implements DentalinkClient {
   }
 }
 
-class DentalinkRequestError extends Error {
+export class DentalinkRequestError extends Error {
   constructor(
     readonly status: number,
     message: string,
