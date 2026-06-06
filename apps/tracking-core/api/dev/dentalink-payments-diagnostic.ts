@@ -19,6 +19,7 @@ interface PaymentWindowProbe {
   returnedCount: number | null;
   responseShape: string[];
   samplePaymentShape: PaymentShape | null;
+  recentPayments?: RecentPayment[];
 }
 
 interface PaymentShape {
@@ -27,6 +28,18 @@ interface PaymentShape {
     type: string;
   }>;
   expectedFields: Record<string, boolean>;
+}
+
+interface RecentPayment {
+  id: number;
+  patientId: number;
+  patientName: string | null;
+  branch: string | null;
+  amount: number;
+  paymentMethod: string | null;
+  createdAt: string | null;
+  folio: string | null;
+  reference: string | null;
 }
 
 const WINDOWS = [
@@ -104,6 +117,7 @@ export default async function handler(
         mode: config.mode,
         paymentDateField: config.paymentDateField,
         paymentAmountField: config.paymentAmountField,
+        recentPayments: probes[0]?.recentPayments ?? [],
         probes,
       },
     });
@@ -177,6 +191,10 @@ async function probePaymentsWindow(
     samplePaymentShape: collection?.[0]
       ? describePaymentShape(collection[0], expectedFields)
       : null,
+    recentPayments:
+      lookbackDays === 7 && collection
+        ? collection.slice(0, 10).map(describeRecentPayment)
+        : undefined,
   };
 }
 
@@ -246,4 +264,38 @@ function describeValueType(value: unknown): string {
   }
 
   return typeof value;
+}
+
+function describeRecentPayment(payment: Record<string, unknown>): RecentPayment {
+  return {
+    id: readNumber(payment, "id"),
+    patientId: readNumber(payment, "id_paciente"),
+    patientName: readString(payment, "nombre_paciente"),
+    branch: readString(payment, "nombre_sucursal"),
+    amount: readNumber(payment, "monto_pago"),
+    paymentMethod: readString(payment, "medio_pago"),
+    createdAt: readString(payment, "fecha_creacion"),
+    folio: readString(payment, "folio"),
+    reference: readString(payment, "numero_referencia"),
+  };
+}
+
+function readString(record: Record<string, unknown>, key: string): string | null {
+  const value = record[key];
+  return typeof value === "string" && value.trim() !== "" ? value : null;
+}
+
+function readNumber(record: Record<string, unknown>, key: string): number {
+  const value = record[key];
+
+  if (typeof value === "number") {
+    return value;
+  }
+
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  return 0;
 }

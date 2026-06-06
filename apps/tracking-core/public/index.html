@@ -442,6 +442,15 @@
         text-align: right;
       }
 
+      .table-wrap {
+        overflow-x: auto;
+      }
+
+      .money {
+        color: var(--green);
+        font-weight: 800;
+      }
+
       .pill {
         display: inline-flex;
         align-items: center;
@@ -683,6 +692,31 @@
 
           <article class="card span-12">
             <div class="card-inner">
+              <p class="label">Pagos recientes Dentalink</p>
+              <div class="table-wrap">
+                <table class="table">
+                  <thead>
+                    <tr>
+                      <th>Fecha</th>
+                      <th>Paciente</th>
+                      <th>Sucursal</th>
+                      <th>Medio</th>
+                      <th>Folio</th>
+                      <th>Monto</th>
+                    </tr>
+                  </thead>
+                  <tbody id="recentPaymentsBody">
+                    <tr>
+                      <td colspan="6">Presiona "Diagnosticar pagos" para cargar pagos reales.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </article>
+
+          <article class="card span-12">
+            <div class="card-inner">
               <p class="label">Consola</p>
               <pre id="console" class="console">Pega el TRACKING_API_SECRET y presiona "Actualizar estado".</pre>
             </div>
@@ -771,6 +805,8 @@
             bar.style.height = `${Math.max(4, Math.round((item.count / max) * 100))}%`;
           }
         }
+
+        renderRecentPayments(result.body.recentPayments || []);
       }
 
       async function postAction(path) {
@@ -811,6 +847,45 @@
 
       function writeOutput(value) {
         output.textContent = JSON.stringify(value, null, 2);
+      }
+
+      function renderRecentPayments(payments) {
+        const body = document.getElementById("recentPaymentsBody");
+        if (!body) return;
+
+        if (!Array.isArray(payments) || payments.length === 0) {
+          body.innerHTML = '<tr><td colspan="6">No hay pagos recientes para mostrar.</td></tr>';
+          return;
+        }
+
+        body.innerHTML = payments.map((payment) => `
+          <tr>
+            <td>${escapeHtml(shortDate(payment.createdAt))}</td>
+            <td>${escapeHtml(payment.patientName || "-")}</td>
+            <td>${escapeHtml(payment.branch || "-")}</td>
+            <td>${escapeHtml(payment.paymentMethod || "-")}</td>
+            <td>${escapeHtml(payment.folio || payment.reference || "-")}</td>
+            <td><span class="money">${formatMoney(payment.amount)}</span></td>
+          </tr>
+        `).join("");
+      }
+
+      function formatMoney(value) {
+        const amount = Number(value || 0);
+        return new Intl.NumberFormat("es-MX", {
+          style: "currency",
+          currency: "MXN",
+          maximumFractionDigits: 0,
+        }).format(amount);
+      }
+
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
       }
 
       function setHealth(ok, text) {
