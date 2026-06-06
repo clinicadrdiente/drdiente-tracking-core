@@ -576,17 +576,17 @@
 
           <article class="card span-3">
             <div class="card-inner">
-              <p class="label">Pagos procesados</p>
-              <p id="processedPayments" class="metric">-</p>
-              <p class="submetric">Deduplicados por payment id</p>
+              <p class="label">Ultimo sync</p>
+              <p id="lastSyncDispatched" class="metric">-</p>
+              <p class="submetric">Eventos enviados en la ultima prueba</p>
             </div>
           </article>
 
           <article class="card span-3">
             <div class="card-inner">
-              <p class="label">Ventana sync</p>
-              <p id="lookback" class="metric">-</p>
-              <p class="submetric">Minutos de busqueda</p>
+              <p class="label">Pagos vistos</p>
+              <p id="processedPayments" class="metric">-</p>
+              <p class="submetric">Deduplicados por payment id</p>
             </div>
           </article>
 
@@ -602,7 +602,7 @@
             <div class="card-inner">
               <p class="label">Diagnostico de pagos Dentalink</p>
               <p class="submetric" style="margin-bottom: 10px">
-                Conteos por ventana. No se muestran datos clinicos ni pagos individuales.
+                Vista interna protegida: conteos por ventana y ultimos pagos reales de Dentalink.
               </p>
               <div class="chart">
                 <div class="bar-wrap">
@@ -644,7 +644,7 @@
                 </button>
                 <button id="testSync" class="action-card" type="button">
                   <strong>Probar sync pagos</strong>
-                  <span>Ejecuta sync con ventana de prueba amplia.</span>
+                  <span>Ejecuta sync de prueba con ventana fija de 7 dias y maximo 10 pagos.</span>
                 </button>
                 <button id="testDentalink" class="action-card" type="button">
                   <strong>Probar Dentalink</strong>
@@ -652,7 +652,7 @@
                 </button>
                 <button id="diagnosePayments" class="action-card" type="button">
                   <strong>Diagnosticar pagos</strong>
-                  <span>Cuenta pagos por 7, 30 y 90 dias.</span>
+                  <span>Cuenta pagos por 7, 30 y 90 dias y muestra pagos recientes.</span>
                 </button>
               </div>
             </div>
@@ -777,7 +777,6 @@
         setText("lastCheck", body.paymentSync.lastCheckIso ? shortDate(body.paymentSync.lastCheckIso) : "Sin sync");
         setText("processedPayments", body.paymentSync.processedPaymentCount);
         setText("threshold", `${body.config.highTicketThreshold} ${body.config.defaultCurrency}`);
-        setText("lookback", body.config.paymentsSyncLookbackMinutes);
         setText("secretConfigured", body.config.trackingSecretConfigured ? "si" : "no");
       }
 
@@ -788,6 +787,7 @@
         }
 
         if (!result.ok || !result.body || !Array.isArray(result.body.probes)) {
+          renderRecentPayments([], "No se pudieron cargar pagos. Revisa la consola.");
           return;
         }
 
@@ -812,6 +812,9 @@
       async function postAction(path) {
         const result = await request(path, { method: "POST" });
         writeOutput(result);
+        if (path.includes("test-payment-sync") && result.ok && result.body) {
+          renderSyncSummary(result.body);
+        }
         await refreshStatus(false);
       }
 
@@ -849,12 +852,17 @@
         output.textContent = JSON.stringify(value, null, 2);
       }
 
-      function renderRecentPayments(payments) {
+      function renderSyncSummary(sync) {
+        setText("lastSyncDispatched", sync.dispatched ?? 0);
+        setText("lastCheck", sync.sinceIso ? `Desde ${shortDate(sync.sinceIso)}` : "Prueba ejecutada");
+      }
+
+      function renderRecentPayments(payments, emptyMessage = "No hay pagos recientes para mostrar.") {
         const body = document.getElementById("recentPaymentsBody");
         if (!body) return;
 
         if (!Array.isArray(payments) || payments.length === 0) {
-          body.innerHTML = '<tr><td colspan="6">No hay pagos recientes para mostrar.</td></tr>';
+          body.innerHTML = `<tr><td colspan="6">${escapeHtml(emptyMessage)}</td></tr>`;
           return;
         }
 
@@ -905,11 +913,18 @@
       }
 
       function shortDate(value) {
+        if (!value) return "-";
+
         try {
+          const date = new Date(value);
+          if (Number.isNaN(date.getTime())) {
+            return value;
+          }
+
           return new Intl.DateTimeFormat("es-MX", {
             dateStyle: "medium",
             timeStyle: "short",
-          }).format(new Date(value));
+          }).format(date);
         } catch {
           return value;
         }
