@@ -10,8 +10,8 @@ export function buildCreateLeadPayload(
 ): ElevatorRecord {
   return {
     locationId: config.locationId,
-    [config.firstNameField]: input.firstName,
-    [config.lastNameField]: input.lastName ?? null,
+    firstName: input.firstName,
+    lastName: input.lastName ?? null,
     [config.phoneField]: normalizePhone(input.phone),
     [config.emailField]: normalizeEmail(input.email),
     source: input.attribution.utmSource ?? "DrDiente Tracking Core",
