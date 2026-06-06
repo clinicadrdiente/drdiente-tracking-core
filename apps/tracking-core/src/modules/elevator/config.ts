@@ -40,8 +40,8 @@ export function getElevatorConfig(): ElevatorConfig {
     phoneField: getEnv("ELEVATOR_PHONE_FIELD", "phone"),
     emailField: getEnv("ELEVATOR_EMAIL_FIELD", "email"),
     branchField: getEnv("ELEVATOR_BRANCH_FIELD", "branch"),
-    firstNameField: getEnv("ELEVATOR_FIRST_NAME_FIELD", "first_name"),
-    lastNameField: getEnv("ELEVATOR_LAST_NAME_FIELD", "last_name"),
+    firstNameField: getEnv("ELEVATOR_FIRST_NAME_FIELD", "firstName"),
+    lastNameField: getEnv("ELEVATOR_LAST_NAME_FIELD", "lastName"),
     stageField: getEnv("ELEVATOR_STAGE_FIELD", "stage"),
     attributionFieldPrefix: getEnv("ELEVATOR_ATTRIBUTION_FIELD_PREFIX", "attr_"),
   };

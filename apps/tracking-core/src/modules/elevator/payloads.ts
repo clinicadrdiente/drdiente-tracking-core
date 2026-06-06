@@ -1,23 +1,8 @@
-import type { AttributionData, CanonicalLead, LeadInput } from "../../types/domain.js";
+import type { CanonicalLead, LeadInput } from "../../types/domain.js";
 import { normalizeEmail, normalizePhone } from "../../lib/normalize.js";
 import type { ElevatorConfig } from "./config.js";
 
 type ElevatorRecord = Record<string, unknown>;
-
-function toAttributionFields(
-  attribution: AttributionData,
-  prefix: string,
-): ElevatorRecord {
-  return {
-    [`${prefix}fbclid`]: attribution.fbclid ?? null,
-    [`${prefix}gclid`]: attribution.gclid ?? null,
-    [`${prefix}ttclid`]: attribution.ttclid ?? null,
-    [`${prefix}utm_source`]: attribution.utmSource ?? null,
-    [`${prefix}utm_medium`]: attribution.utmMedium ?? null,
-    [`${prefix}utm_campaign`]: attribution.utmCampaign ?? null,
-    [`${prefix}landing_url`]: attribution.landingUrl ?? null,
-  };
-}
 
 export function buildCreateLeadPayload(
   config: ElevatorConfig,
@@ -31,9 +16,6 @@ export function buildCreateLeadPayload(
     [config.emailField]: normalizeEmail(input.email),
     source: input.attribution.utmSource ?? "DrDiente Tracking Core",
     tags: ["tracking-core", input.branch].filter(Boolean),
-    customFields: Object.entries(
-      toAttributionFields(input.attribution, config.attributionFieldPrefix),
-    ).map(([key, value]) => ({ key, field_value: value })),
   };
 }
 
