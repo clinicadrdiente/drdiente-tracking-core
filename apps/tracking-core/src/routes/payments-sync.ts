@@ -59,6 +59,7 @@ export async function handlePaymentsSync(
   return {
     processed: unprocessedPayments.length,
     skipped: payments.length - unprocessedPayments.length,
+    sinceIso,
     paymentsFound: payments.length,
     alreadyProcessed: payments.length - unprocessedPayments.length,
     newPayments: unprocessedPayments.length,
