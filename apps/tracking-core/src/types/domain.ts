@@ -63,6 +63,11 @@ export interface PaymentEvent {
   patientId: number;
   treatmentId: number;
   treatmentName?: string | null;
+  patientName?: string | null;
+  branch?: string | null;
+  paymentMethod?: string | null;
+  folio?: string | null;
+  reference?: string | null;
   paymentAmount: number;
   budgetTotal: number;
   currency: string;

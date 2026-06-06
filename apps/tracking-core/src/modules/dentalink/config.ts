@@ -18,6 +18,11 @@ export interface DentalinkConfig {
   paymentIdField: string;
   paymentPatientIdField: string;
   paymentTreatmentIdField: string;
+  paymentPatientNameField: string;
+  paymentBranchField: string;
+  paymentMethodField: string;
+  paymentFolioField: string;
+  paymentReferenceField: string;
   paymentAmountField: string;
   paymentVoidedField: string;
   paymentDateField: string;
@@ -65,6 +70,20 @@ export function getDentalinkConfig(): DentalinkConfig {
     paymentTreatmentIdField: getEnv(
       "DENTALINK_PAYMENT_TREATMENT_ID_FIELD",
       "id_tratamiento",
+    ),
+    paymentPatientNameField: getEnv(
+      "DENTALINK_PAYMENT_PATIENT_NAME_FIELD",
+      "nombre_paciente",
+    ),
+    paymentBranchField: getEnv(
+      "DENTALINK_PAYMENT_BRANCH_FIELD",
+      "nombre_sucursal",
+    ),
+    paymentMethodField: getEnv("DENTALINK_PAYMENT_METHOD_FIELD", "medio_pago"),
+    paymentFolioField: getEnv("DENTALINK_PAYMENT_FOLIO_FIELD", "folio"),
+    paymentReferenceField: getEnv(
+      "DENTALINK_PAYMENT_REFERENCE_FIELD",
+      "numero_referencia",
     ),
     paymentAmountField: getEnv("DENTALINK_PAYMENT_AMOUNT_FIELD", "monto_pago"),
     paymentVoidedField: getEnv("DENTALINK_PAYMENT_VOIDED_FIELD", "anulado"),

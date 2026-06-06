@@ -25,10 +25,17 @@ export function buildPurchaseEvent(
       currency: payment.currency,
       value: payment.budgetTotal,
       cash_collected: payment.paymentAmount,
+      dentalink_payment_id: payment.paymentId,
+      dentalink_patient_id: payment.patientId,
+      paid_at: payment.paidAt,
+      payment_method: payment.paymentMethod ?? null,
+      payment_folio: payment.folio ?? null,
+      payment_reference: payment.reference ?? null,
       treatment_id: payment.treatmentId,
       treatment_name: payment.treatmentName ?? null,
-      branch: lead.branch,
+      branch: payment.branch ?? lead.branch,
       tier,
+      source_system: "dentalink",
     },
   };
 }

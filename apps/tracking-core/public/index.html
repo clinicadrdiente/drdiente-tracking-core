@@ -703,16 +703,20 @@
                     <tr>
                       <th>Fecha</th>
                       <th>Paciente</th>
+                      <th>ID Dentalink</th>
                       <th>Email</th>
+                      <th>Telefono</th>
+                      <th>Tratamiento</th>
                       <th>Sucursal</th>
                       <th>Medio</th>
                       <th>Folio</th>
                       <th>Monto</th>
+                      <th>Total tratamiento</th>
                     </tr>
                   </thead>
                   <tbody id="recentPaymentsBody">
                     <tr>
-                      <td colspan="7">Presiona "Diagnosticar pagos" para cargar pagos reales.</td>
+                      <td colspan="11">Presiona "Diagnosticar pagos" para cargar pagos reales.</td>
                     </tr>
                   </tbody>
                 </table>
@@ -869,7 +873,7 @@
         if (!body) return;
 
         if (!Array.isArray(payments) || payments.length === 0) {
-          body.innerHTML = `<tr><td colspan="7">${escapeHtml(emptyMessage)}</td></tr>`;
+          body.innerHTML = `<tr><td colspan="11">${escapeHtml(emptyMessage)}</td></tr>`;
           return;
         }
 
@@ -877,11 +881,15 @@
           <tr>
             <td>${escapeHtml(shortDate(payment.createdAt))}</td>
             <td>${escapeHtml(payment.patientName || "-")}</td>
+            <td>${escapeHtml(payment.patientId || "-")}</td>
             <td>${escapeHtml(payment.patientEmail || emailFallback(payment.patientEmailStatus))}</td>
+            <td>${escapeHtml(payment.patientPhone || phoneFallback(payment.patientPhoneStatus))}</td>
+            <td>${escapeHtml(payment.treatmentName || treatmentFallback(payment.treatmentId))}</td>
             <td>${escapeHtml(payment.branch || "-")}</td>
             <td>${escapeHtml(payment.paymentMethod || "-")}</td>
             <td>${escapeHtml(payment.folio || payment.reference || "-")}</td>
             <td><span class="money">${formatMoney(payment.amount)}</span></td>
+            <td><span class="money">${formatMoney(payment.treatmentBudgetTotal || payment.amount)}</span></td>
           </tr>
         `).join("");
       }
@@ -890,6 +898,16 @@
         if (status === "empty") return "Sin email";
         if (String(status || "").startsWith("unavailable_")) return "No disponible";
         return "-";
+      }
+
+      function phoneFallback(status) {
+        if (status === "empty") return "Sin telefono";
+        if (String(status || "").startsWith("unavailable_")) return "No disponible";
+        return "-";
+      }
+
+      function treatmentFallback(treatmentId) {
+        return treatmentId ? `Tratamiento #${treatmentId}` : "-";
       }
 
       function formatMoney(value) {

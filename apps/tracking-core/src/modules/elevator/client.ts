@@ -60,7 +60,7 @@ export class ApiElevatorClient implements ElevatorClient {
   ) {}
 
   async createLead(input: LeadInput): Promise<CanonicalLead> {
-    const existingLeads = await this.findLeadsByIdentity(input.phone, null);
+    const existingLeads = await this.findLeadsByIdentity(input.phone, input.email);
     if (existingLeads[0]) {
       return existingLeads[0];
     }

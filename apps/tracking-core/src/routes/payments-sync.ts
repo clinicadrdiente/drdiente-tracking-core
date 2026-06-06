@@ -8,6 +8,7 @@ import {
   markPaymentsProcessed,
 } from "../modules/state/payment-sync.js";
 import type { StateStore } from "../modules/state/state-store.js";
+import type { DentalinkPatient, LeadInput, PaymentEvent } from "../types/domain.js";
 
 export async function handlePaymentsSync(
   dentalinkClient: DentalinkClient,
@@ -25,6 +26,7 @@ export async function handlePaymentsSync(
   );
   let matchedLeads = 0;
   let unmatchedLeads = 0;
+  let createdLeads = 0;
   let rateLimitedPatients = 0;
   let dispatched = 0;
   const safeToMarkProcessed = [];
@@ -48,10 +50,16 @@ export async function handlePaymentsSync(
       patient.email,
     );
 
-    const lead = leads[0];
+    let lead = leads[0];
     if (!lead) {
-      unmatchedLeads += 1;
-      continue;
+      const leadInput = buildLeadInputFromDentalink(patient, payment);
+      if (!leadInput) {
+        unmatchedLeads += 1;
+        continue;
+      }
+
+      lead = await elevatorClient.createLead(leadInput);
+      createdLeads += 1;
     }
 
     matchedLeads += 1;
@@ -82,7 +90,31 @@ export async function handlePaymentsSync(
     maxPayments: maxPayments ?? null,
     matchedLeads,
     unmatchedLeads,
+    createdLeads,
     rateLimitedPatients,
     dispatched,
+  };
+}
+
+function buildLeadInputFromDentalink(
+  patient: DentalinkPatient,
+  payment: PaymentEvent,
+): LeadInput | null {
+  if (!patient.phone && !patient.email) {
+    return null;
+  }
+
+  return {
+    firstName: patient.firstName || payment.patientName || "Paciente",
+    lastName: patient.lastName ?? null,
+    phone: patient.phone ?? "",
+    email: patient.email ?? null,
+    branch: patient.branch ?? payment.branch ?? "Dentalink",
+    attribution: {
+      utmSource: "dentalink",
+      utmMedium: "payment_sync",
+      utmCampaign: payment.treatmentName ?? "dentalink_purchase",
+      landingUrl: null,
+    },
   };
 }

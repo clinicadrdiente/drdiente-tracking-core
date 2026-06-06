@@ -8,15 +8,25 @@ export function buildCreateLeadPayload(
   config: ElevatorConfig,
   input: LeadInput,
 ): ElevatorRecord {
-  return {
+  const phone = normalizePhone(input.phone);
+  const email = normalizeEmail(input.email);
+  const payload: ElevatorRecord = {
     locationId: config.locationId,
     firstName: input.firstName,
     lastName: input.lastName ?? null,
-    [config.phoneField]: normalizePhone(input.phone),
-    [config.emailField]: normalizeEmail(input.email),
     source: input.attribution.utmSource ?? "DrDiente Tracking Core",
     tags: ["tracking-core", input.branch].filter(Boolean),
   };
+
+  if (phone) {
+    payload[config.phoneField] = phone;
+  }
+
+  if (email) {
+    payload[config.emailField] = email;
+  }
+
+  return payload;
 }
 
 export function buildSearchPayload(
