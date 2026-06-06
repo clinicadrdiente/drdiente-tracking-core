@@ -18,6 +18,15 @@ interface PaymentWindowProbe {
   urlPath: string;
   returnedCount: number | null;
   responseShape: string[];
+  samplePaymentShape: PaymentShape | null;
+}
+
+interface PaymentShape {
+  fields: Array<{
+    name: string;
+    type: string;
+  }>;
+  expectedFields: Record<string, boolean>;
 }
 
 const WINDOWS = [
@@ -75,6 +84,13 @@ export default async function handler(
           config.apiToken,
           config.paymentsPath,
           config.paymentDateField,
+          {
+            paymentIdField: config.paymentIdField,
+            paymentPatientIdField: config.paymentPatientIdField,
+            paymentTreatmentIdField: config.paymentTreatmentIdField,
+            paymentAmountField: config.paymentAmountField,
+            paymentDateField: config.paymentDateField,
+          },
           window.label,
           window.days,
         ),
@@ -107,6 +123,13 @@ async function probePaymentsWindow(
   apiToken: string,
   paymentsPath: string,
   paymentDateField: string,
+  expectedFields: {
+    paymentIdField: string;
+    paymentPatientIdField: string;
+    paymentTreatmentIdField: string;
+    paymentAmountField: string;
+    paymentDateField: string;
+  },
   label: string,
   lookbackDays: number,
 ): Promise<PaymentWindowProbe> {
@@ -135,10 +158,12 @@ async function probePaymentsWindow(
       urlPath: `${url.pathname}${url.search}`,
       returnedCount: null,
       responseShape: [],
+      samplePaymentShape: null,
     };
   }
 
   const body = (await response.json()) as unknown;
+  const collection = readCollection(body);
 
   return {
     label,
@@ -147,18 +172,21 @@ async function probePaymentsWindow(
     status: response.status,
     statusText: response.statusText,
     urlPath: `${url.pathname}${url.search}`,
-    returnedCount: countCollection(body),
+    returnedCount: collection?.length ?? null,
     responseShape: describeShape(body),
+    samplePaymentShape: collection?.[0]
+      ? describePaymentShape(collection[0], expectedFields)
+      : null,
   };
 }
 
-function countCollection(body: unknown): number | null {
+function readCollection(body: unknown): Record<string, unknown>[] | null {
   if (Array.isArray(body)) {
-    return body.length;
+    return body.filter(isRecord);
   }
 
   if (isRecord(body) && Array.isArray(body.data)) {
-    return body.data.length;
+    return body.data.filter(isRecord);
   }
 
   return null;
@@ -170,4 +198,52 @@ function describeShape(body: unknown): string[] {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function describePaymentShape(
+  payment: Record<string, unknown>,
+  expectedFields: {
+    paymentIdField: string;
+    paymentPatientIdField: string;
+    paymentTreatmentIdField: string;
+    paymentAmountField: string;
+    paymentDateField: string;
+  },
+): PaymentShape {
+  return {
+    fields: Object.keys(payment)
+      .sort()
+      .map((name) => ({
+        name,
+        type: describeValueType(payment[name]),
+      })),
+    expectedFields: {
+      [expectedFields.paymentIdField]: Object.hasOwn(payment, expectedFields.paymentIdField),
+      [expectedFields.paymentPatientIdField]: Object.hasOwn(
+        payment,
+        expectedFields.paymentPatientIdField,
+      ),
+      [expectedFields.paymentTreatmentIdField]: Object.hasOwn(
+        payment,
+        expectedFields.paymentTreatmentIdField,
+      ),
+      [expectedFields.paymentAmountField]: Object.hasOwn(
+        payment,
+        expectedFields.paymentAmountField,
+      ),
+      [expectedFields.paymentDateField]: Object.hasOwn(payment, expectedFields.paymentDateField),
+    },
+  };
+}
+
+function describeValueType(value: unknown): string {
+  if (Array.isArray(value)) {
+    return "array";
+  }
+
+  if (value === null) {
+    return "null";
+  }
+
+  return typeof value;
 }
