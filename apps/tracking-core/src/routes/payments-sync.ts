@@ -21,6 +21,9 @@ export async function handlePaymentsSync(
     stateStore,
     payments,
   );
+  let matchedLeads = 0;
+  let unmatchedLeads = 0;
+  let dispatched = 0;
 
   for (const payment of unprocessedPayments) {
     const patient = await dentalinkClient.getPatient(payment.patientId);
@@ -31,15 +34,18 @@ export async function handlePaymentsSync(
 
     const lead = leads[0];
     if (!lead) {
+      unmatchedLeads += 1;
       continue;
     }
 
+    matchedLeads += 1;
     const tier =
       payment.budgetTotal >= highTicketThreshold ? "alto_ticket" : "standard";
     const event = buildPurchaseEvent(lead, payment, tier);
 
     await elevatorClient.updateLeadStage(lead.elevatorId, "anticipo_pagado");
     await stapeClient.dispatch(event);
+    dispatched += 1;
   }
 
   await markPaymentsProcessed(stateStore, unprocessedPayments);
@@ -53,5 +59,11 @@ export async function handlePaymentsSync(
   return {
     processed: unprocessedPayments.length,
     skipped: payments.length - unprocessedPayments.length,
+    paymentsFound: payments.length,
+    alreadyProcessed: payments.length - unprocessedPayments.length,
+    newPayments: unprocessedPayments.length,
+    matchedLeads,
+    unmatchedLeads,
+    dispatched,
   };
 }
