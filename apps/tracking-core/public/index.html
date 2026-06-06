@@ -287,6 +287,7 @@
             <button id="refresh" class="action" type="button">Actualizar estado</button>
             <button id="testLead" class="action" type="button">Probar lead demo</button>
             <button id="testSync" class="action" type="button">Probar sync pagos</button>
+            <button id="testDentalink" class="action" type="button">Probar Dentalink</button>
           </div>
         </div>
 
@@ -314,6 +315,7 @@
       document.getElementById("refresh").addEventListener("click", () => refreshStatus(true));
       document.getElementById("testLead").addEventListener("click", () => postAction("/api/dev/test-lead"));
       document.getElementById("testSync").addEventListener("click", () => postAction("/api/dev/test-payment-sync"));
+      document.getElementById("testDentalink").addEventListener("click", () => getAction("/api/dev/dentalink-ping"));
 
       async function refreshStatus(shouldWriteOutput = true) {
         const result = await request("/api/status", { method: "GET" });
@@ -338,6 +340,12 @@
 
       async function postAction(path) {
         const result = await request(path, { method: "POST" });
+        writeOutput(result);
+        await refreshStatus(false);
+      }
+
+      async function getAction(path) {
+        const result = await request(path, { method: "GET" });
         writeOutput(result);
         await refreshStatus(false);
       }

@@ -4,6 +4,7 @@ export interface DentalinkConfig {
   mode: DentalinkMode;
   baseUrl: string;
   apiToken: string;
+  apiAuthScheme: string;
   patientsPathTemplate: string;
   paymentsPath: string;
   treatmentsPathTemplate: string;
@@ -34,19 +35,23 @@ function getEnv(name: string, fallback = ""): string {
 export function getDentalinkConfig(): DentalinkConfig {
   return {
     mode: getEnv("DENTALINK_MODE", "stub") === "api" ? "api" : "stub",
-    baseUrl: getEnv("DENTALINK_BASE_URL"),
+    baseUrl: getEnv(
+      "DENTALINK_BASE_URL",
+      "https://api.dentalink.healthatom.com/api/v1/",
+    ),
     apiToken: getEnv("DENTALINK_API_TOKEN"),
-    patientsPathTemplate: getEnv("DENTALINK_PATIENTS_PATH_TEMPLATE", "/patients/{id}"),
-    paymentsPath: getEnv("DENTALINK_PAYMENTS_PATH", "/payments"),
+    apiAuthScheme: getEnv("DENTALINK_API_AUTH_SCHEME", "Token"),
+    patientsPathTemplate: getEnv("DENTALINK_PATIENTS_PATH_TEMPLATE", "/pacientes/{id}"),
+    paymentsPath: getEnv("DENTALINK_PAYMENTS_PATH", "/pagos/"),
     treatmentsPathTemplate: getEnv(
       "DENTALINK_TREATMENTS_PATH_TEMPLATE",
-      "/treatments/{id}",
+      "/tratamientos/{id}",
     ),
     patientUpdatePathTemplate: getEnv(
       "DENTALINK_PATIENT_UPDATE_PATH_TEMPLATE",
-      "/patients/{id}",
+      "/pacientes/{id}",
     ),
-    patientIdField: getEnv("DENTALINK_PATIENT_ID_FIELD", "id_paciente"),
+    patientIdField: getEnv("DENTALINK_PATIENT_ID_FIELD", "id"),
     patientFirstNameField: getEnv("DENTALINK_PATIENT_FIRST_NAME_FIELD", "nombre"),
     patientLastNameField: getEnv("DENTALINK_PATIENT_LAST_NAME_FIELD", "apellido"),
     patientPhoneField: getEnv("DENTALINK_PATIENT_PHONE_FIELD", "telefono"),

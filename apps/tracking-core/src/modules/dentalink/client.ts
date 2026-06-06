@@ -62,10 +62,10 @@ export class ApiDentalinkClient implements DentalinkClient {
 
   async getPatient(patientId: number): Promise<DentalinkPatient> {
     const path = this.config.patientsPathTemplate.replace("{id}", String(patientId));
-    const response = await this.request("GET", path);
+    const response = unwrapRecord(await this.request("GET", path));
     return mapPatientRecord(
       this.config,
-      response as Record<string, unknown>,
+      response,
     );
   }
 
@@ -85,11 +85,11 @@ export class ApiDentalinkClient implements DentalinkClient {
     const query = buildPaymentsQuery(sinceIso);
     const path = `${this.config.paymentsPath}?${query}`;
     const response = await this.request("GET", path);
-    const paymentRecords = Array.isArray(response) ? response : [];
+    const paymentRecords = unwrapCollection(response);
     const payments: PaymentEvent[] = [];
 
     for (const paymentRecord of paymentRecords) {
-      const record = paymentRecord as Record<string, unknown>;
+      const record = paymentRecord;
       const treatmentId = record[this.config.paymentTreatmentIdField];
       const treatment = await this.getTreatment(Number(treatmentId));
       payments.push(mapPaymentRecord(this.config, record, treatment));
@@ -104,9 +104,10 @@ export class ApiDentalinkClient implements DentalinkClient {
       String(treatmentId),
     );
     const response = await this.request("GET", path);
+    const record = unwrapRecord(response);
     return mapTreatmentRecord(
       this.config,
-      response as Record<string, unknown>,
+      record,
     );
   }
 
@@ -118,7 +119,7 @@ export class ApiDentalinkClient implements DentalinkClient {
     const response = await this.fetchImpl(new URL(path, this.config.baseUrl), {
       method,
       headers: {
-        Authorization: `Bearer ${this.config.apiToken}`,
+        Authorization: `${this.config.apiAuthScheme} ${this.config.apiToken}`,
         "Content-Type": "application/json",
       },
       body: body ? JSON.stringify(body) : undefined,
@@ -141,4 +142,28 @@ export function createDentalinkClient(): DentalinkClient {
   return config.mode === "api"
     ? new ApiDentalinkClient(config)
     : new StubDentalinkClient();
+}
+
+function unwrapRecord(response: unknown): Record<string, unknown> {
+  if (isRecord(response) && isRecord(response.data)) {
+    return response.data;
+  }
+
+  return isRecord(response) ? response : {};
+}
+
+function unwrapCollection(response: unknown): Record<string, unknown>[] {
+  if (isRecord(response) && Array.isArray(response.data)) {
+    return response.data.filter(isRecord);
+  }
+
+  if (Array.isArray(response)) {
+    return response.filter(isRecord);
+  }
+
+  return [];
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }

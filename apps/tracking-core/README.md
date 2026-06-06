@@ -51,6 +51,7 @@ Ya existe una capa de entrada minima para exponer el core:
 - `api/lead.ts`: captura de leads
 - `api/dev/test-lead.ts`: prueba interna de lead demo
 - `api/dev/test-payment-sync.ts`: prueba interna de sync de pagos
+- `api/dev/dentalink-ping.ts`: prueba protegida de conexion Dentalink
 - `api/webhooks/dentalink/appointment.ts`: webhook de citas
 - `api/cron/payments-sync.ts`: sync manual/cron de pagos
 - `src/http/handlers.ts`: handlers de `lead`, `appointment` y `payments sync`
