@@ -703,6 +703,7 @@
                     <tr>
                       <th>Fecha</th>
                       <th>Paciente</th>
+                      <th>Email</th>
                       <th>Sucursal</th>
                       <th>Medio</th>
                       <th>Folio</th>
@@ -711,7 +712,7 @@
                   </thead>
                   <tbody id="recentPaymentsBody">
                     <tr>
-                      <td colspan="6">Presiona "Diagnosticar pagos" para cargar pagos reales.</td>
+                      <td colspan="7">Presiona "Diagnosticar pagos" para cargar pagos reales.</td>
                     </tr>
                   </tbody>
                 </table>
@@ -868,7 +869,7 @@
         if (!body) return;
 
         if (!Array.isArray(payments) || payments.length === 0) {
-          body.innerHTML = `<tr><td colspan="6">${escapeHtml(emptyMessage)}</td></tr>`;
+          body.innerHTML = `<tr><td colspan="7">${escapeHtml(emptyMessage)}</td></tr>`;
           return;
         }
 
@@ -876,12 +877,19 @@
           <tr>
             <td>${escapeHtml(shortDate(payment.createdAt))}</td>
             <td>${escapeHtml(payment.patientName || "-")}</td>
+            <td>${escapeHtml(payment.patientEmail || emailFallback(payment.patientEmailStatus))}</td>
             <td>${escapeHtml(payment.branch || "-")}</td>
             <td>${escapeHtml(payment.paymentMethod || "-")}</td>
             <td>${escapeHtml(payment.folio || payment.reference || "-")}</td>
             <td><span class="money">${formatMoney(payment.amount)}</span></td>
           </tr>
         `).join("");
+      }
+
+      function emailFallback(status) {
+        if (status === "empty") return "Sin email";
+        if (String(status || "").startsWith("unavailable_")) return "No disponible";
+        return "-";
       }
 
       function formatMoney(value) {

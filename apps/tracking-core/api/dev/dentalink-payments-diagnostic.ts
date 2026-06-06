@@ -34,6 +34,8 @@ interface RecentPayment {
   id: number;
   patientId: number;
   patientName: string | null;
+  patientEmail: string | null;
+  patientEmailStatus: string;
   branch: string | null;
   amount: number;
   paymentMethod: string | null;
@@ -103,6 +105,10 @@ export default async function handler(
             paymentTreatmentIdField: config.paymentTreatmentIdField,
             paymentAmountField: config.paymentAmountField,
             paymentDateField: config.paymentDateField,
+            patientsPathTemplate: config.patientsPathTemplate,
+            patientEmailField: config.patientEmailField,
+            patientFirstNameField: config.patientFirstNameField,
+            patientLastNameField: config.patientLastNameField,
           },
           window.label,
           window.days,
@@ -143,6 +149,10 @@ async function probePaymentsWindow(
     paymentTreatmentIdField: string;
     paymentAmountField: string;
     paymentDateField: string;
+    patientsPathTemplate: string;
+    patientEmailField: string;
+    patientFirstNameField: string;
+    patientLastNameField: string;
   },
   label: string,
   lookbackDays: number,
@@ -178,6 +188,16 @@ async function probePaymentsWindow(
 
   const body = (await response.json()) as unknown;
   const collection = readCollection(body);
+  const recentPayments =
+    lookbackDays === 7 && collection
+      ? await describeRecentPayments(
+          collection.slice(0, 10),
+          baseUrl,
+          apiAuthScheme,
+          apiToken,
+          expectedFields,
+        )
+      : undefined;
 
   return {
     label,
@@ -191,10 +211,7 @@ async function probePaymentsWindow(
     samplePaymentShape: collection?.[0]
       ? describePaymentShape(collection[0], expectedFields)
       : null,
-    recentPayments:
-      lookbackDays === 7 && collection
-        ? collection.slice(0, 10).map(describeRecentPayment)
-        : undefined,
+    recentPayments,
   };
 }
 
@@ -266,11 +283,100 @@ function describeValueType(value: unknown): string {
   return typeof value;
 }
 
-function describeRecentPayment(payment: Record<string, unknown>): RecentPayment {
+async function describeRecentPayments(
+  payments: Record<string, unknown>[],
+  baseUrl: string,
+  apiAuthScheme: string,
+  apiToken: string,
+  config: {
+    paymentPatientIdField: string;
+    patientsPathTemplate: string;
+    patientEmailField: string;
+    patientFirstNameField: string;
+    patientLastNameField: string;
+  },
+): Promise<RecentPayment[]> {
+  const recentPayments: RecentPayment[] = [];
+
+  for (const payment of payments) {
+    const patientId = readNumber(payment, config.paymentPatientIdField);
+    const patient = patientId > 0
+      ? await fetchPatientDetails(
+          baseUrl,
+          apiAuthScheme,
+          apiToken,
+          config.patientsPathTemplate,
+          patientId,
+          config,
+        )
+      : null;
+
+    recentPayments.push(describeRecentPayment(payment, patient));
+  }
+
+  return recentPayments;
+}
+
+async function fetchPatientDetails(
+  baseUrl: string,
+  apiAuthScheme: string,
+  apiToken: string,
+  patientsPathTemplate: string,
+  patientId: number,
+  config: {
+    patientEmailField: string;
+    patientFirstNameField: string;
+    patientLastNameField: string;
+  },
+): Promise<{
+  email: string | null;
+  fullName: string | null;
+  status: string;
+}> {
+  const path = patientsPathTemplate.replace("{id}", String(patientId));
+  const url = new URL(path.replace(/^\/+/, ""), baseUrl);
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      Authorization: `${apiAuthScheme} ${apiToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    return {
+      email: null,
+      fullName: null,
+      status: `unavailable_${response.status}`,
+    };
+  }
+
+  const record = unwrapRecord((await response.json()) as unknown);
+  const firstName = readString(record, config.patientFirstNameField);
+  const lastName = readString(record, config.patientLastNameField);
+  const email = readString(record, config.patientEmailField);
+
+  return {
+    email,
+    fullName: [firstName, lastName].filter(Boolean).join(" ") || null,
+    status: email ? "found" : "empty",
+  };
+}
+
+function describeRecentPayment(
+  payment: Record<string, unknown>,
+  patient: {
+    email: string | null;
+    fullName: string | null;
+    status: string;
+  } | null,
+): RecentPayment {
   return {
     id: readNumber(payment, "id"),
     patientId: readNumber(payment, "id_paciente"),
-    patientName: readString(payment, "nombre_paciente"),
+    patientName: readString(payment, "nombre_paciente") ?? patient?.fullName ?? null,
+    patientEmail: patient?.email ?? null,
+    patientEmailStatus: patient?.status ?? "not_requested",
     branch: readString(payment, "nombre_sucursal"),
     amount: readNumber(payment, "monto_pago"),
     paymentMethod: readString(payment, "medio_pago"),
@@ -278,6 +384,14 @@ function describeRecentPayment(payment: Record<string, unknown>): RecentPayment 
     folio: readString(payment, "folio"),
     reference: readString(payment, "numero_referencia"),
   };
+}
+
+function unwrapRecord(response: unknown): Record<string, unknown> {
+  if (isRecord(response) && isRecord(response.data)) {
+    return response.data;
+  }
+
+  return isRecord(response) ? response : {};
 }
 
 function readString(record: Record<string, unknown>, key: string): string | null {
