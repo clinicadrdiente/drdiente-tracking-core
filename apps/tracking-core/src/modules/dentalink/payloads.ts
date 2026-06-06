@@ -64,9 +64,21 @@ export function mapPaymentRecord(
   };
 }
 
-export function buildPaymentsQuery(sinceIso: string): string {
-  const filter = JSON.stringify({ fecha: { gt: sinceIso } });
+export function buildPaymentsQuery(dateField: string, sinceIso: string): string {
+  const filter = JSON.stringify({
+    [dateField]: { gte: toDentalinkDateTime(sinceIso) },
+  });
   return `q=${encodeURIComponent(filter)}`;
+}
+
+function toDentalinkDateTime(isoDate: string): string {
+  const date = new Date(isoDate);
+
+  if (Number.isNaN(date.getTime())) {
+    return isoDate;
+  }
+
+  return date.toISOString().replace("T", " ").replace(/\.\d{3}Z$/, "");
 }
 
 function readRecord(

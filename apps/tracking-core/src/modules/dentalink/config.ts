@@ -66,9 +66,9 @@ export function getDentalinkConfig(): DentalinkConfig {
       "DENTALINK_PAYMENT_TREATMENT_ID_FIELD",
       "id_tratamiento",
     ),
-    paymentAmountField: getEnv("DENTALINK_PAYMENT_AMOUNT_FIELD", "monto"),
+    paymentAmountField: getEnv("DENTALINK_PAYMENT_AMOUNT_FIELD", "monto_pago"),
     paymentVoidedField: getEnv("DENTALINK_PAYMENT_VOIDED_FIELD", "anulado"),
-    paymentDateField: getEnv("DENTALINK_PAYMENT_DATE_FIELD", "fecha"),
+    paymentDateField: getEnv("DENTALINK_PAYMENT_DATE_FIELD", "fecha_creacion"),
     treatmentIdField: getEnv("DENTALINK_TREATMENT_ID_FIELD", "id"),
     treatmentBudgetTotalField: getEnv(
       "DENTALINK_TREATMENT_BUDGET_TOTAL_FIELD",

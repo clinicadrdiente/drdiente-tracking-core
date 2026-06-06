@@ -83,9 +83,9 @@ export class ApiDentalinkClient implements DentalinkClient {
   }
 
   async listRecentPayments(sinceIso: string): Promise<PaymentEvent[]> {
-    const query = buildPaymentsQuery(sinceIso);
+    const query = buildPaymentsQuery(this.config.paymentDateField, sinceIso);
     const path = `${this.config.paymentsPath}?${query}`;
-    const response = await this.requestWithFallbackForBadFilter(path);
+    const response = await this.request("GET", path);
     const paymentRecords = unwrapCollection(response).filter((record) =>
       isRecordOnOrAfter(record, this.config.paymentDateField, sinceIso),
     );
@@ -99,22 +99,6 @@ export class ApiDentalinkClient implements DentalinkClient {
     }
 
     return payments;
-  }
-
-  private async requestWithFallbackForBadFilter(path: string): Promise<unknown> {
-    try {
-      return await this.request("GET", path);
-    } catch (error) {
-      if (
-        error instanceof DentalinkRequestError &&
-        error.status === 400 &&
-        path.includes("?")
-      ) {
-        return this.request("GET", this.config.paymentsPath);
-      }
-
-      throw error;
-    }
   }
 
   private async getTreatmentIfAvailable(
