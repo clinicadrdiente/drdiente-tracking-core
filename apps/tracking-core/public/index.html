@@ -7,17 +7,25 @@
     <style>
       :root {
         color-scheme: dark;
-        --bg: #101412;
-        --surface: #171d1a;
-        --surface-2: #202822;
-        --line: #334139;
-        --ink: #f0f4ef;
-        --muted: #a3ada6;
-        --faint: #68736d;
-        --ok: #64d492;
-        --warn: #e5bd65;
-        --bad: #ed7c72;
-        --accent: #78c2ad;
+        --background: #080b0a;
+        --sidebar: #0d1210;
+        --card: #111714;
+        --card-2: #151d19;
+        --line: #25342d;
+        --line-strong: #3a5146;
+        --text: #eef5ef;
+        --muted: #91a09a;
+        --faint: #65736d;
+        --green: #62d190;
+        --green-soft: rgba(98, 209, 144, 0.14);
+        --amber: #e9bd65;
+        --amber-soft: rgba(233, 189, 101, 0.16);
+        --red: #ec766e;
+        --red-soft: rgba(236, 118, 110, 0.16);
+        --blue: #7bb7ff;
+        --blue-soft: rgba(123, 183, 255, 0.14);
+        --shadow: 0 24px 70px rgba(0, 0, 0, 0.38);
+        --radius: 18px;
       }
 
       * {
@@ -26,10 +34,12 @@
 
       body {
         margin: 0;
+        min-height: 100vh;
         background:
-          linear-gradient(180deg, rgba(120, 194, 173, 0.08), transparent 320px),
-          var(--bg);
-        color: var(--ink);
+          radial-gradient(circle at 16% 12%, rgba(98, 209, 144, 0.12), transparent 32%),
+          radial-gradient(circle at 88% 4%, rgba(123, 183, 255, 0.1), transparent 30%),
+          linear-gradient(180deg, #0a0f0d, var(--background));
+        color: var(--text);
         font-family:
           ui-sans-serif,
           -apple-system,
@@ -43,77 +53,214 @@
         font: inherit;
       }
 
-      .shell {
-        max-width: 1180px;
-        margin: 0 auto;
-        padding: 28px;
+      button {
+        color: inherit;
       }
 
-      header {
+      .app {
+        display: grid;
+        grid-template-columns: 280px minmax(0, 1fr);
+        min-height: 100vh;
+      }
+
+      .sidebar {
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        padding: 22px;
+        border-right: 1px solid var(--line);
+        background:
+          linear-gradient(180deg, rgba(98, 209, 144, 0.07), transparent 260px),
+          var(--sidebar);
+      }
+
+      .brand {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        margin-bottom: 26px;
+      }
+
+      .mark {
+        display: grid;
+        place-items: center;
+        width: 42px;
+        height: 42px;
+        border-radius: 14px;
+        background: linear-gradient(135deg, #72d89c, #79b9ff);
+        color: #05100b;
+        font-weight: 900;
+        box-shadow: 0 14px 34px rgba(98, 209, 144, 0.22);
+      }
+
+      .brand h1 {
+        margin: 0;
+        font-size: 16px;
+        letter-spacing: -0.02em;
+      }
+
+      .brand p,
+      .side-label,
+      .muted {
+        color: var(--muted);
+      }
+
+      .brand p {
+        margin: 3px 0 0;
+        font-size: 12px;
+      }
+
+      .side-label {
+        margin: 24px 0 10px;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.13em;
+      }
+
+      .nav {
+        display: grid;
+        gap: 8px;
+      }
+
+      .nav-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 11px 12px;
+        border: 1px solid transparent;
+        border-radius: 14px;
+        color: #d8e3dc;
+      }
+
+      .nav-item.active {
+        background: var(--green-soft);
+        border-color: rgba(98, 209, 144, 0.24);
+      }
+
+      .nav-item span:first-child {
+        display: flex;
+        gap: 9px;
+        align-items: center;
+      }
+
+      .secret-card {
+        margin-top: 20px;
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: rgba(255, 255, 255, 0.03);
+      }
+
+      .secret-card input {
+        width: 100%;
+        height: 42px;
+        margin-top: 10px;
+        padding: 0 12px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #070a09;
+        color: var(--text);
+        outline: none;
+      }
+
+      .secret-card input:focus {
+        border-color: var(--green);
+      }
+
+      .main {
+        min-width: 0;
+        padding: 26px;
+      }
+
+      .topbar {
         display: flex;
         justify-content: space-between;
         gap: 18px;
         align-items: flex-start;
-        padding: 14px 0 24px;
-        border-bottom: 1px solid var(--line);
+        margin-bottom: 22px;
       }
 
-      h1 {
-        margin: 0 0 6px;
-        font-size: 28px;
-        letter-spacing: 0;
+      .eyebrow {
+        margin: 0 0 8px;
+        color: var(--green);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
       }
 
-      .sub {
+      .headline {
         margin: 0;
+        max-width: 720px;
+        font-size: clamp(30px, 4vw, 52px);
+        line-height: 0.96;
+        letter-spacing: -0.06em;
+      }
+
+      .headline span {
         color: var(--muted);
       }
 
-      .secret {
+      .top-actions {
         display: flex;
-        gap: 8px;
-        align-items: center;
-        min-width: min(460px, 100%);
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 10px;
       }
 
-      .secret input {
-        width: 100%;
+      .btn {
         height: 42px;
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: #0d110f;
-        color: var(--ink);
-        padding: 0 12px;
-      }
-
-      .secret button,
-      .action {
-        height: 42px;
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: var(--surface-2);
-        color: var(--ink);
         padding: 0 14px;
+        border: 1px solid var(--line);
+        border-radius: 13px;
+        background: var(--card);
         cursor: pointer;
+        transition:
+          transform 160ms ease,
+          border-color 160ms ease,
+          background 160ms ease;
       }
 
-      .secret button:hover,
-      .action:hover {
-        border-color: var(--accent);
+      .btn:hover {
+        transform: translateY(-1px);
+        border-color: var(--line-strong);
+        background: var(--card-2);
+      }
+
+      .btn.primary {
+        border-color: rgba(98, 209, 144, 0.38);
+        background: linear-gradient(135deg, #63d291, #71b6ff);
+        color: #06100b;
+        font-weight: 800;
       }
 
       .grid {
         display: grid;
         grid-template-columns: repeat(12, 1fr);
-        gap: 14px;
-        margin-top: 18px;
+        gap: 16px;
       }
 
-      .panel {
-        background: var(--surface);
+      .card {
+        position: relative;
+        overflow: hidden;
         border: 1px solid var(--line);
-        border-radius: 8px;
-        padding: 16px;
+        border-radius: var(--radius);
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.045), transparent),
+          var(--card);
+        box-shadow: var(--shadow);
+      }
+
+      .card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: radial-gradient(circle at 14% 0%, rgba(255, 255, 255, 0.06), transparent 34%);
+      }
+
+      .card-inner {
+        position: relative;
+        padding: 18px;
       }
 
       .span-3 {
@@ -124,12 +271,12 @@
         grid-column: span 4;
       }
 
-      .span-6 {
-        grid-column: span 6;
+      .span-5 {
+        grid-column: span 5;
       }
 
-      .span-8 {
-        grid-column: span 8;
+      .span-7 {
+        grid-column: span 7;
       }
 
       .span-12 {
@@ -137,166 +284,411 @@
       }
 
       .label {
+        margin: 0 0 9px;
         color: var(--faint);
         font-size: 12px;
         text-transform: uppercase;
-        letter-spacing: 0.08em;
-        margin-bottom: 8px;
+        letter-spacing: 0.13em;
       }
 
       .metric {
-        font-size: 24px;
         margin: 0;
+        font-size: 30px;
+        font-weight: 760;
+        letter-spacing: -0.05em;
       }
 
-      .muted {
+      .submetric {
+        margin: 8px 0 0;
         color: var(--muted);
+        font-size: 13px;
       }
 
-      .status {
-        display: inline-flex;
+      .status-line {
+        display: flex;
+        gap: 10px;
         align-items: center;
-        gap: 8px;
       }
 
       .dot {
         width: 10px;
         height: 10px;
-        border-radius: 50%;
-        background: var(--warn);
+        border-radius: 999px;
+        background: var(--amber);
+        box-shadow: 0 0 0 5px var(--amber-soft);
       }
 
       .dot.ok {
-        background: var(--ok);
+        background: var(--green);
+        box-shadow: 0 0 0 5px var(--green-soft);
       }
 
       .dot.bad {
-        background: var(--bad);
+        background: var(--red);
+        box-shadow: 0 0 0 5px var(--red-soft);
       }
 
       .rows {
         display: grid;
-        gap: 10px;
       }
 
       .row {
         display: flex;
         justify-content: space-between;
         gap: 16px;
-        padding: 10px 0;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        padding: 13px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.065);
       }
 
       .row:last-child {
         border-bottom: 0;
       }
 
-      .pill {
-        color: var(--ink);
-        background: #0d110f;
-        border: 1px solid var(--line);
-        border-radius: 999px;
-        padding: 2px 9px;
-        font-size: 13px;
+      .value {
+        color: var(--text);
+        text-align: right;
+        font-weight: 650;
       }
 
-      .actions {
+      .chart {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        align-items: end;
+        height: 220px;
+        padding-top: 16px;
+      }
+
+      .bar-wrap {
+        display: grid;
+        gap: 10px;
+        align-items: end;
+        height: 100%;
+      }
+
+      .bar {
+        min-height: 8px;
+        border-radius: 16px 16px 6px 6px;
+        background: linear-gradient(180deg, #72d89c, #79b9ff);
+        box-shadow: 0 18px 44px rgba(98, 209, 144, 0.12);
+      }
+
+      .bar-label {
         display: flex;
-        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .action-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 10px;
       }
 
-      pre {
+      .action-card {
+        padding: 14px;
+        min-height: 98px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.03);
+        text-align: left;
+        cursor: pointer;
+      }
+
+      .action-card strong {
+        display: block;
+        margin-bottom: 7px;
+      }
+
+      .action-card span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .console {
+        min-height: 360px;
+        max-height: 560px;
         margin: 0;
-        min-height: 220px;
         overflow: auto;
         white-space: pre-wrap;
         color: #d8e7de;
         font-size: 13px;
-        line-height: 1.5;
+        line-height: 1.55;
       }
 
-      @media (max-width: 820px) {
-        .shell {
-          padding: 18px;
+      .table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      .table th,
+      .table td {
+        padding: 12px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.065);
+        text-align: left;
+      }
+
+      .table th {
+        color: var(--faint);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+      }
+
+      .table td:last-child,
+      .table th:last-child {
+        text-align: right;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 4px 9px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .pill.ok {
+        color: var(--green);
+        background: var(--green-soft);
+        border-color: rgba(98, 209, 144, 0.22);
+      }
+
+      @media (max-width: 1080px) {
+        .app {
+          grid-template-columns: 1fr;
         }
 
-        header {
-          flex-direction: column;
+        .sidebar {
+          position: relative;
+          height: auto;
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
         }
 
         .span-3,
         .span-4,
-        .span-6,
-        .span-8,
+        .span-5,
+        .span-7 {
+          grid-column: span 6;
+        }
+      }
+
+      @media (max-width: 760px) {
+        .main,
+        .sidebar {
+          padding: 16px;
+        }
+
+        .topbar {
+          flex-direction: column;
+        }
+
+        .top-actions {
+          justify-content: flex-start;
+        }
+
+        .span-3,
+        .span-4,
+        .span-5,
+        .span-7,
         .span-12 {
           grid-column: span 12;
+        }
+
+        .action-grid {
+          grid-template-columns: 1fr;
         }
       }
     </style>
   </head>
   <body>
-    <div class="shell">
-      <header>
-        <div>
-          <h1>DrDiente Tracking Core</h1>
-          <p class="sub">Panel operativo interno de atribucion y webhooks.</p>
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="mark">DD</div>
+          <div>
+            <h1>DrDiente Core</h1>
+            <p>Atribucion, Dentalink y webhooks</p>
+          </div>
         </div>
-        <div class="secret">
+
+        <div class="side-label">Workspace</div>
+        <div class="nav">
+          <div class="nav-item active"><span>Operacion</span><span class="pill" id="sideHealth">Live</span></div>
+          <div class="nav-item"><span>Dentalink</span><span id="sideDentalink">-</span></div>
+          <div class="nav-item"><span>Elevator</span><span id="sideElevator">-</span></div>
+          <div class="nav-item"><span>Stape</span><span id="sideStape">stub</span></div>
+        </div>
+
+        <div class="secret-card">
+          <div class="side-label" style="margin-top: 0">Acceso interno</div>
+          <div class="muted">El secret se guarda solo en este navegador.</div>
           <input
             id="secret"
             type="password"
             autocomplete="off"
             placeholder="TRACKING_API_SECRET"
           />
-          <button id="saveSecret" type="button">Guardar</button>
+          <button id="saveSecret" class="btn primary" type="button" style="width: 100%; margin-top: 10px">
+            Guardar secret
+          </button>
         </div>
-      </header>
+      </aside>
 
-      <section class="grid">
-        <div class="panel span-3">
-          <div class="label">Sistema</div>
-          <p class="metric status"><span id="statusDot" class="dot"></span><span id="statusText">Sin verificar</span></p>
-        </div>
-        <div class="panel span-3">
-          <div class="label">Elevator</div>
-          <p id="elevatorMode" class="metric">-</p>
-        </div>
-        <div class="panel span-3">
-          <div class="label">Dentalink</div>
-          <p id="dentalinkMode" class="metric">-</p>
-        </div>
-        <div class="panel span-3">
-          <div class="label">Stape</div>
-          <p id="stapeMode" class="metric">stub</p>
-        </div>
-
-        <div class="panel span-8">
-          <div class="label">Estado operativo</div>
-          <div class="rows">
-            <div class="row"><span class="muted">Ultimo sync</span><span id="lastCheck">-</span></div>
-            <div class="row"><span class="muted">Pagos procesados</span><span id="processedPayments">-</span></div>
-            <div class="row"><span class="muted">Umbral alto ticket</span><span id="threshold">-</span></div>
-            <div class="row"><span class="muted">Secret configurado</span><span id="secretConfigured">-</span></div>
+      <main class="main">
+        <section class="topbar">
+          <div>
+            <p class="eyebrow">Tracking control room</p>
+            <h2 class="headline">Panel operativo <span>del ecosistema DrDiente.</span></h2>
           </div>
-        </div>
-
-        <div class="panel span-4">
-          <div class="label">Acciones</div>
-          <div class="actions">
-            <button id="refresh" class="action" type="button">Actualizar estado</button>
-            <button id="testLead" class="action" type="button">Probar lead demo</button>
-            <button id="testSync" class="action" type="button">Probar sync pagos</button>
-            <button id="testDentalink" class="action" type="button">Probar Dentalink</button>
-            <button id="diagnosePayments" class="action" type="button">Diagnosticar pagos</button>
+          <div class="top-actions">
+            <button id="refresh" class="btn primary" type="button">Actualizar estado</button>
+            <button id="diagnosePaymentsTop" class="btn" type="button">Diagnosticar pagos</button>
           </div>
-        </div>
+        </section>
 
-        <div class="panel span-12">
-          <div class="label">Consola</div>
-          <pre id="console">Pega el TRACKING_API_SECRET y presiona "Actualizar estado".</pre>
-        </div>
-      </section>
+        <section class="grid">
+          <article class="card span-3">
+            <div class="card-inner">
+              <p class="label">Sistema</p>
+              <p class="metric status-line">
+                <span id="statusDot" class="dot"></span>
+                <span id="statusText">Sin verificar</span>
+              </p>
+              <p class="submetric" id="generatedAt">Esperando lectura</p>
+            </div>
+          </article>
+
+          <article class="card span-3">
+            <div class="card-inner">
+              <p class="label">Pagos procesados</p>
+              <p id="processedPayments" class="metric">-</p>
+              <p class="submetric">Deduplicados por payment id</p>
+            </div>
+          </article>
+
+          <article class="card span-3">
+            <div class="card-inner">
+              <p class="label">Ventana sync</p>
+              <p id="lookback" class="metric">-</p>
+              <p class="submetric">Minutos de busqueda</p>
+            </div>
+          </article>
+
+          <article class="card span-3">
+            <div class="card-inner">
+              <p class="label">Alto ticket</p>
+              <p id="threshold" class="metric">-</p>
+              <p class="submetric">Umbral actual</p>
+            </div>
+          </article>
+
+          <article class="card span-7">
+            <div class="card-inner">
+              <p class="label">Diagnostico de pagos Dentalink</p>
+              <p class="submetric" style="margin-bottom: 10px">
+                Conteos por ventana. No se muestran datos clinicos ni pagos individuales.
+              </p>
+              <div class="chart">
+                <div class="bar-wrap">
+                  <div id="bar7" class="bar" style="height: 4%"></div>
+                  <div class="bar-label"><span>7 dias</span><strong id="count7">-</strong></div>
+                </div>
+                <div class="bar-wrap">
+                  <div id="bar30" class="bar" style="height: 4%"></div>
+                  <div class="bar-label"><span>30 dias</span><strong id="count30">-</strong></div>
+                </div>
+                <div class="bar-wrap">
+                  <div id="bar90" class="bar" style="height: 4%"></div>
+                  <div class="bar-label"><span>90 dias</span><strong id="count90">-</strong></div>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="card span-5">
+            <div class="card-inner">
+              <p class="label">Estado operativo</p>
+              <div class="rows">
+                <div class="row"><span class="muted">Ultimo sync</span><span id="lastCheck" class="value">-</span></div>
+                <div class="row"><span class="muted">Dentalink</span><span id="dentalinkMode" class="value">-</span></div>
+                <div class="row"><span class="muted">Elevator</span><span id="elevatorMode" class="value">-</span></div>
+                <div class="row"><span class="muted">Stape</span><span id="stapeMode" class="value">stub</span></div>
+                <div class="row"><span class="muted">Secret configurado</span><span id="secretConfigured" class="value">-</span></div>
+              </div>
+            </div>
+          </article>
+
+          <article class="card span-5">
+            <div class="card-inner">
+              <p class="label">Acciones</p>
+              <div class="action-grid">
+                <button id="testLead" class="action-card" type="button">
+                  <strong>Probar lead demo</strong>
+                  <span>Crea un lead simulado para revisar el payload interno.</span>
+                </button>
+                <button id="testSync" class="action-card" type="button">
+                  <strong>Probar sync pagos</strong>
+                  <span>Ejecuta sync con ventana de prueba amplia.</span>
+                </button>
+                <button id="testDentalink" class="action-card" type="button">
+                  <strong>Probar Dentalink</strong>
+                  <span>Valida conexion y endpoints principales.</span>
+                </button>
+                <button id="diagnosePayments" class="action-card" type="button">
+                  <strong>Diagnosticar pagos</strong>
+                  <span>Cuenta pagos por 7, 30 y 90 dias.</span>
+                </button>
+              </div>
+            </div>
+          </article>
+
+          <article class="card span-7">
+            <div class="card-inner">
+              <p class="label">Tabla rapida</p>
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Modulo</th>
+                    <th>Modo</th>
+                    <th>Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Dentalink</td>
+                    <td id="tableDentalink">-</td>
+                    <td><span class="pill ok">Conectado</span></td>
+                  </tr>
+                  <tr>
+                    <td>Elevator</td>
+                    <td id="tableElevator">-</td>
+                    <td><span class="pill">Pendiente real</span></td>
+                  </tr>
+                  <tr>
+                    <td>Stape</td>
+                    <td id="tableStape">stub</td>
+                    <td><span class="pill">Pendiente jefe</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="card span-12">
+            <div class="card-inner">
+              <p class="label">Consola</p>
+              <pre id="console" class="console">Pega el TRACKING_API_SECRET y presiona "Actualizar estado".</pre>
+            </div>
+          </article>
+        </section>
+      </main>
     </div>
 
     <script>
@@ -317,7 +709,13 @@
       document.getElementById("testLead").addEventListener("click", () => postAction("/api/dev/test-lead"));
       document.getElementById("testSync").addEventListener("click", () => postAction("/api/dev/test-payment-sync"));
       document.getElementById("testDentalink").addEventListener("click", () => getAction("/api/dev/dentalink-ping"));
-      document.getElementById("diagnosePayments").addEventListener("click", () => getAction("/api/dev/dentalink-payments-diagnostic"));
+      document.getElementById("diagnosePayments").addEventListener("click", diagnosePayments);
+      document.getElementById("diagnosePaymentsTop").addEventListener("click", diagnosePayments);
+
+      if (savedSecret) {
+        refreshStatus(false);
+        diagnosePayments(false);
+      }
 
       async function refreshStatus(shouldWriteOutput = true) {
         const result = await request("/api/status", { method: "GET" });
@@ -330,14 +728,49 @@
           return;
         }
 
+        const body = result.body;
         setHealth(true, "Healthy");
-        document.getElementById("elevatorMode").textContent = result.body.integrations.elevator;
-        document.getElementById("dentalinkMode").textContent = result.body.integrations.dentalink;
-        document.getElementById("stapeMode").textContent = result.body.integrations.stape;
-        document.getElementById("lastCheck").textContent = result.body.paymentSync.lastCheckIso || "Sin sync";
-        document.getElementById("processedPayments").textContent = result.body.paymentSync.processedPaymentCount;
-        document.getElementById("threshold").textContent = `${result.body.config.highTicketThreshold} ${result.body.config.defaultCurrency}`;
-        document.getElementById("secretConfigured").textContent = result.body.config.trackingSecretConfigured ? "si" : "no";
+        setText("generatedAt", shortDate(body.generatedAt));
+        setText("elevatorMode", body.integrations.elevator);
+        setText("dentalinkMode", body.integrations.dentalink);
+        setText("stapeMode", body.integrations.stape);
+        setText("sideElevator", body.integrations.elevator);
+        setText("sideDentalink", body.integrations.dentalink);
+        setText("sideStape", body.integrations.stape);
+        setText("tableElevator", body.integrations.elevator);
+        setText("tableDentalink", body.integrations.dentalink);
+        setText("tableStape", body.integrations.stape);
+        setText("lastCheck", body.paymentSync.lastCheckIso ? shortDate(body.paymentSync.lastCheckIso) : "Sin sync");
+        setText("processedPayments", body.paymentSync.processedPaymentCount);
+        setText("threshold", `${body.config.highTicketThreshold} ${body.config.defaultCurrency}`);
+        setText("lookback", body.config.paymentsSyncLookbackMinutes);
+        setText("secretConfigured", body.config.trackingSecretConfigured ? "si" : "no");
+      }
+
+      async function diagnosePayments(shouldWriteOutput = true) {
+        const result = await request("/api/dev/dentalink-payments-diagnostic", { method: "GET" });
+        if (shouldWriteOutput) {
+          writeOutput(result);
+        }
+
+        if (!result.ok || !result.body || !Array.isArray(result.body.probes)) {
+          return;
+        }
+
+        const counts = result.body.probes.map((probe) => ({
+          days: probe.lookbackDays,
+          count: Number(probe.returnedCount || 0),
+        }));
+        const max = Math.max(1, ...counts.map((item) => item.count));
+
+        for (const item of counts) {
+          const id = item.days === 7 ? "7" : item.days === 30 ? "30" : "90";
+          setText(`count${id}`, item.count);
+          const bar = document.getElementById(`bar${id}`);
+          if (bar) {
+            bar.style.height = `${Math.max(4, Math.round((item.count / max) * 100))}%`;
+          }
+        }
       }
 
       async function postAction(path) {
@@ -383,7 +816,28 @@
       function setHealth(ok, text) {
         const dot = document.getElementById("statusDot");
         dot.className = ok ? "dot ok" : "dot bad";
-        document.getElementById("statusText").textContent = text;
+        setText("statusText", text);
+        const sideHealth = document.getElementById("sideHealth");
+        sideHealth.textContent = ok ? "Live" : "Error";
+        sideHealth.className = ok ? "pill ok" : "pill";
+      }
+
+      function setText(id, value) {
+        const element = document.getElementById(id);
+        if (element) {
+          element.textContent = value ?? "-";
+        }
+      }
+
+      function shortDate(value) {
+        try {
+          return new Intl.DateTimeFormat("es-MX", {
+            dateStyle: "medium",
+            timeStyle: "short",
+          }).format(new Date(value));
+        } catch {
+          return value;
+        }
       }
     </script>
   </body>
