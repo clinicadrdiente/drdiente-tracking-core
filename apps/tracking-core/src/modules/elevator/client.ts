@@ -66,7 +66,18 @@ export class ApiElevatorClient implements ElevatorClient {
     }
 
     const payload = buildCreateLeadPayload(this.config, input);
-    const response = await this.request("POST", this.config.contactsPath, payload);
+    let response: unknown;
+    try {
+      response = await this.request("POST", this.config.contactsPath, payload);
+    } catch (error) {
+      const duplicateContactId = readDuplicateContactId(error);
+      if (duplicateContactId) {
+        return buildCanonicalLeadFromInput(duplicateContactId, input);
+      }
+
+      throw error;
+    }
+
     const record = unwrapRecord(response, "contact");
     return mapElevatorRecordToCanonicalLead(
       this.config,
@@ -116,14 +127,68 @@ export class ApiElevatorClient implements ElevatorClient {
     });
 
     if (!response.ok) {
-      const details = await readErrorDetails(response);
-      throw new Error(
-        `Elevator API request failed with status ${response.status}${details}`,
-      );
+      const bodyText = await readResponseText(response);
+      throw new ElevatorApiError(response.status, bodyText);
     }
 
     return (await response.json()) as unknown;
   }
+}
+
+class ElevatorApiError extends Error {
+  readonly parsedBody: unknown;
+
+  constructor(
+    readonly status: number,
+    readonly bodyText: string,
+  ) {
+    super(
+      `Elevator API request failed with status ${status}${
+        bodyText ? `: ${bodyText.slice(0, 300)}` : ""
+      }`,
+    );
+    this.parsedBody = parseJson(bodyText);
+  }
+}
+
+function buildCanonicalLeadFromInput(
+  elevatorId: string,
+  input: LeadInput,
+): CanonicalLead {
+  return {
+    elevatorId,
+    firstName: input.firstName,
+    lastName: input.lastName ?? null,
+    phoneRaw: input.phone,
+    phoneNormalized: normalizePhone(input.phone),
+    emailRaw: input.email ?? null,
+    emailNormalized: normalizeEmail(input.email),
+    branch: input.branch,
+    attribution: input.attribution,
+  };
+}
+
+function readDuplicateContactId(error: unknown): string | null {
+  if (!(error instanceof ElevatorApiError)) {
+    return null;
+  }
+
+  if (error.status !== 400 || !isRecord(error.parsedBody)) {
+    return null;
+  }
+
+  const message = error.parsedBody.message;
+  const meta = error.parsedBody.meta;
+  if (
+    typeof message === "string" &&
+    message.includes("duplicated contacts") &&
+    isRecord(meta) &&
+    typeof meta.contactId === "string"
+  ) {
+    return meta.contactId;
+  }
+
+  return null;
 }
 
 function unwrapRecord(response: unknown, preferredKey: string): Record<string, unknown> {
@@ -154,10 +219,17 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-async function readErrorDetails(response: Response): Promise<string> {
+function parseJson(value: string): unknown {
   try {
-    const body = await response.text();
-    return body ? `: ${body.slice(0, 300)}` : "";
+    return JSON.parse(value) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+async function readResponseText(response: Response): Promise<string> {
+  try {
+    return await response.text();
   } catch {
     return "";
   }
