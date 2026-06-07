@@ -82,6 +82,7 @@ const REFERENCE_CATALOG_PATHS = [
   "/origenes/",
   "/fuentes/",
 ];
+const PATIENT_ADDITIONAL_FIELDS_PATH_TEMPLATE = "/pacientes/{id}/adicionales";
 
 let monthlyDashboardCache: {
   key: string;
@@ -93,6 +94,8 @@ let referenceCatalogCache: {
   cachedAtMs: number;
   catalog: ReferenceCatalog;
 } | null = null;
+
+const patientAdditionalReferenceCache = new Map<number, string | null>();
 
 export default async function handler(
   request: VercelRequest,
@@ -465,6 +468,12 @@ async function getCachedPatient(
         record,
         fields.referenceField,
         fields.referenceCatalog,
+      ) ?? await fetchPatientAdditionalReference(
+        baseUrl,
+        apiAuthScheme,
+        apiToken,
+        patientId,
+        fields.referenceCatalog,
       ),
       fullName: [firstName, lastName].filter(Boolean).join(" ") || null,
     };
@@ -474,6 +483,31 @@ async function getCachedPatient(
     const patient = emptyPatient();
     cache.set(patientId, patient);
     return patient;
+  }
+}
+
+async function fetchPatientAdditionalReference(
+  baseUrl: string,
+  apiAuthScheme: string,
+  apiToken: string,
+  patientId: number,
+  catalog: ReferenceCatalog,
+): Promise<string | null> {
+  if (patientAdditionalReferenceCache.has(patientId)) {
+    return patientAdditionalReferenceCache.get(patientId) ?? null;
+  }
+
+  const path = PATIENT_ADDITIONAL_FIELDS_PATH_TEMPLATE.replace("{id}", String(patientId));
+  const url = new URL(path.replace(/^\/+/, ""), baseUrl);
+
+  try {
+    const body = await requestDentalink(url, apiAuthScheme, apiToken);
+    const reference = readReferenceFromAdditionalFields(body, catalog);
+    patientAdditionalReferenceCache.set(patientId, reference);
+    return reference;
+  } catch {
+    patientAdditionalReferenceCache.set(patientId, null);
+    return null;
   }
 }
 
@@ -791,19 +825,28 @@ function readReferenceFromAdditionalFields(
   value: unknown,
   catalog: ReferenceCatalog,
 ): string | null {
+  if (isRecord(value) && Array.isArray(value.data)) {
+    return readReferenceFromAdditionalFields(value.data, catalog);
+  }
+
   if (Array.isArray(value)) {
     for (const item of value) {
       if (!isRecord(item)) {
         continue;
       }
 
-      const key = readReferenceLabel(item);
+      const key = readAdditionalFieldLabel(item);
       if (!key || !isReferenceKey(key)) {
         continue;
       }
 
       const reference = readReferenceValue(
-        item.valor ?? item.value ?? item.respuesta ?? item.contenido,
+        item.valor ??
+          item.value ??
+          item.respuesta ??
+          item.contenido ??
+          item.valor_campo ??
+          item.valorCampo,
         catalog,
       );
       if (reference) {
@@ -822,10 +865,15 @@ function readReferenceFromAdditionalFields(
       }
 
       if (isRecord(entry)) {
-        const label = readReferenceLabel(entry);
+        const label = readAdditionalFieldLabel(entry);
         if (label && isReferenceKey(label)) {
           const reference = readReferenceValue(
-            entry.valor ?? entry.value ?? entry.respuesta ?? entry.contenido,
+            entry.valor ??
+              entry.value ??
+              entry.respuesta ??
+              entry.contenido ??
+              entry.valor_campo ??
+              entry.valorCampo,
             catalog,
           );
           if (reference) {
@@ -837,6 +885,15 @@ function readReferenceFromAdditionalFields(
   }
 
   return null;
+}
+
+function readAdditionalFieldLabel(record: Record<string, unknown>): string | null {
+  return (
+    readReferenceLabel(record) ??
+    (isRecord(record.campo) ? readReferenceLabel(record.campo) : null) ??
+    (isRecord(record.campo_adicional) ? readReferenceLabel(record.campo_adicional) : null) ??
+    (isRecord(record.campoAdicional) ? readReferenceLabel(record.campoAdicional) : null)
+  );
 }
 
 function readReferenceValue(value: unknown, catalog: ReferenceCatalog): string | null {
@@ -899,7 +956,12 @@ function readReferenceId(record: Record<string, unknown>): string | null {
 function readReferenceLabel(record: Record<string, unknown>): string | null {
   return readFirstString(record, [
     "nombre",
+    "nombre_campo",
+    "nombreCampo",
     "name",
+    "campo",
+    "etiqueta",
+    "titulo",
     "valor",
     "value",
     "descripcion",

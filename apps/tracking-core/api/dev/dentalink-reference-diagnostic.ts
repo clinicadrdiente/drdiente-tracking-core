@@ -304,6 +304,22 @@ function describeReferenceFields(
   configuredField: string,
 ): Array<{ key: string; value: string }> {
   const fields: Array<{ key: string; value: string }> = [];
+  const recordLabel = readAdditionalFieldLabel(record);
+
+  if (recordLabel && isReferenceKey(recordLabel)) {
+    fields.push({
+      key: recordLabel,
+      value: describeValue(
+        record.valor ??
+          record.value ??
+          record.respuesta ??
+          record.contenido ??
+          record.valor_campo ??
+          record.valorCampo ??
+          record,
+      ),
+    });
+  }
 
   for (const [key, value] of Object.entries(record)) {
     if (key === configuredField || isReferenceKey(key)) {
@@ -331,17 +347,29 @@ function describeAdditionalReferenceFields(
 ): Array<{ key: string; value: string }> {
   const fields: Array<{ key: string; value: string }> = [];
 
+  if (isRecord(value) && Array.isArray(value.data)) {
+    return describeAdditionalReferenceFields(containerKey, value.data);
+  }
+
   if (Array.isArray(value)) {
     for (const item of value) {
       if (!isRecord(item)) {
         continue;
       }
 
-      const label = readReferenceLabel(item);
+      const label = readAdditionalFieldLabel(item);
       if (label && isReferenceKey(label)) {
         fields.push({
           key: `${containerKey}.${label}`,
-          value: describeValue(item.valor ?? item.value ?? item.respuesta ?? item),
+          value: describeValue(
+            item.valor ??
+              item.value ??
+              item.respuesta ??
+              item.contenido ??
+              item.valor_campo ??
+              item.valorCampo ??
+              item,
+          ),
         });
       }
     }
@@ -356,6 +384,15 @@ function describeAdditionalReferenceFields(
   }
 
   return fields;
+}
+
+function readAdditionalFieldLabel(record: Record<string, unknown>): string | null {
+  return (
+    readReferenceLabel(record) ??
+    (isRecord(record.campo) ? readReferenceLabel(record.campo) : null) ??
+    (isRecord(record.campo_adicional) ? readReferenceLabel(record.campo_adicional) : null) ??
+    (isRecord(record.campoAdicional) ? readReferenceLabel(record.campoAdicional) : null)
+  );
 }
 
 function describeReferenceFieldsFromUnknown(
@@ -476,7 +513,20 @@ function readReferenceId(record: Record<string, unknown>): string | null {
 }
 
 function readReferenceLabel(record: Record<string, unknown>): string | null {
-  for (const key of ["nombre", "name", "valor", "value", "descripcion", "description", "label"]) {
+  for (const key of [
+    "nombre",
+    "nombre_campo",
+    "nombreCampo",
+    "name",
+    "campo",
+    "etiqueta",
+    "titulo",
+    "valor",
+    "value",
+    "descripcion",
+    "description",
+    "label",
+  ]) {
     const value = readString(record, key);
     if (value) {
       return value;
