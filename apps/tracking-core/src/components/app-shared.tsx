@@ -3,11 +3,13 @@ import {
   ActivityIcon,
   BarChart3Icon,
   CalendarDaysIcon,
+  GaugeIcon,
   HelpCircleIcon,
   LayoutGridIcon,
   MegaphoneIcon,
   SendIcon,
   SettingsIcon,
+  TrendingUpIcon,
   UsersIcon,
   WebhookIcon,
 } from "lucide-react";
@@ -30,15 +32,25 @@ export const navGroups: SidebarNavGroup[] = [
     label: "Operar",
     items: [
       {
+        title: "Resumen",
+        path: "#/resumen",
+        icon: <GaugeIcon />,
+        isActive: true,
+      },
+      {
         title: "Control",
         path: "#/dashboard",
         icon: <LayoutGridIcon />,
-        isActive: true,
       },
       {
         title: "Revenue",
         path: "#/revenue",
         icon: <BarChart3Icon />,
+      },
+      {
+        title: "Proyeccion",
+        path: "#/proyeccion",
+        icon: <TrendingUpIcon />,
       },
       {
         title: "Pacientes",
