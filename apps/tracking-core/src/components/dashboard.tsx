@@ -215,6 +215,31 @@ interface WindsorSourceSummary {
   campaigns: number;
 }
 
+interface WindsorAccountSummary {
+  key: string;
+  accountName: string | null;
+  accountId: string | null;
+  adAccountName: string | null;
+  adAccountId: string | null;
+  businessManager: string | null;
+  sources: string[];
+  campaigns: string[];
+  rows: number;
+  spend: number;
+  clicks: number;
+  impressions: number;
+}
+
+interface WindsorAccountsResult {
+  ok?: boolean;
+  configured?: boolean;
+  connector?: string;
+  datePreset?: string;
+  rowCount?: number;
+  accounts?: WindsorAccountSummary[];
+  message?: string;
+}
+
 interface WindsorTestResult {
   ping: unknown;
   summary: WindsorMarketingSummary;
@@ -256,6 +281,12 @@ export function Dashboard() {
   const [isTestingWindsor, setIsTestingWindsor] = useState(false);
   const [windsorResult, setWindsorResult] = useState<WindsorTestResult | null>(null);
   const [windsorError, setWindsorError] = useState<string | null>(null);
+  const [isDetectingWindsorAccounts, setIsDetectingWindsorAccounts] = useState(false);
+  const [windsorAccounts, setWindsorAccounts] =
+    useState<WindsorAccountsResult | null>(null);
+  const [windsorAccountsError, setWindsorAccountsError] = useState<string | null>(
+    null,
+  );
 
   async function loadDashboard(
     nextSecret = secret,
@@ -509,6 +540,43 @@ export function Dashboard() {
     }
   }
 
+  async function detectWindsorAccounts() {
+    if (!secret.trim()) {
+      setWindsorAccountsError(
+        "Pega el TRACKING_API_SECRET antes de detectar cuentas Windsor.",
+      );
+      return;
+    }
+
+    setIsDetectingWindsorAccounts(true);
+    setWindsorAccountsError(null);
+    setWindsorAccounts(null);
+
+    try {
+      const response = await fetch("/api/dev/windsor-accounts?datePreset=last_30d", {
+        headers: {
+          "x-tracking-secret": secret.trim(),
+        },
+      });
+      const body = (await response.json()) as WindsorAccountsResult;
+
+      if (!response.ok) {
+        throw new Error(
+          readErrorMessage(body, "No se pudieron detectar cuentas Windsor."),
+        );
+      }
+
+      setWindsorAccounts(body);
+      window.localStorage.setItem("trackingSecret", secret.trim());
+    } catch (requestError) {
+      setWindsorAccountsError(
+        requestError instanceof Error ? requestError.message : "Error desconocido.",
+      );
+    } finally {
+      setIsDetectingWindsorAccounts(false);
+    }
+  }
+
   useEffect(() => {
     if (secret) {
       void loadDashboard(secret);
@@ -597,9 +665,11 @@ export function Dashboard() {
         isLoading={isLoading}
         isDiagnosingReferences={isDiagnosingReferences}
         isSyncingToElevator={isSyncingToElevator}
+        isDetectingWindsorAccounts={isDetectingWindsorAccounts}
         isTestingRealFlow={isTestingRealFlow}
         isTestingStape={isTestingStape}
         isTestingWindsor={isTestingWindsor}
+        onDetectWindsorAccounts={() => void detectWindsorAccounts()}
         onDiagnoseReferences={() => void diagnoseReferences()}
         onRefresh={() => void loadDashboard(secret, { skipBrowserCache: true })}
         onSendToElevator={() => void sendMonthToElevator()}
@@ -616,6 +686,8 @@ export function Dashboard() {
         syncError={syncError}
         syncResult={syncResult}
         topPayments={topPayments}
+        windsorAccounts={windsorAccounts}
+        windsorAccountsError={windsorAccountsError}
         windsorError={windsorError}
         windsorResult={windsorResult}
       />
@@ -636,9 +708,11 @@ function DashboardRoute({
   isLoading,
   isDiagnosingReferences,
   isSyncingToElevator,
+  isDetectingWindsorAccounts,
   isTestingRealFlow,
   isTestingStape,
   isTestingWindsor,
+  onDetectWindsorAccounts,
   onDiagnoseReferences,
   onRefresh,
   onSendToElevator,
@@ -653,6 +727,8 @@ function DashboardRoute({
   syncResult,
   stapeTestError,
   stapeTestResult,
+  windsorAccounts,
+  windsorAccountsError,
   windsorError,
   windsorResult,
 }: {
@@ -663,9 +739,11 @@ function DashboardRoute({
   isLoading: boolean;
   isDiagnosingReferences: boolean;
   isSyncingToElevator: boolean;
+  isDetectingWindsorAccounts: boolean;
   isTestingRealFlow: boolean;
   isTestingStape: boolean;
   isTestingWindsor: boolean;
+  onDetectWindsorAccounts: () => void;
   onDiagnoseReferences: () => void;
   onRefresh: () => void;
   onSendToElevator: () => void;
@@ -680,6 +758,8 @@ function DashboardRoute({
   syncResult: PaymentsSyncResult | null;
   stapeTestError: string | null;
   stapeTestResult: StapeTestResult | null;
+  windsorAccounts: WindsorAccountsResult | null;
+  windsorAccountsError: string | null;
   windsorError: string | null;
   windsorResult: WindsorTestResult | null;
 }) {
@@ -759,8 +839,12 @@ function DashboardRoute({
     return (
       <>
         <WindsorMarketingCard
+          accounts={windsorAccounts}
+          accountsError={windsorAccountsError}
           error={windsorError}
+          isDetectingAccounts={isDetectingWindsorAccounts}
           isLoading={isTestingWindsor}
+          onDetectAccounts={onDetectWindsorAccounts}
           onTest={onTestWindsor}
           result={windsorResult}
         />
@@ -1265,13 +1349,21 @@ function IntegrationPanel({
 }
 
 function WindsorMarketingCard({
+  accounts,
+  accountsError,
   error,
+  isDetectingAccounts,
   isLoading,
+  onDetectAccounts,
   onTest,
   result,
 }: {
+  accounts: WindsorAccountsResult | null;
+  accountsError: string | null;
   error: string | null;
+  isDetectingAccounts: boolean;
   isLoading: boolean;
+  onDetectAccounts: () => void;
   onTest: () => void;
   result: WindsorTestResult | null;
 }) {
@@ -1294,10 +1386,20 @@ function WindsorMarketingCard({
             por Stape.
           </CardDescription>
         </div>
-        <Button disabled={isLoading} onClick={onTest} variant="secondary">
-          <RefreshCwIcon aria-hidden="true" data-icon="inline-start" />
-          {isLoading ? "Probando" : "Probar Windsor"}
-        </Button>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button
+            disabled={isDetectingAccounts}
+            onClick={onDetectAccounts}
+            variant="secondary"
+          >
+            <RefreshCwIcon aria-hidden="true" data-icon="inline-start" />
+            {isDetectingAccounts ? "Detectando" : "Detectar cuentas"}
+          </Button>
+          <Button disabled={isLoading} onClick={onTest} variant="secondary">
+            <RefreshCwIcon aria-hidden="true" data-icon="inline-start" />
+            {isLoading ? "Probando" : "Probar Windsor"}
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {error ? (
@@ -1306,11 +1408,19 @@ function WindsorMarketingCard({
           </div>
         ) : null}
 
+        {accountsError ? (
+          <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-destructive text-sm">
+            {accountsError}
+          </div>
+        ) : null}
+
         {summary?.configured === false ? (
           <div className="rounded-xl border border-amber-300/40 bg-amber-300/10 p-4 text-amber-200 text-sm">
             Falta configurar WINDSOR_API_KEY en Vercel y redeployar.
           </div>
         ) : null}
+
+        {accounts ? <WindsorAccountsCard accounts={accounts} /> : null}
 
         {result ? (
           <>
@@ -1428,6 +1538,80 @@ function WindsorMarketingCard({
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function WindsorAccountsCard({ accounts }: { accounts: WindsorAccountsResult }) {
+  const rows = accounts.accounts ?? [];
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-sky-300/30">
+      <div className="flex items-center justify-between border-b bg-background/50 px-4 py-3">
+        <div>
+          <p className="font-medium">Cuentas detectadas por Windsor</p>
+          <p className="text-muted-foreground text-xs">
+            Revisa aqui cual pertenece a Dr Diente y cual a Rimas. Luego usamos el
+            ID correcto como filtro.
+          </p>
+        </div>
+        <Badge variant="secondary">
+          {formatInteger(rows.length)} cuentas · {formatInteger(accounts.rowCount ?? 0)} filas
+        </Badge>
+      </div>
+      {rows.length > 0 ? (
+        <div className="max-h-96 overflow-auto">
+          <table className="w-full min-w-[1100px] text-sm">
+            <thead className="sticky top-0 bg-card text-muted-foreground">
+              <tr className="border-b">
+                <th className="px-4 py-3 text-left font-medium">Cuenta</th>
+                <th className="px-4 py-3 text-left font-medium">Account ID</th>
+                <th className="px-4 py-3 text-left font-medium">Ad Account</th>
+                <th className="px-4 py-3 text-left font-medium">Ad Account ID</th>
+                <th className="px-4 py-3 text-left font-medium">Business manager</th>
+                <th className="px-4 py-3 text-right font-medium">Spend</th>
+                <th className="px-4 py-3 text-right font-medium">Filas</th>
+                <th className="px-4 py-3 text-left font-medium">Campanas muestra</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((account) => (
+                <tr className="border-b last:border-b-0" key={account.key}>
+                  <td className="px-4 py-3 font-medium">
+                    {account.accountName ?? account.key}
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    {account.accountId ?? "-"}
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    {account.adAccountName ?? "-"}
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    {account.adAccountId ?? "-"}
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    {account.businessManager ?? "-"}
+                  </td>
+                  <td className="px-4 py-3 text-right text-emerald-400">
+                    {formatMoney(account.spend)}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {formatInteger(account.rows)}
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    {account.campaigns.slice(0, 3).join(", ") || "-"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p className="p-4 text-muted-foreground text-sm">
+          Windsor respondio, pero no devolvio campos de cuenta. Necesitamos ajustar
+          WINDSOR_DEFAULT_FIELDS segun el nombre real del campo.
+        </p>
+      )}
+    </div>
   );
 }
 

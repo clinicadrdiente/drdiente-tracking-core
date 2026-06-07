@@ -22,6 +22,21 @@ export interface WindsorSourceSummary {
   campaigns: number;
 }
 
+export interface WindsorAccountSummary {
+  key: string;
+  accountName: string | null;
+  accountId: string | null;
+  adAccountName: string | null;
+  adAccountId: string | null;
+  businessManager: string | null;
+  sources: string[];
+  campaigns: string[];
+  rows: number;
+  spend: number;
+  clicks: number;
+  impressions: number;
+}
+
 export interface WindsorMarketingSummary {
   connector: string;
   datePreset: string;
@@ -96,6 +111,30 @@ export class WindsorClient {
         impressions: rows.reduce((sum, row) => sum + (row.impressions ?? 0), 0),
       },
       bySource: summarizeBySource(rows),
+    };
+  }
+
+  async getAccountSummaries(datePreset = "last_30d"): Promise<{
+    connector: string;
+    datePreset: string;
+    rowCount: number;
+    accounts: WindsorAccountSummary[];
+  }> {
+    const connector = this.config.defaultConnector;
+    const url = new URL(connector, normalizeBaseUrl(this.config.baseUrl));
+    url.searchParams.set("api_key", this.config.apiKey);
+    url.searchParams.set("fields", this.config.defaultFields.join(","));
+    url.searchParams.set("date_preset", datePreset);
+    url.searchParams.set("_max_rows", "500");
+
+    const body = await this.request(url);
+    const rows = readRows(body).map(normalizeMarketingRow);
+
+    return {
+      connector,
+      datePreset,
+      rowCount: rows.length,
+      accounts: summarizeAccounts(rows),
     };
   }
 
@@ -214,6 +253,50 @@ function summarizeBySource(rows: WindsorMarketingRow[]): WindsorSourceSummary[] 
       ).size,
     }))
     .sort((a, b) => b.spend - a.spend);
+}
+
+function summarizeAccounts(rows: WindsorMarketingRow[]): WindsorAccountSummary[] {
+  const groups = new Map<string, WindsorMarketingRow[]>();
+
+  for (const row of rows) {
+    const key = [
+      row.accountId,
+      row.adAccountId,
+      row.businessManager,
+      row.accountName,
+      row.adAccountName,
+      row.source,
+    ]
+      .filter((value): value is string => Boolean(value))
+      .join(" | ") || "Sin cuenta detectada";
+    const accountRows = groups.get(key) ?? [];
+    accountRows.push(row);
+    groups.set(key, accountRows);
+  }
+
+  return [...groups.entries()]
+    .map(([key, accountRows]) => {
+      const first = accountRows[0] ?? {};
+      return {
+        key,
+        accountName: first.accountName ?? null,
+        accountId: first.accountId ?? null,
+        adAccountName: first.adAccountName ?? null,
+        adAccountId: first.adAccountId ?? null,
+        businessManager: first.businessManager ?? null,
+        sources: uniqueStrings(accountRows.map((row) => row.source)).slice(0, 10),
+        campaigns: uniqueStrings(accountRows.map((row) => row.campaign)).slice(0, 10),
+        rows: accountRows.length,
+        spend: accountRows.reduce((sum, row) => sum + (row.spend ?? 0), 0),
+        clicks: accountRows.reduce((sum, row) => sum + (row.clicks ?? 0), 0),
+        impressions: accountRows.reduce((sum, row) => sum + (row.impressions ?? 0), 0),
+      };
+    })
+    .sort((a, b) => b.spend - a.spend);
+}
+
+function uniqueStrings(values: Array<string | null | undefined>): string[] {
+  return [...new Set(values.filter((value): value is string => Boolean(value)))];
 }
 
 function readString(record: Record<string, unknown>, key: string): string | null {
