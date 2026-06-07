@@ -29,6 +29,7 @@ export async function handlePaymentsSync(
   let createdLeads = 0;
   let rateLimitedPatients = 0;
   let dispatched = 0;
+  let skippedDuplicateBudget = 0;
   const safeToMarkProcessed = [];
 
   for (const payment of unprocessedPayments) {
@@ -63,12 +64,37 @@ export async function handlePaymentsSync(
     }
 
     matchedLeads += 1;
+
+    // Revenue is the FULL budget total, counted once per treatment/budget.
+    // A budget paid in several installments produces several payment rows, all
+    // carrying the same budgetTotal — emitting a "Compra" per payment would
+    // multiply revenue and inflate ROAS. So we gate the purchase on a
+    // treatment-scoped key and only fire it for the first payment of a budget.
+    // Subsequent installments are skipped here (cash reconciliation lives in a
+    // separate signal). Refunds always dispatch as corrections.
+    const purchaseDedupeKey =
+      payment.treatmentId > 0
+        ? `treatment_${payment.treatmentId}`
+        : `payment_${payment.paymentId}`;
+
+    const alreadyCounted =
+      !payment.isVoided &&
+      (await stateStore.hasProcessedPayment(purchaseDedupeKey));
+
+    if (alreadyCounted) {
+      skippedDuplicateBudget += 1;
+      continue;
+    }
+
     const tier =
       payment.budgetTotal >= highTicketThreshold ? "alto_ticket" : "standard";
     const event = buildPurchaseEvent(lead, payment, tier);
 
     await elevatorClient.updateLeadStage(lead.elevatorId, "anticipo_pagado");
     await stapeClient.dispatch(event);
+    if (!payment.isVoided) {
+      await stateStore.markPaymentProcessed(purchaseDedupeKey);
+    }
     dispatched += 1;
   }
 
@@ -93,6 +119,7 @@ export async function handlePaymentsSync(
     createdLeads,
     rateLimitedPatients,
     dispatched,
+    skippedDuplicateBudget,
   };
 }
 

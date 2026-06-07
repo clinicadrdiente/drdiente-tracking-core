@@ -25,6 +25,11 @@ export function buildPurchaseEvent(
       currency: payment.currency,
       value: payment.budgetTotal,
       cash_collected: payment.paymentAmount,
+      // Join key against Windsor spend (stable id preferred over campaign name).
+      campaign_id: lead.attribution.campaignId ?? null,
+      utm_source: lead.attribution.utmSource ?? null,
+      utm_medium: lead.attribution.utmMedium ?? null,
+      utm_campaign: lead.attribution.utmCampaign ?? null,
       dentalink_payment_id: payment.paymentId,
       dentalink_patient_id: payment.patientId,
       paid_at: payment.paidAt,
