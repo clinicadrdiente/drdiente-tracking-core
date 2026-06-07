@@ -2,6 +2,7 @@ import { bootstrapApp, type AppServices } from "./bootstrap.js";
 import { handleDentalinkAppointment } from "../routes/dentalink-appointment.js";
 import { handleLeadCapture } from "../routes/lead.js";
 import { handlePaymentsSync } from "../routes/payments-sync.js";
+import { getStateStoreConfig } from "../modules/state/config.js";
 import type { AppointmentEvent, LeadInput } from "../types/domain.js";
 
 export class TrackingApp {
@@ -9,6 +10,7 @@ export class TrackingApp {
 
   async getStatus() {
     const state = await this.services.stateStore.getPaymentSyncState();
+    const stateStoreMode = getStateStoreConfig().mode;
 
     return {
       ok: true,
@@ -17,7 +19,7 @@ export class TrackingApp {
       config: {
         elevatorMode: process.env.ELEVATOR_MODE ?? "stub",
         dentalinkMode: process.env.DENTALINK_MODE ?? "stub",
-        stateStoreMode: process.env.STATE_STORE_MODE ?? "file",
+        stateStoreMode,
         defaultCurrency: this.services.config.defaultCurrency,
         highTicketThreshold: this.services.config.highTicketThreshold,
         paymentsSyncLookbackMinutes:

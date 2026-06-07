@@ -97,3 +97,105 @@ export class FileStateStore implements StateStore {
     return resolve(process.cwd(), this.filePath);
   }
 }
+
+export class RedisStateStore implements StateStore {
+  private readonly stateKey: string;
+  private readonly processedSetKey: string;
+
+  constructor(
+    private readonly restUrl: string,
+    private readonly restToken: string,
+    keyPrefix: string,
+    private readonly fetchImpl: typeof fetch = fetch,
+  ) {
+    this.stateKey = `${keyPrefix}:payment-sync:state`;
+    this.processedSetKey = `${keyPrefix}:payment-sync:processed`;
+  }
+
+  async getPaymentSyncState(): Promise<PaymentSyncState> {
+    const [stateJson, processedPaymentIds] = await Promise.all([
+      this.command<string | null>(["GET", this.stateKey]),
+      this.command<string[]>(["SMEMBERS", this.processedSetKey]),
+    ]);
+    const parsedState = parsePaymentSyncState(stateJson);
+
+    return {
+      lastCheckIso: parsedState.lastCheckIso,
+      processedPaymentIds: Array.isArray(processedPaymentIds)
+        ? processedPaymentIds
+        : [],
+    };
+  }
+
+  async savePaymentSyncState(state: PaymentSyncState): Promise<void> {
+    const payload = JSON.stringify({ lastCheckIso: state.lastCheckIso });
+    await this.command(["SET", this.stateKey, payload]);
+
+    if (state.processedPaymentIds.length > 0) {
+      await this.command([
+        "SADD",
+        this.processedSetKey,
+        ...state.processedPaymentIds,
+      ]);
+    }
+  }
+
+  async hasProcessedPayment(paymentId: string): Promise<boolean> {
+    const result = await this.command<number>([
+      "SISMEMBER",
+      this.processedSetKey,
+      paymentId,
+    ]);
+    return result === 1;
+  }
+
+  async markPaymentProcessed(paymentId: string): Promise<void> {
+    await this.command(["SADD", this.processedSetKey, paymentId]);
+  }
+
+  private async command<T = unknown>(
+    command: Array<string | number>,
+  ): Promise<T> {
+    const response = await this.fetchImpl(this.restUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${this.restToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(command),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Redis request failed with status ${response.status}`);
+    }
+
+    const body = (await response.json()) as {
+      result?: T;
+      error?: string;
+    };
+
+    if (body.error) {
+      throw new Error(`Redis command failed: ${body.error}`);
+    }
+
+    return body.result as T;
+  }
+}
+
+function parsePaymentSyncState(value: string | null): Pick<PaymentSyncState, "lastCheckIso"> {
+  if (!value) {
+    return {};
+  }
+
+  try {
+    const parsed = JSON.parse(value) as PaymentSyncState;
+    return {
+      lastCheckIso:
+        typeof parsed.lastCheckIso === "string"
+          ? parsed.lastCheckIso
+          : undefined,
+    };
+  } catch {
+    return {};
+  }
+}

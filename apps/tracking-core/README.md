@@ -99,7 +99,16 @@ El proyecto ya incluye una capa minima de estado para `payments sync`:
 
 - cursor `lastCheckIso`
 - deduplicacion por `payment_id`
-- store persistente en archivo con interfaz reemplazable
+- store persistente con modos `file`, `memory` y `redis`
 
 La persistencia por defecto vive en `STATE_STORE_FILE_PATH` y es suficiente para desarrollo y primeras pruebas.
-El siguiente reemplazo natural es mover ese estado a `KV` o `Postgres`.
+En produccion debe usarse Redis/Upstash para evitar perder idempotencia entre funciones serverless:
+
+```text
+STATE_STORE_MODE=redis
+UPSTASH_REDIS_REST_URL=<url-rest-de-upstash>
+UPSTASH_REDIS_REST_TOKEN=<token-rest-de-upstash>
+STATE_STORE_REDIS_KEY_PREFIX=drdiente:tracking
+```
+
+`UPSTASH_REDIS_REST_TOKEN` debe marcarse como `Sensitive` en Vercel.

@@ -5,6 +5,7 @@ import { StubStapeClient, type StapeClient } from "../modules/stape/client.js";
 import {
   FileStateStore,
   InMemoryStateStore,
+  RedisStateStore,
   type StateStore,
 } from "../modules/state/state-store.js";
 import { getStateStoreConfig } from "../modules/state/config.js";
@@ -28,9 +29,28 @@ export function bootstrapApp(): AppServices {
     elevatorClient: createElevatorClient(),
     dentalinkClient: createDentalinkClient(),
     stapeClient: new StubStapeClient(),
-    stateStore:
-      stateStoreConfig.mode === "memory"
-        ? new InMemoryStateStore()
-        : new FileStateStore(stateStoreConfig.filePath),
+    stateStore: createStateStore(stateStoreConfig),
   };
+}
+
+function createStateStore(
+  stateStoreConfig: ReturnType<typeof getStateStoreConfig>,
+): StateStore {
+  if (
+    stateStoreConfig.mode === "redis" &&
+    stateStoreConfig.redisRestUrl &&
+    stateStoreConfig.redisRestToken
+  ) {
+    return new RedisStateStore(
+      stateStoreConfig.redisRestUrl,
+      stateStoreConfig.redisRestToken,
+      stateStoreConfig.redisKeyPrefix,
+    );
+  }
+
+  if (stateStoreConfig.mode === "memory") {
+    return new InMemoryStateStore();
+  }
+
+  return new FileStateStore(stateStoreConfig.filePath);
 }
