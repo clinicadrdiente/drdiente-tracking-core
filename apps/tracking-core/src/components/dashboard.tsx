@@ -177,6 +177,12 @@ interface WindsorMarketingSummary {
   configured?: boolean;
   connector?: string;
   datePreset?: string;
+  filters?: {
+    includeText: string[];
+    excludeText: string[];
+  };
+  rawRowCount?: number;
+  filteredRowCount?: number;
   message?: string;
   rows?: WindsorMarketingRow[];
   totals?: {
@@ -191,6 +197,11 @@ interface WindsorMarketingRow {
   date?: string | null;
   source?: string | null;
   campaign?: string | null;
+  accountName?: string | null;
+  accountId?: string | null;
+  adAccountName?: string | null;
+  adAccountId?: string | null;
+  businessManager?: string | null;
   spend?: number;
   clicks?: number;
   impressions?: number;
@@ -1311,6 +1322,10 @@ function WindsorMarketingCard({
                 <p className="mt-2 font-semibold text-emerald-400">
                   {summary?.configured === false ? "Pendiente" : "Conectado"}
                 </p>
+                <p className="mt-1 text-muted-foreground text-xs">
+                  {formatInteger(summary?.filteredRowCount ?? summary?.rows?.length ?? 0)} de{" "}
+                  {formatInteger(summary?.rawRowCount ?? summary?.rows?.length ?? 0)} filas
+                </p>
               </div>
               <div className="rounded-xl border bg-background/50 p-4">
                 <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
@@ -1345,6 +1360,10 @@ function WindsorMarketingCard({
                   <p className="text-muted-foreground text-xs">
                     Conector {summary?.connector ?? "sin definir"} ·{" "}
                     {summary?.datePreset ?? "last_30d"}
+                  </p>
+                  <p className="mt-1 text-muted-foreground text-xs">
+                    Incluye: {summary?.filters?.includeText?.join(", ") || "todo"} ·
+                    Excluye: {summary?.filters?.excludeText?.join(", ") || "nada"}
                   </p>
                 </div>
                 <Badge variant="secondary">

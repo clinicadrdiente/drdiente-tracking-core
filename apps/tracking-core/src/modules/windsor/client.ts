@@ -4,6 +4,11 @@ export interface WindsorMarketingRow {
   date?: string | null;
   source?: string | null;
   campaign?: string | null;
+  accountName?: string | null;
+  accountId?: string | null;
+  adAccountName?: string | null;
+  adAccountId?: string | null;
+  businessManager?: string | null;
   spend?: number;
   clicks?: number;
   impressions?: number;
@@ -20,6 +25,12 @@ export interface WindsorSourceSummary {
 export interface WindsorMarketingSummary {
   connector: string;
   datePreset: string;
+  filters: {
+    includeText: string[];
+    excludeText: string[];
+  };
+  rawRowCount: number;
+  filteredRowCount: number;
   rows: WindsorMarketingRow[];
   totals: {
     spend: number;
@@ -66,11 +77,18 @@ export class WindsorClient {
     url.searchParams.set("_max_rows", "500");
 
     const body = await this.request(url);
-    const rows = readRows(body).map(normalizeMarketingRow);
+    const rawRows = readRows(body).map(normalizeMarketingRow);
+    const rows = rawRows.filter((row) => rowMatchesTextFilters(row, this.config));
 
     return {
       connector,
       datePreset,
+      filters: {
+        includeText: this.config.includeTextFilters,
+        excludeText: this.config.excludeTextFilters,
+      },
+      rawRowCount: rawRows.length,
+      filteredRowCount: rows.length,
       rows,
       totals: {
         spend: rows.reduce((sum, row) => sum + (row.spend ?? 0), 0),
@@ -131,10 +149,46 @@ function normalizeMarketingRow(row: Record<string, unknown>): WindsorMarketingRo
     date: readString(row, "date"),
     source: readString(row, "source"),
     campaign: readString(row, "campaign"),
+    accountName: readFirstString(row, ["account_name", "account"]),
+    accountId: readFirstString(row, ["account_id"]),
+    adAccountName: readFirstString(row, ["ad_account_name", "adaccount_name"]),
+    adAccountId: readFirstString(row, ["ad_account_id", "adaccount_id"]),
+    businessManager: readFirstString(row, [
+      "business_manager",
+      "business_manager_name",
+      "business_name",
+    ]),
     spend: readNumber(row, "spend"),
     clicks: readNumber(row, "clicks"),
     impressions: readNumber(row, "impressions"),
   };
+}
+
+function rowMatchesTextFilters(
+  row: WindsorMarketingRow,
+  config: WindsorConfig,
+): boolean {
+  const searchableText = [
+    row.source,
+    row.campaign,
+    row.accountName,
+    row.accountId,
+    row.adAccountName,
+    row.adAccountId,
+    row.businessManager,
+  ]
+    .filter((value): value is string => Boolean(value))
+    .join(" ")
+    .toLowerCase();
+
+  const hasIncludeMatch =
+    config.includeTextFilters.length === 0 ||
+    config.includeTextFilters.some((filter) => searchableText.includes(filter));
+  const hasExcludeMatch = config.excludeTextFilters.some((filter) =>
+    searchableText.includes(filter),
+  );
+
+  return hasIncludeMatch && !hasExcludeMatch;
 }
 
 function summarizeBySource(rows: WindsorMarketingRow[]): WindsorSourceSummary[] {
@@ -165,6 +219,20 @@ function summarizeBySource(rows: WindsorMarketingRow[]): WindsorSourceSummary[] 
 function readString(record: Record<string, unknown>, key: string): string | null {
   const value = record[key];
   return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
+}
+
+function readFirstString(
+  record: Record<string, unknown>,
+  keys: string[],
+): string | null {
+  for (const key of keys) {
+    const value = readString(record, key);
+    if (value) {
+      return value;
+    }
+  }
+
+  return null;
 }
 
 function readNumber(record: Record<string, unknown>, key: string): number {
