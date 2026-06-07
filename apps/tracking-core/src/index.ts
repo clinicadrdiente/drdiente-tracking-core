@@ -18,6 +18,8 @@ export * from "./modules/dentalink/config.js";
 export * from "./modules/dentalink/payloads.js";
 export * from "./modules/stape/client.js";
 export * from "./modules/stape/config.js";
+export * from "./modules/windsor/client.js";
+export * from "./modules/windsor/config.js";
 export * from "./modules/matching/match-patient-to-lead.js";
 export * from "./modules/payments/build-purchase-event.js";
 export * from "./modules/observability/logger.js";

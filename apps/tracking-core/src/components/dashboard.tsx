@@ -172,6 +172,43 @@ interface StapeTestResult {
   event: unknown;
 }
 
+interface WindsorMarketingSummary {
+  ok?: boolean;
+  configured?: boolean;
+  connector?: string;
+  datePreset?: string;
+  message?: string;
+  rows?: WindsorMarketingRow[];
+  totals?: {
+    spend: number;
+    clicks: number;
+    impressions: number;
+  };
+  bySource?: WindsorSourceSummary[];
+}
+
+interface WindsorMarketingRow {
+  date?: string | null;
+  source?: string | null;
+  campaign?: string | null;
+  spend?: number;
+  clicks?: number;
+  impressions?: number;
+}
+
+interface WindsorSourceSummary {
+  source: string;
+  spend: number;
+  clicks: number;
+  impressions: number;
+  campaigns: number;
+}
+
+interface WindsorTestResult {
+  ping: unknown;
+  summary: WindsorMarketingSummary;
+}
+
 const chartConfig = {
   revenue: {
     label: "Revenue",
@@ -205,6 +242,9 @@ export function Dashboard() {
   const [isTestingRealFlow, setIsTestingRealFlow] = useState(false);
   const [realFlowResult, setRealFlowResult] = useState<PaymentsSyncResult | null>(null);
   const [realFlowError, setRealFlowError] = useState<string | null>(null);
+  const [isTestingWindsor, setIsTestingWindsor] = useState(false);
+  const [windsorResult, setWindsorResult] = useState<WindsorTestResult | null>(null);
+  const [windsorError, setWindsorError] = useState<string | null>(null);
 
   async function loadDashboard(
     nextSecret = secret,
@@ -411,6 +451,53 @@ export function Dashboard() {
     }
   }
 
+  async function testWindsor() {
+    if (!secret.trim()) {
+      setWindsorError("Pega el TRACKING_API_SECRET antes de probar Windsor.");
+      return;
+    }
+
+    setIsTestingWindsor(true);
+    setWindsorError(null);
+    setWindsorResult(null);
+
+    try {
+      const headers = {
+        "x-tracking-secret": secret.trim(),
+      };
+      const pingResponse = await fetch("/api/dev/windsor-ping", { headers });
+      const pingBody = (await pingResponse.json()) as unknown;
+
+      if (!pingResponse.ok) {
+        throw new Error(readErrorMessage(pingBody, "No se pudo validar Windsor."));
+      }
+
+      const summaryResponse = await fetch(
+        "/api/dev/windsor-marketing-summary?datePreset=last_30d",
+        { headers },
+      );
+      const summaryBody = (await summaryResponse.json()) as WindsorMarketingSummary;
+
+      if (!summaryResponse.ok) {
+        throw new Error(
+          readErrorMessage(summaryBody, "No se pudo leer el resumen de Windsor."),
+        );
+      }
+
+      setWindsorResult({
+        ping: pingBody,
+        summary: summaryBody,
+      });
+      window.localStorage.setItem("trackingSecret", secret.trim());
+    } catch (requestError) {
+      setWindsorError(
+        requestError instanceof Error ? requestError.message : "Error desconocido.",
+      );
+    } finally {
+      setIsTestingWindsor(false);
+    }
+  }
+
   useEffect(() => {
     if (secret) {
       void loadDashboard(secret);
@@ -501,11 +588,13 @@ export function Dashboard() {
         isSyncingToElevator={isSyncingToElevator}
         isTestingRealFlow={isTestingRealFlow}
         isTestingStape={isTestingStape}
+        isTestingWindsor={isTestingWindsor}
         onDiagnoseReferences={() => void diagnoseReferences()}
         onRefresh={() => void loadDashboard(secret, { skipBrowserCache: true })}
         onSendToElevator={() => void sendMonthToElevator()}
         onTestRealFlow={() => void testRealConversionFlow()}
         onTestStape={() => void testStape()}
+        onTestWindsor={() => void testWindsor()}
         referenceDiagnostic={referenceDiagnostic}
         referenceDiagnosticError={referenceDiagnosticError}
         realFlowError={realFlowError}
@@ -516,6 +605,8 @@ export function Dashboard() {
         syncError={syncError}
         syncResult={syncResult}
         topPayments={topPayments}
+        windsorError={windsorError}
+        windsorResult={windsorResult}
       />
     </div>
   );
@@ -536,11 +627,13 @@ function DashboardRoute({
   isSyncingToElevator,
   isTestingRealFlow,
   isTestingStape,
+  isTestingWindsor,
   onDiagnoseReferences,
   onRefresh,
   onSendToElevator,
   onTestRealFlow,
   onTestStape,
+  onTestWindsor,
   referenceDiagnostic,
   referenceDiagnosticError,
   realFlowError,
@@ -549,6 +642,8 @@ function DashboardRoute({
   syncResult,
   stapeTestError,
   stapeTestResult,
+  windsorError,
+  windsorResult,
 }: {
   route: string;
   data: MonthlyDashboard | null;
@@ -559,11 +654,13 @@ function DashboardRoute({
   isSyncingToElevator: boolean;
   isTestingRealFlow: boolean;
   isTestingStape: boolean;
+  isTestingWindsor: boolean;
   onDiagnoseReferences: () => void;
   onRefresh: () => void;
   onSendToElevator: () => void;
   onTestRealFlow: () => void;
   onTestStape: () => void;
+  onTestWindsor: () => void;
   referenceDiagnostic: ReferenceDiagnostic | null;
   referenceDiagnosticError: string | null;
   realFlowError: string | null;
@@ -572,6 +669,8 @@ function DashboardRoute({
   syncResult: PaymentsSyncResult | null;
   stapeTestError: string | null;
   stapeTestResult: StapeTestResult | null;
+  windsorError: string | null;
+  windsorResult: WindsorTestResult | null;
 }) {
   if (route === "revenue") {
     return (
@@ -647,10 +746,18 @@ function DashboardRoute({
 
   if (route === "dentalink/treatments" || route === "marketing") {
     return (
-      <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <TreatmentListCard data={data} />
-        <RevenueChart chartRows={chartRows} data={data} />
-      </section>
+      <>
+        <WindsorMarketingCard
+          error={windsorError}
+          isLoading={isTestingWindsor}
+          onTest={onTestWindsor}
+          result={windsorResult}
+        />
+        <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <TreatmentListCard data={data} />
+          <RevenueChart chartRows={chartRows} data={data} />
+        </section>
+      </>
     );
   }
 
@@ -1141,6 +1248,165 @@ function IntegrationPanel({
             </div>
           ))}
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function WindsorMarketingCard({
+  error,
+  isLoading,
+  onTest,
+  result,
+}: {
+  error: string | null;
+  isLoading: boolean;
+  onTest: () => void;
+  result: WindsorTestResult | null;
+}) {
+  const summary = result?.summary;
+  const totals = summary?.totals ?? {
+    spend: 0,
+    clicks: 0,
+    impressions: 0,
+  };
+  const bySource = summary?.bySource ?? [];
+
+  return (
+    <Card className="border-sky-300/30">
+      <CardHeader className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div>
+          <CardTitle>Windsor AI marketing data</CardTitle>
+          <CardDescription className="mt-2 max-w-3xl">
+            Trae gasto, clicks e impresiones de las plataformas de marketing para
+            cruzarlo despues con revenue real de Dentalink y conversiones enviadas
+            por Stape.
+          </CardDescription>
+        </div>
+        <Button disabled={isLoading} onClick={onTest} variant="secondary">
+          <RefreshCwIcon aria-hidden="true" data-icon="inline-start" />
+          {isLoading ? "Probando" : "Probar Windsor"}
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {error ? (
+          <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-destructive text-sm">
+            {error}
+          </div>
+        ) : null}
+
+        {summary?.configured === false ? (
+          <div className="rounded-xl border border-amber-300/40 bg-amber-300/10 p-4 text-amber-200 text-sm">
+            Falta configurar WINDSOR_API_KEY en Vercel y redeployar.
+          </div>
+        ) : null}
+
+        {result ? (
+          <>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+              <div className="rounded-xl border bg-background/50 p-4">
+                <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
+                  Estado
+                </p>
+                <p className="mt-2 font-semibold text-emerald-400">
+                  {summary?.configured === false ? "Pendiente" : "Conectado"}
+                </p>
+              </div>
+              <div className="rounded-xl border bg-background/50 p-4">
+                <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
+                  Spend
+                </p>
+                <p className="mt-2 font-semibold text-2xl">
+                  {formatMoney(totals.spend)}
+                </p>
+              </div>
+              <div className="rounded-xl border bg-background/50 p-4">
+                <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
+                  Clicks
+                </p>
+                <p className="mt-2 font-semibold text-2xl">
+                  {formatInteger(totals.clicks)}
+                </p>
+              </div>
+              <div className="rounded-xl border bg-background/50 p-4">
+                <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
+                  Impresiones
+                </p>
+                <p className="mt-2 font-semibold text-2xl">
+                  {formatInteger(totals.impressions)}
+                </p>
+              </div>
+            </div>
+
+            <div className="overflow-hidden rounded-xl border">
+              <div className="flex items-center justify-between border-b bg-background/50 px-4 py-3">
+                <div>
+                  <p className="font-medium">Performance por fuente</p>
+                  <p className="text-muted-foreground text-xs">
+                    Conector {summary?.connector ?? "sin definir"} ·{" "}
+                    {summary?.datePreset ?? "last_30d"}
+                  </p>
+                </div>
+                <Badge variant="secondary">
+                  {formatInteger(summary?.rows?.length ?? 0)} filas
+                </Badge>
+              </div>
+              {bySource.length > 0 ? (
+                <div className="max-h-80 overflow-auto">
+                  <table className="w-full min-w-[720px] text-sm">
+                    <thead className="sticky top-0 bg-card text-muted-foreground">
+                      <tr className="border-b">
+                        <th className="px-4 py-3 text-left font-medium">Fuente</th>
+                        <th className="px-4 py-3 text-right font-medium">Spend</th>
+                        <th className="px-4 py-3 text-right font-medium">Clicks</th>
+                        <th className="px-4 py-3 text-right font-medium">Impresiones</th>
+                        <th className="px-4 py-3 text-right font-medium">Campanas</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bySource.map((source) => (
+                        <tr className="border-b last:border-b-0" key={source.source}>
+                          <td className="px-4 py-3 font-medium">{source.source}</td>
+                          <td className="px-4 py-3 text-right text-emerald-400">
+                            {formatMoney(source.spend)}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            {formatInteger(source.clicks)}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            {formatInteger(source.impressions)}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            {formatInteger(source.campaigns)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="p-4 text-muted-foreground text-sm">
+                  Windsor respondio, pero no devolvio filas con esos campos. Si pasa
+                  esto, ajustamos WINDSOR_DEFAULT_CONNECTOR o WINDSOR_DEFAULT_FIELDS.
+                </p>
+              )}
+            </div>
+
+            <details className="rounded-xl border bg-background/50 p-4">
+              <summary className="cursor-pointer font-medium text-sm">
+                Ver respuesta tecnica
+              </summary>
+              <pre className="mt-3 max-h-72 overflow-auto whitespace-pre-wrap text-xs">
+                {JSON.stringify(result, null, 2)}
+              </pre>
+            </details>
+          </>
+        ) : (
+          <p className="text-muted-foreground text-sm">
+            Usa “Probar Windsor” cuando la variable WINDSOR_API_KEY este guardada
+            en Vercel. Esto no modifica Dentalink, Elevator ni Stape.
+          </p>
+        )}
       </CardContent>
     </Card>
   );
