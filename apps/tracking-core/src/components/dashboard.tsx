@@ -99,6 +99,7 @@ export function Dashboard() {
   const [data, setData] = useState<MonthlyDashboard | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [route, setRoute] = useState(() => normalizeRoute(window.location.hash));
 
   async function loadDashboard(nextSecret = secret) {
     if (!nextSecret.trim()) {
@@ -136,6 +137,25 @@ export function Dashboard() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    function handleHashChange() {
+      setRoute(normalizeRoute(window.location.hash));
+    }
+
+    function handleRefreshRequest() {
+      setRoute("dashboard");
+      void loadDashboard(secret);
+    }
+
+    window.addEventListener("hashchange", handleHashChange);
+    window.addEventListener("drdiente:refresh-dashboard", handleRefreshRequest);
+
+    return () => {
+      window.removeEventListener("hashchange", handleHashChange);
+      window.removeEventListener("drdiente:refresh-dashboard", handleRefreshRequest);
+    };
+  }, [secret]);
 
   const chartRows = useMemo(
     () =>
@@ -182,133 +202,422 @@ export function Dashboard() {
         </Card>
       ) : null}
 
-      <section className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          delta={0}
-          hint={data?.month?.label ?? "Mes actual"}
-          label="Revenue total"
-          value={formatMoney(data?.revenueTotal ?? 0)}
-        />
-        <StatCard
-          delta={0}
-          hint="Pagos Dentalink"
-          label="Pagos"
-          value={formatInteger(data?.paymentsTotal ?? 0)}
-        />
-        <StatCard
-          delta={0}
-          hint="Pacientes unicos"
-          label="Pacientes"
-          value={formatInteger(data?.uniquePatientsTotal ?? 0)}
-        />
-        <StatCard
-          delta={0}
-          hint="Promedio por pago"
-          label="Ticket promedio"
-          value={formatMoney(data?.averagePaymentValue ?? 0)}
-        />
-      </section>
+      <DashboardRoute
+        chartRows={chartRows}
+        data={data}
+        isLoading={isLoading}
+        onRefresh={() => void loadDashboard()}
+        route={route}
+        topPayments={topPayments}
+      />
+    </div>
+  );
+}
 
-      <Card className="md:col-span-2 lg:col-span-4">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>Revenue</CardTitle>
-            <CardDescription>
-              Del dia 1 al ultimo dia del mes. Dias sin pago quedan en cero.
-            </CardDescription>
-          </div>
-          <Badge variant="secondary">{data?.month?.label ?? "Sin datos"}</Badge>
-        </CardHeader>
-        <CardContent>
-          <ChartContainer className="aspect-auto h-72 w-full" config={chartConfig}>
-            <AreaChart
-              accessibilityLayer
-              data={chartRows}
-              margin={{ left: 24, right: 8, top: 8, bottom: 0 }}
-            >
-              <defs>
-                <linearGradient id="revenue-area" x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="0%" stopColor="var(--color-revenue)" stopOpacity={0.25} />
-                  <stop offset="100%" stopColor="var(--color-revenue)" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid horizontal={false} strokeDasharray="2 2" />
-              <XAxis
-                axisLine={false}
-                dataKey="date"
-                interval={2}
-                minTickGap={20}
-                tickFormatter={(value) => String(value).slice(8, 10)}
-                tickLine={false}
-                tickMargin={8}
-              />
-              <ChartTooltip
-                content={
-                  <ChartTooltipContent
-                    className="min-w-36"
-                    formatter={(value) => formatMoney(Number(value))}
-                    indicator="line"
-                  />
-                }
-              />
-              <Area
-                dataKey="revenue"
-                dot={false}
-                fill="url(#revenue-area)"
-                stroke="var(--color-revenue)"
-                strokeWidth={2}
-                type="monotone"
-              />
-            </AreaChart>
-          </ChartContainer>
-        </CardContent>
-        <CardFooter className="justify-between text-muted-foreground text-xs">
-          <span>{formatInteger(chartRows.length)} bloques diarios</span>
-          <span>Revenue: {formatMoney(data?.revenueTotal ?? 0)}</span>
-        </CardFooter>
-      </Card>
+type ChartRow = {
+  date: string;
+  revenue: number;
+};
 
-      <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Ultimos pacientes Dentalink</CardTitle>
-            <CardDescription>
-              Pagos recientes del mes con email, telefono, tratamiento y monto.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ItemGroup className="gap-2">
-              {topPayments.length > 0 ? (
-                topPayments.map((payment) => (
-                  <PatientItem key={payment.paymentId} payment={payment} />
-                ))
-              ) : (
-                <p className="py-8 text-center text-muted-foreground text-sm">
-                  Presiona Actualizar para cargar pacientes.
-                </p>
-              )}
-            </ItemGroup>
-          </CardContent>
-        </Card>
+function DashboardRoute({
+  route,
+  data,
+  chartRows,
+  topPayments,
+  isLoading,
+  onRefresh,
+}: {
+  route: string;
+  data: MonthlyDashboard | null;
+  chartRows: ChartRow[];
+  topPayments: PaymentBlock[];
+  isLoading: boolean;
+  onRefresh: () => void;
+}) {
+  if (route === "revenue") {
+    return (
+      <>
+        <StatsGrid data={data} />
+        <RevenueChart chartRows={chartRows} data={data} />
+        <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <TreatmentListCard data={data} />
+          <DayBlocksCard data={data} />
+        </section>
+      </>
+    );
+  }
 
-        <QuickPanel data={data} />
-      </section>
-
+  if (route === "patients" || route === "dentalink/patients") {
+    return (
       <Card>
         <CardHeader>
-          <CardTitle>Bloques del mes</CardTitle>
+          <CardTitle>Pacientes del mes</CardTitle>
           <CardDescription>
-            Desde el dia 1 hasta el ultimo dia del mes, con pacientes por dia.
+            Ultimos pacientes jalados desde Dentalink con contacto, tratamiento y monto.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {(data?.days ?? []).map((day) => (
-              <DayRevenueBlock key={day.date} day={day} />
-            ))}
-          </div>
+          <ItemGroup className="gap-2">
+            {(data?.patients ?? []).length > 0 ? (
+              data?.patients.map((payment) => (
+                <PatientItem key={payment.paymentId} payment={payment} />
+              ))
+            ) : (
+              <EmptyState
+                cta="Actualizar Dentalink"
+                isLoading={isLoading}
+                message="No hay pacientes cargados todavia."
+                onClick={onRefresh}
+              />
+            )}
+          </ItemGroup>
         </CardContent>
       </Card>
+    );
+  }
+
+  if (route === "dentalink" || route === "dentalink/payments") {
+    return (
+      <>
+        <StatsGrid data={data} />
+        <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <RecentPatientsCard payments={topPayments} />
+          <DayBlocksCard data={data} />
+        </section>
+      </>
+    );
+  }
+
+  if (route === "dentalink/treatments" || route === "marketing") {
+    return (
+      <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <TreatmentListCard data={data} />
+        <RevenueChart chartRows={chartRows} data={data} />
+      </section>
+    );
+  }
+
+  if (route === "elevator" || route.startsWith("elevator/")) {
+    return (
+      <IntegrationPanel
+        badge="API conectada"
+        description="Elevator ya recibe leads desde el tracking core. El siguiente paso es mejorar el matching entre pacientes pagados en Dentalink y contactos creados en Elevator."
+        rows={[
+          ["Modo", "api"],
+          ["Leads demo", "creacion y deduplicacion activa"],
+          ["Matching pagos", `${formatInteger(data?.patients.length ?? 0)} pagos disponibles`],
+        ]}
+        title="Elevator CRM"
+      />
+    );
+  }
+
+  if (route === "stape" || route.startsWith("stape/")) {
+    return (
+      <IntegrationPanel
+        badge="Pendiente"
+        description="Stape sigue en modo stub hasta que tu jefe habilite el server GTM. Ya tenemos el payload base: monto, paciente, tratamiento, fecha y fuente."
+        rows={[
+          ["Estado", "stub"],
+          ["Payload", "listo para conversiones"],
+          ["Bloqueante", "activar server GTM / Stape"],
+        ]}
+        title="Stape + Conversion API"
+      />
+    );
+  }
+
+  if (route === "settings" || route.startsWith("settings/")) {
+    return (
+      <IntegrationPanel
+        badge="Sistema"
+        description="Aqui se centralizan variables, secret local, estado de integraciones y logs operativos del tracking core."
+        rows={[
+          ["Dentalink", "api"],
+          ["Elevator", "api"],
+          ["Stape", "stub"],
+          ["Secret local", window.localStorage.getItem("trackingSecret") ? "configurado" : "pendiente"],
+        ]}
+        title="Configuracion"
+      />
+    );
+  }
+
+  if (route === "help" || route === "status") {
+    return (
+      <IntegrationPanel
+        badge={route === "status" ? "Healthy" : "Interno"}
+        description="Panel interno para revisar salud del sistema, pagos disponibles y acciones de diagnostico sin entrar directo a Vercel."
+        rows={[
+          ["Revenue", formatMoney(data?.revenueTotal ?? 0)],
+          ["Pagos", formatInteger(data?.paymentsTotal ?? 0)],
+          ["Pacientes", formatInteger(data?.uniquePatientsTotal ?? 0)],
+        ]}
+        title={route === "status" ? "Estado del sistema" : "Ayuda interna"}
+      />
+    );
+  }
+
+  return (
+    <>
+      <StatsGrid data={data} />
+      <RevenueChart chartRows={chartRows} data={data} />
+      <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <RecentPatientsCard payments={topPayments} />
+        <QuickPanel data={data} />
+      </section>
+      <DayBlocksCard data={data} />
+    </>
+  );
+}
+
+function StatsGrid({ data }: { data: MonthlyDashboard | null }) {
+  return (
+    <section className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <StatCard
+        delta={0}
+        hint={data?.month?.label ?? "Mes actual"}
+        label="Revenue total"
+        value={formatMoney(data?.revenueTotal ?? 0)}
+      />
+      <StatCard
+        delta={0}
+        hint="Pagos Dentalink"
+        label="Pagos"
+        value={formatInteger(data?.paymentsTotal ?? 0)}
+      />
+      <StatCard
+        delta={0}
+        hint="Pacientes unicos"
+        label="Pacientes"
+        value={formatInteger(data?.uniquePatientsTotal ?? 0)}
+      />
+      <StatCard
+        delta={0}
+        hint="Promedio por pago"
+        label="Ticket promedio"
+        value={formatMoney(data?.averagePaymentValue ?? 0)}
+      />
+    </section>
+  );
+}
+
+function RevenueChart({
+  chartRows,
+  data,
+}: {
+  chartRows: ChartRow[];
+  data: MonthlyDashboard | null;
+}) {
+  return (
+    <Card className="md:col-span-2 lg:col-span-4">
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle>Revenue</CardTitle>
+          <CardDescription>
+            Del dia 1 al ultimo dia del mes. Dias sin pago quedan en cero.
+          </CardDescription>
+        </div>
+        <Badge variant="secondary">{data?.month?.label ?? "Sin datos"}</Badge>
+      </CardHeader>
+      <CardContent>
+        <ChartContainer className="aspect-auto h-72 w-full" config={chartConfig}>
+          <AreaChart
+            accessibilityLayer
+            data={chartRows}
+            margin={{ left: 24, right: 8, top: 8, bottom: 0 }}
+          >
+            <defs>
+              <linearGradient id="revenue-area" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stopColor="var(--color-revenue)" stopOpacity={0.25} />
+                <stop offset="100%" stopColor="var(--color-revenue)" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid horizontal={false} strokeDasharray="2 2" />
+            <XAxis
+              axisLine={false}
+              dataKey="date"
+              interval={2}
+              minTickGap={20}
+              tickFormatter={(value) => String(value).slice(8, 10)}
+              tickLine={false}
+              tickMargin={8}
+            />
+            <ChartTooltip
+              content={
+                <ChartTooltipContent
+                  className="min-w-36"
+                  formatter={(value) => formatMoney(Number(value))}
+                  indicator="line"
+                />
+              }
+            />
+            <Area
+              dataKey="revenue"
+              dot={false}
+              fill="url(#revenue-area)"
+              stroke="var(--color-revenue)"
+              strokeWidth={2}
+              type="monotone"
+            />
+          </AreaChart>
+        </ChartContainer>
+      </CardContent>
+      <CardFooter className="justify-between text-muted-foreground text-xs">
+        <span>{formatInteger(chartRows.length)} bloques diarios</span>
+        <span>Revenue: {formatMoney(data?.revenueTotal ?? 0)}</span>
+      </CardFooter>
+    </Card>
+  );
+}
+
+function RecentPatientsCard({ payments }: { payments: PaymentBlock[] }) {
+  return (
+    <Card className="lg:col-span-2">
+      <CardHeader>
+        <CardTitle>Ultimos pacientes Dentalink</CardTitle>
+        <CardDescription>
+          Pagos recientes del mes con email, telefono, tratamiento y monto.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <ItemGroup className="gap-2">
+          {payments.length > 0 ? (
+            payments.map((payment) => (
+              <PatientItem key={payment.paymentId} payment={payment} />
+            ))
+          ) : (
+            <p className="py-8 text-center text-muted-foreground text-sm">
+              Presiona Actualizar para cargar pacientes.
+            </p>
+          )}
+        </ItemGroup>
+      </CardContent>
+    </Card>
+  );
+}
+
+function TreatmentListCard({ data }: { data: MonthlyDashboard | null }) {
+  const treatments = data?.treatmentShare ?? [];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Tratamientos y revenue</CardTitle>
+        <CardDescription>
+          Ranking por monto pagado en Dentalink durante el mes actual.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-col gap-3">
+          {treatments.length > 0 ? (
+            treatments.map((treatment) => (
+              <div
+                className="rounded-xl border bg-background/50 p-4"
+                key={treatment.category}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="truncate font-medium">{treatment.category}</span>
+                  <span className="font-semibold text-emerald-400">
+                    {formatMoney(treatment.revenue)}
+                  </span>
+                </div>
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full bg-emerald-300"
+                    style={{ width: `${Math.max(3, treatment.share)}%` }}
+                  />
+                </div>
+                <p className="mt-2 text-muted-foreground text-xs">
+                  {formatInteger(treatment.share)}% del revenue clasificado
+                </p>
+              </div>
+            ))
+          ) : (
+            <p className="py-8 text-center text-muted-foreground text-sm">
+              Sin tratamientos cargados todavia.
+            </p>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function DayBlocksCard({ data }: { data: MonthlyDashboard | null }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Bloques del mes</CardTitle>
+        <CardDescription>
+          Desde el dia 1 hasta el ultimo dia del mes, con pacientes por dia.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {(data?.days ?? []).map((day) => (
+            <DayRevenueBlock key={day.date} day={day} />
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function IntegrationPanel({
+  title,
+  description,
+  badge,
+  rows,
+}: {
+  title: string;
+  description: string;
+  badge: string;
+  rows: Array<[string, string]>;
+}) {
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-start justify-between gap-4">
+        <div>
+          <CardTitle>{title}</CardTitle>
+          <CardDescription className="mt-2 max-w-3xl">{description}</CardDescription>
+        </div>
+        <Badge variant="secondary">{badge}</Badge>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          {rows.map(([label, value]) => (
+            <div className="rounded-xl border bg-background/50 p-4" key={label}>
+              <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
+                {label}
+              </p>
+              <p className="mt-2 font-semibold text-xl">{value}</p>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function EmptyState({
+  message,
+  cta,
+  isLoading,
+  onClick,
+}: {
+  message: string;
+  cta: string;
+  isLoading: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed py-10 text-center">
+      <p className="text-muted-foreground text-sm">{message}</p>
+      <Button disabled={isLoading} onClick={onClick} variant="outline">
+        <RefreshCwIcon aria-hidden="true" data-icon="inline-start" />
+        {isLoading ? "Cargando" : cta}
+      </Button>
     </div>
   );
 }
@@ -488,4 +797,8 @@ function formatInteger(value: number) {
   return new Intl.NumberFormat("es-MX", {
     maximumFractionDigits: 0,
   }).format(value);
+}
+
+function normalizeRoute(path = "") {
+  return path.replace(/^#\/?/, "").split("?")[0] || "dashboard";
 }

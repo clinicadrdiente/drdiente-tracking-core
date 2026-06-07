@@ -15,13 +15,30 @@ import { NavGroup } from "@/components/nav-group";
 import { footerNavLinks, navGroups } from "@/components/app-shared";
 import { LatestChange } from "@/components/latest-change";
 import { RefreshCwIcon, SearchIcon } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export function AppSidebar() {
+	const [route, setRoute] = useState(() => normalizeRoute(window.location.hash));
+
+	useEffect(() => {
+		function handleHashChange() {
+			setRoute(normalizeRoute(window.location.hash));
+		}
+
+		window.addEventListener("hashchange", handleHashChange);
+		return () => window.removeEventListener("hashchange", handleHashChange);
+	}, []);
+
+	function refreshDashboard() {
+		window.location.hash = "#/dashboard";
+		window.dispatchEvent(new Event("drdiente:refresh-dashboard"));
+	}
+
 	return (
 		<Sidebar collapsible="icon" variant="floating">
 			<SidebarHeader className="h-14 justify-center">
 				<SidebarMenuButton asChild>
-					<a href="#link">
+					<a href="#/dashboard">
 						<span className="grid size-7 place-items-center rounded-lg bg-emerald-300 font-bold text-black text-xs">
 							DD
 						</span>
@@ -34,6 +51,7 @@ export function AppSidebar() {
 					<SidebarMenuItem className="flex items-center gap-2">
 						<SidebarMenuButton
 							className="min-w-8 bg-primary text-primary-foreground duration-200 ease-linear hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground"
+							onClick={refreshDashboard}
 							tooltip="Actualizar Dentalink"
 						>
 							<RefreshCwIcon
@@ -43,6 +61,9 @@ export function AppSidebar() {
 						<Button
 							aria-label="Buscar paciente"
 							className="size-8 group-data-[collapsible=icon]:opacity-0"
+							onClick={() => {
+								window.location.hash = "#/patients";
+							}}
 							size="icon"
 							variant="outline"
 						>
@@ -64,7 +85,7 @@ export function AppSidebar() {
 							<SidebarMenuButton
 								asChild
 								className="text-muted-foreground"
-								isActive={item.isActive}
+								isActive={route === normalizeRoute(item.path)}
 								size="sm"
 							>
 								<a href={item.path}>
@@ -78,4 +99,8 @@ export function AppSidebar() {
 			</SidebarFooter>
 		</Sidebar>
 	);
+}
+
+function normalizeRoute(path = "") {
+	return path.replace(/^#\/?/, "").split("?")[0] || "dashboard";
 }
