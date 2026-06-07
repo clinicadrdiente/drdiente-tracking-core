@@ -88,7 +88,7 @@ interface PaymentBlock {
 interface PaymentsSyncResult {
   processed: number;
   skipped: number;
-  sinceIso: string;
+  sinceIso: string | null;
   paymentsFound: number;
   alreadyProcessed: number;
   newPayments: number;
@@ -96,6 +96,8 @@ interface PaymentsSyncResult {
   matchedLeads: number;
   unmatchedLeads: number;
   createdLeads: number;
+  existingLeads?: number;
+  failed?: number;
   rateLimitedPatients: number;
   dispatched: number;
 }
@@ -155,26 +157,31 @@ export function Dashboard() {
       return;
     }
 
-    const sinceIso = data?.month.fromIso ?? getCurrentMonthStartIso();
+    if (!data?.patients.length) {
+      setSyncError("Primero presiona Actualizar para cargar pacientes de Dentalink.");
+      return;
+    }
+
     setIsSyncingToElevator(true);
     setSyncError(null);
     setSyncResult(null);
 
     try {
-      const response = await fetch(
-        `/api/cron/payments-sync?since=${encodeURIComponent(sinceIso)}&maxPayments=50`,
-        {
-          method: "POST",
-          headers: {
-            "x-tracking-secret": secret.trim(),
-          },
+      const response = await fetch("/api/dev/elevator-import-patients", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-tracking-secret": secret.trim(),
         },
-      );
+        body: JSON.stringify({
+          patients: data.patients.slice(0, 50),
+        }),
+      });
       const body = (await response.json()) as
         | PaymentsSyncResult
         | { error?: string; details?: { message?: string } };
 
-      if (!response.ok || !("processed" in body)) {
+      if ((!response.ok && response.status !== 207) || !("processed" in body)) {
         throw new Error(
           "details" in body && body.details?.message
             ? body.details.message
@@ -707,9 +714,9 @@ function ElevatorSyncCard({
         <div>
           <CardTitle>Enviar pacientes recientes a Elevator</CardTitle>
           <CardDescription className="mt-2 max-w-3xl">
-            Toma pagos Dentalink desde el inicio del mes, crea el contacto si no
-            existe en Elevator, evita duplicados por telefono/email y deja el lead
-            listo para enviar conversiones a Stape cuando se conecte.
+            Usa los pacientes ya cargados en este dashboard, crea el contacto si
+            no existe en Elevator, evita duplicados por telefono/email y deja el
+            lead listo para enviar conversiones a Stape cuando se conecte.
           </CardDescription>
         </div>
         <Button disabled={isSyncing} onClick={onSend}>
@@ -728,10 +735,10 @@ function ElevatorSyncCard({
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
               <SyncMetric label="Pagos encontrados" value={result.paymentsFound} />
               <SyncMetric label="Leads creados" value={result.createdLeads} />
-              <SyncMetric label="Leads encontrados" value={result.matchedLeads} />
-              <SyncMetric label="Ya procesados" value={result.alreadyProcessed} />
+              <SyncMetric label="Ya existian" value={result.existingLeads ?? result.alreadyProcessed} />
               <SyncMetric label="Sin match/contacto" value={result.unmatchedLeads} />
               <SyncMetric label="Eventos preparados" value={result.dispatched} />
+              <SyncMetric label="Fallidos" value={result.failed ?? 0} />
             </div>
           ) : null}
         </CardContent>
