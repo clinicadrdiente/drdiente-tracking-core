@@ -835,7 +835,7 @@ function readReferenceFromAdditionalFields(
         continue;
       }
 
-      const key = readAdditionalFieldLabel(item);
+      const key = readAdditionalFieldLabel(item, catalog);
       if (!key || !isReferenceKey(key)) {
         continue;
       }
@@ -865,7 +865,7 @@ function readReferenceFromAdditionalFields(
       }
 
       if (isRecord(entry)) {
-        const label = readAdditionalFieldLabel(entry);
+        const label = readAdditionalFieldLabel(entry, catalog);
         if (label && isReferenceKey(label)) {
           const reference = readReferenceValue(
             entry.valor ??
@@ -887,13 +887,64 @@ function readReferenceFromAdditionalFields(
   return null;
 }
 
-function readAdditionalFieldLabel(record: Record<string, unknown>): string | null {
+function readAdditionalFieldLabel(
+  record: Record<string, unknown>,
+  catalog: ReferenceCatalog,
+): string | null {
   return (
-    readReferenceLabel(record) ??
-    (isRecord(record.campo) ? readReferenceLabel(record.campo) : null) ??
-    (isRecord(record.campo_adicional) ? readReferenceLabel(record.campo_adicional) : null) ??
-    (isRecord(record.campoAdicional) ? readReferenceLabel(record.campoAdicional) : null)
+    readAdditionalFieldName(record) ??
+    (isRecord(record.campo) ? readAdditionalFieldName(record.campo) : null) ??
+    (isRecord(record.campo_adicional)
+      ? readAdditionalFieldName(record.campo_adicional)
+      : null) ??
+    (isRecord(record.campoAdicional)
+      ? readAdditionalFieldName(record.campoAdicional)
+      : null) ??
+    readAdditionalFieldId(record, catalog) ??
+    readReferenceLabel(record)
   );
+}
+
+function readAdditionalFieldName(record: Record<string, unknown>): string | null {
+  return readFirstString(record, [
+    "nombre",
+    "nombre_campo",
+    "nombreCampo",
+    "name",
+    "campo",
+    "etiqueta",
+    "titulo",
+    "label",
+    "descripcion",
+    "description",
+    "texto",
+  ]);
+}
+
+function readAdditionalFieldId(
+  record: Record<string, unknown>,
+  catalog: ReferenceCatalog,
+): string | null {
+  for (const key of [
+    "id_campo_adicional",
+    "idCampoAdicional",
+    "campo_adicional_id",
+    "campoAdicionalId",
+  ]) {
+    const raw = record[key];
+    const id =
+      typeof raw === "number" && Number.isFinite(raw)
+        ? String(raw)
+        : typeof raw === "string" && raw.trim() !== ""
+          ? raw.trim()
+          : null;
+
+    if (id && catalog.labelsById.has(id)) {
+      return catalog.labelsById.get(id) ?? null;
+    }
+  }
+
+  return null;
 }
 
 function readReferenceValue(value: unknown, catalog: ReferenceCatalog): string | null {

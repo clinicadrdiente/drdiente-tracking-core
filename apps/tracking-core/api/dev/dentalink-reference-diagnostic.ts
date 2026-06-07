@@ -83,10 +83,16 @@ export default async function handler(
       return;
     }
 
-    const [catalogProbes, patientProbes] = await Promise.all([
-      probeReferenceCatalogs(config.baseUrl, config.apiAuthScheme, config.apiToken),
-      probeRecentPatientReferences(config, request),
-    ]);
+    const catalogProbes = await probeReferenceCatalogs(
+      config.baseUrl,
+      config.apiAuthScheme,
+      config.apiToken,
+    );
+    const patientProbes = await probeRecentPatientReferences(
+      config,
+      request,
+      buildCatalogLabelsById(catalogProbes),
+    );
 
     send(response, {
       status: 200,
@@ -126,7 +132,7 @@ async function probeReferenceCatalogs(
       ok: result.ok,
       status: result.status,
       returnedCount: result.ok ? records.length : null,
-      sample: records.slice(0, 8).map((record) => ({
+      sample: records.slice(0, 200).map((record) => ({
         id: readReferenceId(record),
         label: readReferenceLabel(record),
         keys: Object.keys(record).sort(),
@@ -140,6 +146,7 @@ async function probeReferenceCatalogs(
 async function probeRecentPatientReferences(
   config: ReturnType<typeof getDentalinkConfig>,
   request: VercelRequest,
+  catalogLabelsById: Map<string, string>,
 ) {
   const sinceIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const paymentsUrl = new URL(config.paymentsPath.replace(/^\/+/, ""), config.baseUrl);
@@ -169,6 +176,7 @@ async function probeRecentPatientReferences(
         config,
         explicitPatientId,
         payment ? readString(payment, config.paymentPatientNameField) : null,
+        catalogLabelsById,
       ),
     ];
   }
@@ -189,6 +197,7 @@ async function probeRecentPatientReferences(
         config,
         patientId,
         readString(payment, config.paymentPatientNameField),
+        catalogLabelsById,
       ),
     );
     await wait(250);
@@ -201,6 +210,7 @@ async function probePatientReference(
   config: ReturnType<typeof getDentalinkConfig>,
   patientId: number,
   paymentPatientName: string | null,
+  catalogLabelsById: Map<string, string>,
 ): Promise<PatientReferenceProbe> {
   const patientUrl = new URL(
     config.patientsPathTemplate.replace("{id}", String(patientId)).replace(/^\/+/, ""),
@@ -229,7 +239,11 @@ async function probePatientReference(
     .filter(Boolean)
     .join(" ");
   const checkedPaths: PatientReferenceProbe["checkedPaths"] = [];
-  const fields = describeReferenceFields(patient, config.patientReferenceField);
+  const fields = describeReferenceFields(
+    patient,
+    config.patientReferenceField,
+    catalogLabelsById,
+  );
 
   if (hasUsefulReferenceFields(fields)) {
     return {
@@ -245,7 +259,7 @@ async function probePatientReference(
     const url = new URL(path.replace(/^\/+/, ""), config.baseUrl);
     const result = await requestDentalink(url, config.apiAuthScheme, config.apiToken);
     const candidateFields = result.ok
-      ? describeReferenceFieldsFromUnknown(result.body)
+      ? describeReferenceFieldsFromUnknown(result.body, catalogLabelsById)
       : [];
 
     checkedPaths.push({
@@ -302,9 +316,10 @@ async function requestDentalink(
 function describeReferenceFields(
   record: Record<string, unknown>,
   configuredField: string,
+  catalogLabelsById: Map<string, string>,
 ): Array<{ key: string; value: string }> {
   const fields: Array<{ key: string; value: string }> = [];
-  const recordLabel = readAdditionalFieldLabel(record);
+  const recordLabel = readAdditionalFieldLabel(record, catalogLabelsById);
 
   if (recordLabel && isReferenceKey(recordLabel)) {
     fields.push({
@@ -333,7 +348,9 @@ function describeReferenceFields(
       continue;
     }
 
-    fields.push(...describeAdditionalReferenceFields(containerKey, value));
+    fields.push(
+      ...describeAdditionalReferenceFields(containerKey, value, catalogLabelsById),
+    );
   }
 
   return fields.length > 0
@@ -344,11 +361,12 @@ function describeReferenceFields(
 function describeAdditionalReferenceFields(
   containerKey: string,
   value: unknown,
+  catalogLabelsById: Map<string, string>,
 ): Array<{ key: string; value: string }> {
   const fields: Array<{ key: string; value: string }> = [];
 
   if (isRecord(value) && Array.isArray(value.data)) {
-    return describeAdditionalReferenceFields(containerKey, value.data);
+    return describeAdditionalReferenceFields(containerKey, value.data, catalogLabelsById);
   }
 
   if (Array.isArray(value)) {
@@ -357,7 +375,7 @@ function describeAdditionalReferenceFields(
         continue;
       }
 
-      const label = readAdditionalFieldLabel(item);
+      const label = readAdditionalFieldLabel(item, catalogLabelsById);
       if (label && isReferenceKey(label)) {
         fields.push({
           key: `${containerKey}.${label}`,
@@ -386,23 +404,82 @@ function describeAdditionalReferenceFields(
   return fields;
 }
 
-function readAdditionalFieldLabel(record: Record<string, unknown>): string | null {
+function readAdditionalFieldLabel(
+  record: Record<string, unknown>,
+  catalogLabelsById: Map<string, string>,
+): string | null {
   return (
-    readReferenceLabel(record) ??
-    (isRecord(record.campo) ? readReferenceLabel(record.campo) : null) ??
-    (isRecord(record.campo_adicional) ? readReferenceLabel(record.campo_adicional) : null) ??
-    (isRecord(record.campoAdicional) ? readReferenceLabel(record.campoAdicional) : null)
+    readAdditionalFieldName(record) ??
+    (isRecord(record.campo) ? readAdditionalFieldName(record.campo) : null) ??
+    (isRecord(record.campo_adicional)
+      ? readAdditionalFieldName(record.campo_adicional)
+      : null) ??
+    (isRecord(record.campoAdicional)
+      ? readAdditionalFieldName(record.campoAdicional)
+      : null) ??
+    readAdditionalFieldId(record, catalogLabelsById) ??
+    readReferenceLabel(record)
   );
+}
+
+function readAdditionalFieldName(record: Record<string, unknown>): string | null {
+  for (const key of [
+    "nombre",
+    "nombre_campo",
+    "nombreCampo",
+    "name",
+    "campo",
+    "etiqueta",
+    "titulo",
+    "label",
+    "descripcion",
+    "description",
+    "texto",
+  ]) {
+    const value = readString(record, key);
+    if (value) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+function readAdditionalFieldId(
+  record: Record<string, unknown>,
+  catalogLabelsById: Map<string, string>,
+): string | null {
+  for (const key of [
+    "id_campo_adicional",
+    "idCampoAdicional",
+    "campo_adicional_id",
+    "campoAdicionalId",
+  ]) {
+    const raw = record[key];
+    const id =
+      typeof raw === "number" && Number.isFinite(raw)
+        ? String(raw)
+        : typeof raw === "string" && raw.trim() !== ""
+          ? raw.trim()
+          : null;
+
+    if (id && catalogLabelsById.has(id)) {
+      return catalogLabelsById.get(id) ?? null;
+    }
+  }
+
+  return null;
 }
 
 function describeReferenceFieldsFromUnknown(
   body: unknown,
+  catalogLabelsById: Map<string, string>,
 ): Array<{ key: string; value: string }> {
   if (Array.isArray(body)) {
     return body
       .filter(isRecord)
       .flatMap((record, index) =>
-        describeReferenceFields(record, "referencia").map((field) => ({
+        describeReferenceFields(record, "referencia", catalogLabelsById).map((field) => ({
           key: `${index}.${field.key}`,
           value: field.value,
         })),
@@ -411,11 +488,11 @@ function describeReferenceFieldsFromUnknown(
   }
 
   if (isRecord(body) && Array.isArray(body.data)) {
-    return describeReferenceFieldsFromUnknown(body.data);
+    return describeReferenceFieldsFromUnknown(body.data, catalogLabelsById);
   }
 
   if (isRecord(body)) {
-    return describeReferenceFields(unwrapRecord(body), "referencia");
+    return describeReferenceFields(unwrapRecord(body), "referencia", catalogLabelsById);
   }
 
   return [];
@@ -451,6 +528,20 @@ function buildRecommendation(
   }
 
   return "No se detecto campo de referencia en pacientes recientes. Revisar permisos de Pacientes/Campos adicionales en Dentalink.";
+}
+
+function buildCatalogLabelsById(catalogProbes: ReferenceCatalogProbe[]): Map<string, string> {
+  const labelsById = new Map<string, string>();
+
+  for (const probe of catalogProbes) {
+    for (const sample of probe.sample) {
+      if (sample.id && sample.label) {
+        labelsById.set(sample.id, sample.label);
+      }
+    }
+  }
+
+  return labelsById;
 }
 
 function readQueryPatientId(request: VercelRequest): number | null {
