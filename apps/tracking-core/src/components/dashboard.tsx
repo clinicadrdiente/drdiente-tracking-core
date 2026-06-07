@@ -167,6 +167,11 @@ interface ReferenceDiagnostic {
   }>;
 }
 
+interface StapeTestResult {
+  ping: unknown;
+  event: unknown;
+}
+
 const chartConfig = {
   revenue: {
     label: "Revenue",
@@ -194,6 +199,9 @@ export function Dashboard() {
   const [referenceDiagnosticError, setReferenceDiagnosticError] = useState<
     string | null
   >(null);
+  const [isTestingStape, setIsTestingStape] = useState(false);
+  const [stapeTestResult, setStapeTestResult] = useState<StapeTestResult | null>(null);
+  const [stapeTestError, setStapeTestError] = useState<string | null>(null);
 
   async function loadDashboard(
     nextSecret = secret,
@@ -319,6 +327,51 @@ export function Dashboard() {
     }
   }
 
+  async function testStape() {
+    if (!secret.trim()) {
+      setStapeTestError("Pega el TRACKING_API_SECRET antes de probar Stape.");
+      return;
+    }
+
+    setIsTestingStape(true);
+    setStapeTestError(null);
+    setStapeTestResult(null);
+
+    try {
+      const headers = {
+        "x-tracking-secret": secret.trim(),
+      };
+      const pingResponse = await fetch("/api/dev/stape-ping", { headers });
+      const pingBody = (await pingResponse.json()) as unknown;
+
+      if (!pingResponse.ok) {
+        throw new Error(readErrorMessage(pingBody, "No se pudo validar Stape."));
+      }
+
+      const eventResponse = await fetch("/api/dev/test-stape", {
+        method: "POST",
+        headers,
+      });
+      const eventBody = (await eventResponse.json()) as unknown;
+
+      if (!eventResponse.ok) {
+        throw new Error(readErrorMessage(eventBody, "No se pudo enviar evento demo."));
+      }
+
+      setStapeTestResult({
+        ping: pingBody,
+        event: eventBody,
+      });
+      window.localStorage.setItem("trackingSecret", secret.trim());
+    } catch (requestError) {
+      setStapeTestError(
+        requestError instanceof Error ? requestError.message : "Error desconocido.",
+      );
+    } finally {
+      setIsTestingStape(false);
+    }
+  }
+
   useEffect(() => {
     if (secret) {
       void loadDashboard(secret);
@@ -407,12 +460,16 @@ export function Dashboard() {
         isLoading={isLoading}
         isDiagnosingReferences={isDiagnosingReferences}
         isSyncingToElevator={isSyncingToElevator}
+        isTestingStape={isTestingStape}
         onDiagnoseReferences={() => void diagnoseReferences()}
         onRefresh={() => void loadDashboard(secret, { skipBrowserCache: true })}
         onSendToElevator={() => void sendMonthToElevator()}
+        onTestStape={() => void testStape()}
         referenceDiagnostic={referenceDiagnostic}
         referenceDiagnosticError={referenceDiagnosticError}
         route={route}
+        stapeTestError={stapeTestError}
+        stapeTestResult={stapeTestResult}
         syncError={syncError}
         syncResult={syncResult}
         topPayments={topPayments}
@@ -434,13 +491,17 @@ function DashboardRoute({
   isLoading,
   isDiagnosingReferences,
   isSyncingToElevator,
+  isTestingStape,
   onDiagnoseReferences,
   onRefresh,
   onSendToElevator,
+  onTestStape,
   referenceDiagnostic,
   referenceDiagnosticError,
   syncError,
   syncResult,
+  stapeTestError,
+  stapeTestResult,
 }: {
   route: string;
   data: MonthlyDashboard | null;
@@ -449,13 +510,17 @@ function DashboardRoute({
   isLoading: boolean;
   isDiagnosingReferences: boolean;
   isSyncingToElevator: boolean;
+  isTestingStape: boolean;
   onDiagnoseReferences: () => void;
   onRefresh: () => void;
   onSendToElevator: () => void;
+  onTestStape: () => void;
   referenceDiagnostic: ReferenceDiagnostic | null;
   referenceDiagnosticError: string | null;
   syncError: string | null;
   syncResult: PaymentsSyncResult | null;
+  stapeTestError: string | null;
+  stapeTestResult: StapeTestResult | null;
 }) {
   if (route === "revenue") {
     return (
@@ -563,15 +628,11 @@ function DashboardRoute({
 
   if (route === "stape" || route.startsWith("stape/")) {
     return (
-      <IntegrationPanel
-        badge="Configurable"
-        description="Stape recibe eventos desde el tracking core cuando STAPE_MODE esta en api. El payload incluye paciente, monto, sucursal, tratamiento y fuente."
-        rows={[
-          ["Estado", "api cuando Vercel tenga variables"],
-          ["Endpoint", "/api/dev/stape-ping"],
-          ["Test", "/api/dev/test-stape"],
-        ]}
-        title="Stape + Conversion API"
+      <StapeTestCard
+        error={stapeTestError}
+        isTesting={isTestingStape}
+        onTest={onTestStape}
+        result={stapeTestResult}
       />
     );
   }
@@ -1030,6 +1091,68 @@ function IntegrationPanel({
   );
 }
 
+function StapeTestCard({
+  error,
+  isTesting,
+  onTest,
+  result,
+}: {
+  error: string | null;
+  isTesting: boolean;
+  onTest: () => void;
+  result: StapeTestResult | null;
+}) {
+  return (
+    <Card>
+      <CardHeader className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div>
+          <CardTitle>Stape + Conversion API</CardTitle>
+          <CardDescription className="mt-2 max-w-3xl">
+            Valida que Vercel tenga las variables de Stape y manda un evento demo
+            al server GTM. Si responde 202, el tracking core ya esta enviando.
+          </CardDescription>
+        </div>
+        <Button disabled={isTesting} onClick={onTest}>
+          <RefreshCwIcon aria-hidden="true" data-icon="inline-start" />
+          {isTesting ? "Probando" : "Probar Stape"}
+        </Button>
+      </CardHeader>
+      {(error || result) && (
+        <CardContent className="space-y-4">
+          {error ? (
+            <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-destructive text-sm">
+              {error}
+            </div>
+          ) : null}
+
+          {result ? (
+            <>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div className="rounded-xl border bg-background/50 p-4">
+                  <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
+                    Configuracion
+                  </p>
+                  <pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap text-xs">
+                    {JSON.stringify(result.ping, null, 2)}
+                  </pre>
+                </div>
+                <div className="rounded-xl border bg-background/50 p-4">
+                  <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
+                    Evento demo
+                  </p>
+                  <pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap text-xs">
+                    {JSON.stringify(result.event, null, 2)}
+                  </pre>
+                </div>
+              </div>
+            </>
+          ) : null}
+        </CardContent>
+      )}
+    </Card>
+  );
+}
+
 function ElevatorSyncCard({
   isSyncing,
   onSend,
@@ -1388,6 +1511,29 @@ function formatPercent(value: number) {
   return new Intl.NumberFormat("es-MX", {
     maximumFractionDigits: 1,
   }).format(value) + "%";
+}
+
+function readErrorMessage(value: unknown, fallback: string): string {
+  if (typeof value !== "object" || value === null) {
+    return fallback;
+  }
+
+  const record = value as {
+    error?: unknown;
+    details?: {
+      message?: unknown;
+    };
+  };
+
+  if (typeof record.details?.message === "string") {
+    return record.details.message;
+  }
+
+  if (typeof record.error === "string") {
+    return record.error;
+  }
+
+  return fallback;
 }
 
 function normalizeRoute(path = "") {
