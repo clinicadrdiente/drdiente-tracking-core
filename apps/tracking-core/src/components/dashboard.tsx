@@ -1,15 +1,21 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { Area, AreaChart, CartesianGrid, XAxis } from "recharts";
 import {
   ActivityIcon,
   ArrowRightIcon,
   CalendarDaysIcon,
+  CheckCircle2Icon,
+  DatabaseIcon,
   DownloadIcon,
   RefreshCwIcon,
+  SendIcon,
+  ShieldCheckIcon,
   StethoscopeIcon,
+  TargetIcon,
   UserRoundIcon,
+  WebhookIcon,
 } from "lucide-react";
 import {
   Card,
@@ -63,6 +69,31 @@ interface MonthlyDashboard {
     stale: boolean;
     cachedAt: string;
     ttlSeconds: number;
+  };
+}
+
+interface SystemStatus {
+  ok: boolean;
+  service: string;
+  generatedAt: string;
+  config: {
+    elevatorMode: string;
+    dentalinkMode: string;
+    stapeMode: string;
+    stateStoreMode: string;
+    defaultCurrency: string;
+    highTicketThreshold: number;
+    paymentsSyncLookbackMinutes: number;
+    trackingSecretConfigured: boolean;
+  };
+  paymentSync: {
+    lastCheckIso: string | null;
+    processedPaymentCount: number;
+  };
+  integrations: {
+    elevator: string;
+    dentalink: string;
+    stape: string;
   };
 }
 
@@ -260,7 +291,9 @@ export function Dashboard() {
     window.localStorage.getItem("trackingSecret") ?? "",
   );
   const [data, setData] = useState<MonthlyDashboard | null>(null);
+  const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [route, setRoute] = useState(() => normalizeRoute(window.location.hash));
   const [isSyncingToElevator, setIsSyncingToElevator] = useState(false);
@@ -303,6 +336,7 @@ export function Dashboard() {
     if (cachedDashboard) {
       setData(cachedDashboard);
       setError(null);
+      void loadSystemStatus(nextSecret);
       return;
     }
 
@@ -324,10 +358,38 @@ export function Dashboard() {
       window.localStorage.setItem("trackingSecret", nextSecret.trim());
       writeBrowserDashboardCache(body);
       setData(body);
+      void loadSystemStatus(nextSecret);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Error desconocido.");
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  async function loadSystemStatus(nextSecret = secret) {
+    if (!nextSecret.trim()) {
+      return;
+    }
+
+    setStatusError(null);
+
+    try {
+      const response = await fetch("/api/status", {
+        headers: {
+          "x-tracking-secret": nextSecret.trim(),
+        },
+      });
+      const body = (await response.json()) as SystemStatus | { error?: string };
+
+      if (!response.ok || !("config" in body)) {
+        throw new Error("error" in body ? body.error : "No se pudo cargar estado.");
+      }
+
+      setSystemStatus(body);
+    } catch (requestError) {
+      setStatusError(
+        requestError instanceof Error ? requestError.message : "Error desconocido.",
+      );
     }
   }
 
@@ -618,13 +680,13 @@ export function Dashboard() {
       <section className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="font-medium text-emerald-400 text-xs tracking-[0.32em] uppercase">
-            CLINICA DR DIENTE
+            Centro de control
           </p>
           <h1 className="text-balance font-semibold text-4xl tracking-tight md:text-6xl">
-            Panel operativo de CLINICA DR DIENTE.
+            Una pantalla para operar Dr Diente.
           </h1>
           <p className="mt-2 text-muted-foreground">
-            Pagos reales del mes, pacientes y conversiones listas para Elevator + Stape.
+            Dentalink, Elevator, Stape, Redis y Windsor organizados por prioridad.
           </p>
         </div>
         <div className="flex w-full gap-2 md:w-auto">
@@ -659,9 +721,18 @@ export function Dashboard() {
         </Card>
       ) : null}
 
+      {statusError ? (
+        <Card className="border-amber-300/40">
+          <CardContent className="py-4 text-amber-200 text-sm">
+            Estado del sistema no disponible: {statusError}
+          </CardContent>
+        </Card>
+      ) : null}
+
       <DashboardRoute
         chartRows={chartRows}
         data={data}
+        systemStatus={systemStatus}
         isLoading={isLoading}
         isDiagnosingReferences={isDiagnosingReferences}
         isSyncingToElevator={isSyncingToElevator}
@@ -703,6 +774,7 @@ type ChartRow = {
 function DashboardRoute({
   route,
   data,
+  systemStatus,
   chartRows,
   topPayments,
   isLoading,
@@ -734,6 +806,7 @@ function DashboardRoute({
 }: {
   route: string;
   data: MonthlyDashboard | null;
+  systemStatus: SystemStatus | null;
   chartRows: ChartRow[];
   topPayments: PaymentBlock[];
   isLoading: boolean;
@@ -926,16 +999,453 @@ function DashboardRoute({
   }
 
   return (
+    <ControlRoom
+      chartRows={chartRows}
+      data={data}
+      isDetectingWindsorAccounts={isDetectingWindsorAccounts}
+      isLoading={isLoading}
+      isSyncingToElevator={isSyncingToElevator}
+      isTestingRealFlow={isTestingRealFlow}
+      onDetectWindsorAccounts={onDetectWindsorAccounts}
+      onRefresh={onRefresh}
+      onSendToElevator={onSendToElevator}
+      onTestRealFlow={onTestRealFlow}
+      realFlowError={realFlowError}
+      realFlowResult={realFlowResult}
+      syncError={syncError}
+      syncResult={syncResult}
+      systemStatus={systemStatus}
+      topPayments={topPayments}
+      windsorAccounts={windsorAccounts}
+    />
+  );
+}
+
+function ControlRoom({
+  chartRows,
+  data,
+  isDetectingWindsorAccounts,
+  isLoading,
+  isSyncingToElevator,
+  isTestingRealFlow,
+  onDetectWindsorAccounts,
+  onRefresh,
+  onSendToElevator,
+  onTestRealFlow,
+  realFlowError,
+  realFlowResult,
+  syncError,
+  syncResult,
+  systemStatus,
+  topPayments,
+  windsorAccounts,
+}: {
+  chartRows: ChartRow[];
+  data: MonthlyDashboard | null;
+  isDetectingWindsorAccounts: boolean;
+  isLoading: boolean;
+  isSyncingToElevator: boolean;
+  isTestingRealFlow: boolean;
+  onDetectWindsorAccounts: () => void;
+  onRefresh: () => void;
+  onSendToElevator: () => void;
+  onTestRealFlow: () => void;
+  realFlowError: string | null;
+  realFlowResult: PaymentsSyncResult | null;
+  syncError: string | null;
+  syncResult: PaymentsSyncResult | null;
+  systemStatus: SystemStatus | null;
+  topPayments: PaymentBlock[];
+  windsorAccounts: WindsorAccountsResult | null;
+}) {
+  return (
     <>
-      <StatsGrid data={data} />
-      <RevenueChart chartRows={chartRows} data={data} />
-      <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <RecentPatientsCard payments={topPayments} />
-        <QuickPanel data={data} />
+      <section className="grid grid-cols-1 gap-4 xl:grid-cols-[1.45fr_0.9fr]">
+        <Card className="overflow-hidden border-emerald-300/30 bg-[radial-gradient(circle_at_top_left,rgba(110,231,183,0.18),transparent_36%),linear-gradient(135deg,rgba(16,185,129,0.08),transparent_48%)]">
+          <CardHeader>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <CardTitle className="text-3xl md:text-4xl">
+                  Operacion del ecosistema
+                </CardTitle>
+                <CardDescription className="mt-2 max-w-2xl text-base">
+                  Primero carga Dentalink. Despues confirma Elevator y Stape. Windsor
+                  queda para separar gasto de marketing por marca/cuenta.
+                </CardDescription>
+              </div>
+              <Badge className="w-fit bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/15">
+                {systemStatus?.config.stateStoreMode === "redis"
+                  ? "Redis activo"
+                  : "Redis pendiente"}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              <HeroMetric
+                label="Revenue del mes"
+                value={formatMoney(data?.revenueTotal ?? 0)}
+                hint={data?.month.label ?? "Sin datos cargados"}
+              />
+              <HeroMetric
+                label="Pacientes unicos"
+                value={formatInteger(data?.uniquePatientsTotal ?? 0)}
+                hint={`${formatInteger(data?.paymentsTotal ?? 0)} pagos Dentalink`}
+              />
+              <HeroMetric
+                label="Pagos ya memorizados"
+                value={formatInteger(systemStatus?.paymentSync.processedPaymentCount ?? 0)}
+                hint={
+                  systemStatus?.paymentSync.lastCheckIso
+                    ? `ultimo sync ${formatCacheTime(systemStatus.paymentSync.lastCheckIso)}`
+                    : "sin sync registrado"
+                }
+              />
+            </div>
+          </CardContent>
+          <CardFooter className="flex flex-col items-stretch gap-2 border-t bg-background/35 p-4 sm:flex-row sm:items-center">
+            <Button disabled={isLoading} onClick={onRefresh}>
+              <RefreshCwIcon aria-hidden="true" data-icon="inline-start" />
+              {isLoading ? "Actualizando" : "Actualizar Dentalink"}
+            </Button>
+            <Button asChild variant="secondary">
+              <a href="#/patients">
+                <UserRoundIcon aria-hidden="true" data-icon="inline-start" />
+                Ver pacientes
+              </a>
+            </Button>
+            <Button asChild variant="outline">
+              <a href="#/stape">
+                <WebhookIcon aria-hidden="true" data-icon="inline-start" />
+                Ver conversiones
+              </a>
+            </Button>
+          </CardFooter>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Lectura rapida</CardTitle>
+            <CardDescription>Que significa el estado actual.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <ReadinessRow
+              icon={<DatabaseIcon aria-hidden="true" />}
+              label="Dentalink"
+              status={modeLabel(systemStatus?.config.dentalinkMode)}
+              tone={systemStatus?.config.dentalinkMode === "api" ? "good" : "warn"}
+            />
+            <ReadinessRow
+              icon={<SendIcon aria-hidden="true" />}
+              label="Elevator"
+              status={modeLabel(systemStatus?.config.elevatorMode)}
+              tone={systemStatus?.config.elevatorMode === "api" ? "good" : "warn"}
+            />
+            <ReadinessRow
+              icon={<WebhookIcon aria-hidden="true" />}
+              label="Stape"
+              status={modeLabel(systemStatus?.config.stapeMode)}
+              tone={systemStatus?.config.stapeMode === "api" ? "good" : "warn"}
+            />
+            <ReadinessRow
+              icon={<ShieldCheckIcon aria-hidden="true" />}
+              label="Persistencia"
+              status={systemStatus?.config.stateStoreMode === "redis" ? "Redis" : "Temporal"}
+              tone={systemStatus?.config.stateStoreMode === "redis" ? "good" : "warn"}
+            />
+          </CardContent>
+        </Card>
       </section>
-      <BranchRevenueCard data={data} />
-      <DayBlocksCard data={data} />
+
+      <section className="grid grid-cols-1 gap-4 xl:grid-cols-[0.95fr_1.05fr]">
+        <GuidedActionsCard
+          data={data}
+          isDetectingWindsorAccounts={isDetectingWindsorAccounts}
+          isLoading={isLoading}
+          isSyncingToElevator={isSyncingToElevator}
+          isTestingRealFlow={isTestingRealFlow}
+          onDetectWindsorAccounts={onDetectWindsorAccounts}
+          onRefresh={onRefresh}
+          onSendToElevator={onSendToElevator}
+          onTestRealFlow={onTestRealFlow}
+          realFlowResult={realFlowResult}
+          syncResult={syncResult}
+          windsorAccounts={windsorAccounts}
+        />
+        <RecentPatientsCard payments={topPayments} />
+      </section>
+
+      {(syncError || realFlowError || syncResult || realFlowResult) ? (
+        <OperationsResultCard
+          realFlowError={realFlowError}
+          realFlowResult={realFlowResult}
+          syncError={syncError}
+          syncResult={syncResult}
+        />
+      ) : null}
+
+      <section className="grid grid-cols-1 gap-4 xl:grid-cols-[1.25fr_0.75fr]">
+        <RevenueChart chartRows={chartRows} data={data} />
+        <BranchRevenueCard data={data} />
+      </section>
     </>
+  );
+}
+
+function HeroMetric({
+  hint,
+  label,
+  value,
+}: {
+  hint: string;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-2xl border bg-background/55 p-4 backdrop-blur">
+      <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
+        {label}
+      </p>
+      <p className="mt-3 font-semibold text-3xl tracking-tight">{value}</p>
+      <p className="mt-1 text-muted-foreground text-sm">{hint}</p>
+    </div>
+  );
+}
+
+function ReadinessRow({
+  icon,
+  label,
+  status,
+  tone,
+}: {
+  icon: ReactNode;
+  label: string;
+  status: string;
+  tone: "good" | "warn";
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-xl border bg-background/50 p-3">
+      <div className="flex min-w-0 items-center gap-3">
+        <span
+          className={
+            tone === "good"
+              ? "grid size-9 place-items-center rounded-lg bg-emerald-500/15 text-emerald-300"
+              : "grid size-9 place-items-center rounded-lg bg-amber-500/15 text-amber-200"
+          }
+        >
+          {icon}
+        </span>
+        <div className="min-w-0">
+          <p className="font-medium">{label}</p>
+          <p className="text-muted-foreground text-xs">
+            {tone === "good" ? "listo para operar" : "requiere revision"}
+          </p>
+        </div>
+      </div>
+      <Badge variant={tone === "good" ? "default" : "secondary"}>{status}</Badge>
+    </div>
+  );
+}
+
+function GuidedActionsCard({
+  data,
+  isDetectingWindsorAccounts,
+  isLoading,
+  isSyncingToElevator,
+  isTestingRealFlow,
+  onDetectWindsorAccounts,
+  onRefresh,
+  onSendToElevator,
+  onTestRealFlow,
+  realFlowResult,
+  syncResult,
+  windsorAccounts,
+}: {
+  data: MonthlyDashboard | null;
+  isDetectingWindsorAccounts: boolean;
+  isLoading: boolean;
+  isSyncingToElevator: boolean;
+  isTestingRealFlow: boolean;
+  onDetectWindsorAccounts: () => void;
+  onRefresh: () => void;
+  onSendToElevator: () => void;
+  onTestRealFlow: () => void;
+  realFlowResult: PaymentsSyncResult | null;
+  syncResult: PaymentsSyncResult | null;
+  windsorAccounts: WindsorAccountsResult | null;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Que hago ahora</CardTitle>
+        <CardDescription>
+          Acciones en orden. Si una sale bien, sigue con la siguiente.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <GuidedAction
+          actionLabel={isLoading ? "Actualizando" : "Actualizar"}
+          description="Carga pagos, pacientes, revenue y sucursales del mes."
+          disabled={isLoading}
+          icon={<RefreshCwIcon aria-hidden="true" />}
+          onClick={onRefresh}
+          status={
+            data
+              ? `${formatInteger(data.paymentsTotal)} pagos cargados`
+              : "pendiente de cargar"
+          }
+          step="1"
+          title="Traer datos reales de Dentalink"
+          tone={data ? "done" : "next"}
+        />
+        <GuidedAction
+          actionLabel={isSyncingToElevator ? "Enviando" : "Enviar"}
+          description="Crea o reconoce contactos en Elevator y prepara conversiones."
+          disabled={isSyncingToElevator || !data}
+          icon={<SendIcon aria-hidden="true" />}
+          onClick={onSendToElevator}
+          status={
+            syncResult
+              ? `${formatInteger(syncResult.createdLeads)} creados, ${formatInteger(syncResult.existingLeads ?? syncResult.alreadyProcessed)} existentes`
+              : data
+                ? "listo para enviar"
+                : "necesita Dentalink"
+          }
+          step="2"
+          title="Sincronizar pacientes con Elevator"
+          tone={syncResult ? "done" : data ? "next" : "idle"}
+        />
+        <GuidedAction
+          actionLabel={isTestingRealFlow ? "Probando" : "Probar"}
+          description="Valida el flujo completo: Dentalink -> Elevator -> Stape."
+          disabled={isTestingRealFlow}
+          icon={<WebhookIcon aria-hidden="true" />}
+          onClick={onTestRealFlow}
+          status={
+            realFlowResult
+              ? `${formatInteger(realFlowResult.dispatched)} conversiones enviadas`
+              : "prueba server-side"
+          }
+          step="3"
+          title="Probar conversiones reales"
+          tone={realFlowResult?.dispatched ? "done" : "next"}
+        />
+        <GuidedAction
+          actionLabel={isDetectingWindsorAccounts ? "Detectando" : "Detectar"}
+          description="Encuentra cuentas de marketing para separar Dr Diente de Rimas."
+          disabled={isDetectingWindsorAccounts}
+          icon={<TargetIcon aria-hidden="true" />}
+          onClick={onDetectWindsorAccounts}
+          status={
+            windsorAccounts
+              ? `${formatInteger(windsorAccounts.accounts?.length ?? 0)} fuentes detectadas`
+              : "opcional marketing"
+          }
+          step="4"
+          title="Revisar cuentas Windsor"
+          tone={windsorAccounts ? "done" : "idle"}
+        />
+      </CardContent>
+    </Card>
+  );
+}
+
+function GuidedAction({
+  actionLabel,
+  description,
+  disabled,
+  icon,
+  onClick,
+  status,
+  step,
+  title,
+  tone,
+}: {
+  actionLabel: string;
+  description: string;
+  disabled: boolean;
+  icon: ReactNode;
+  onClick: () => void;
+  status: string;
+  step: string;
+  title: string;
+  tone: "done" | "next" | "idle";
+}) {
+  const toneClass =
+    tone === "done"
+      ? "border-emerald-300/30 bg-emerald-500/5"
+      : tone === "next"
+        ? "border-sky-300/30 bg-sky-500/5"
+        : "border-border bg-background/45";
+
+  return (
+    <div className={`rounded-2xl border p-4 ${toneClass}`}>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 gap-3">
+          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-background text-muted-foreground">
+            {tone === "done" ? <CheckCircle2Icon aria-hidden="true" /> : icon}
+          </span>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="secondary">Paso {step}</Badge>
+              <Badge
+                className={
+                  tone === "done"
+                    ? "bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/15"
+                    : "bg-muted text-muted-foreground hover:bg-muted"
+                }
+              >
+                {status}
+              </Badge>
+            </div>
+            <p className="mt-2 font-semibold">{title}</p>
+            <p className="mt-1 text-muted-foreground text-sm">{description}</p>
+          </div>
+        </div>
+        <Button disabled={disabled} onClick={onClick} variant={tone === "done" ? "secondary" : "default"}>
+          {actionLabel}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function OperationsResultCard({
+  realFlowError,
+  realFlowResult,
+  syncError,
+  syncResult,
+}: {
+  realFlowError: string | null;
+  realFlowResult: PaymentsSyncResult | null;
+  syncError: string | null;
+  syncResult: PaymentsSyncResult | null;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Ultima accion ejecutada</CardTitle>
+        <CardDescription>
+          Resultado resumido sin tener que leer todo el JSON.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {syncError || realFlowError ? (
+          <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-destructive text-sm">
+            {syncError ?? realFlowError}
+          </div>
+        ) : null}
+        {syncResult ? (
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <SyncMetric label="Pagos" value={syncResult.paymentsFound} />
+            <SyncMetric label="Creados" value={syncResult.createdLeads} />
+            <SyncMetric label="Existentes" value={syncResult.existingLeads ?? syncResult.alreadyProcessed} />
+            <SyncMetric label="Listos Stape" value={syncResult.dispatched} />
+          </div>
+        ) : null}
+        {realFlowResult ? <RealFlowResult result={realFlowResult} /> : null}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -2118,6 +2628,26 @@ function DayRevenueBlock({ day }: { day: DayBlock }) {
       </div>
     </div>
   );
+}
+
+function modeLabel(value: string | undefined) {
+  if (value === "api") {
+    return "API";
+  }
+
+  if (value === "redis") {
+    return "Redis";
+  }
+
+  if (value === "stub") {
+    return "Stub";
+  }
+
+  if (value === "file") {
+    return "Temporal";
+  }
+
+  return value ?? "Sin validar";
 }
 
 function formatMoney(value: number) {

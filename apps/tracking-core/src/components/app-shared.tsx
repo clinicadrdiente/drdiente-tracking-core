@@ -27,10 +27,10 @@ export type SidebarNavGroup = {
 
 export const navGroups: SidebarNavGroup[] = [
   {
-    label: "Operacion",
+    label: "Operar",
     items: [
       {
-        title: "Dashboard",
+        title: "Control",
         path: "#/dashboard",
         icon: <LayoutGridIcon />,
         isActive: true,
@@ -48,35 +48,22 @@ export const navGroups: SidebarNavGroup[] = [
     ],
   },
   {
-    label: "Integraciones",
+    label: "Conectar",
     items: [
       {
         title: "Dentalink",
         path: "#/dentalink",
         icon: <CalendarDaysIcon />,
-        subItems: [
-          { title: "Pagos del mes", path: "#/dentalink/payments" },
-          { title: "Pacientes recientes", path: "#/dentalink/patients" },
-          { title: "Tratamientos", path: "#/dentalink/treatments" },
-        ],
       },
       {
         title: "Elevator",
         path: "#/elevator",
         icon: <SendIcon />,
-        subItems: [
-          { title: "Leads creados", path: "#/elevator/leads" },
-          { title: "Matching", path: "#/elevator/matching" },
-        ],
       },
       {
         title: "Stape",
         path: "#/stape",
         icon: <WebhookIcon />,
-        subItems: [
-          { title: "Eventos", path: "#/stape/events" },
-          { title: "Conversion API", path: "#/stape/capi" },
-        ],
       },
       {
         title: "Marketing",
@@ -92,11 +79,11 @@ export const navGroups: SidebarNavGroup[] = [
         title: "Configuracion",
         path: "#/settings",
         icon: <SettingsIcon />,
-        subItems: [
-          { title: "Variables", path: "#/settings/env" },
-          { title: "Secret interno", path: "#/settings/secret" },
-          { title: "Logs", path: "#/settings/logs" },
-        ],
+      },
+      {
+        title: "Estado",
+        path: "#/status",
+        icon: <ActivityIcon />,
       },
     ],
   },
@@ -107,11 +94,6 @@ export const footerNavLinks: SidebarNavItem[] = [
     title: "Ayuda interna",
     path: "#/help",
     icon: <HelpCircleIcon />,
-  },
-  {
-    title: "Estado del sistema",
-    path: "#/status",
-    icon: <ActivityIcon />,
   },
 ];
 
