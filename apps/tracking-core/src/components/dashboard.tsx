@@ -106,6 +106,18 @@ interface PaymentsSyncResult {
   failed?: number;
   rateLimitedPatients: number;
   dispatched: number;
+  results?: ElevatorImportResult[];
+}
+
+interface ElevatorImportResult {
+  paymentId: number | null;
+  patientId: number | null;
+  patientName: string;
+  contact: string;
+  status: "created" | "existing" | "skipped_missing_contact" | "failed";
+  elevatorId: string | null;
+  readyForStape: boolean;
+  reason: string;
 }
 
 const chartConfig = {
@@ -765,18 +777,105 @@ function ElevatorSyncCard({
             </div>
           ) : null}
           {result ? (
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-              <SyncMetric label="Pagos encontrados" value={result.paymentsFound} />
-              <SyncMetric label="Leads creados" value={result.createdLeads} />
-              <SyncMetric label="Ya existian" value={result.existingLeads ?? result.alreadyProcessed} />
-              <SyncMetric label="Sin match/contacto" value={result.unmatchedLeads} />
-              <SyncMetric label="Eventos preparados" value={result.dispatched} />
-              <SyncMetric label="Fallidos" value={result.failed ?? 0} />
+            <div className="flex flex-col gap-4">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <SyncMetric label="Pagos encontrados" value={result.paymentsFound} />
+                <SyncMetric label="Leads creados" value={result.createdLeads} />
+                <SyncMetric label="Ya existian" value={result.existingLeads ?? result.alreadyProcessed} />
+                <SyncMetric label="Sin match/contacto" value={result.unmatchedLeads} />
+                <SyncMetric label="Eventos preparados" value={result.dispatched} />
+                <SyncMetric label="Fallidos" value={result.failed ?? 0} />
+              </div>
+              <ElevatorImportResultsTable results={result.results ?? []} />
             </div>
           ) : null}
         </CardContent>
       )}
     </Card>
+  );
+}
+
+function ElevatorImportResultsTable({
+  results,
+}: {
+  results: ElevatorImportResult[];
+}) {
+  if (results.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="overflow-hidden rounded-xl border">
+      <div className="flex items-center justify-between border-b bg-background/50 px-4 py-3">
+        <div>
+          <p className="font-medium">Detalle de envio a Elevator</p>
+          <p className="text-muted-foreground text-xs">
+            Revisa quien quedo listo para Stape y quien necesita correccion manual.
+          </p>
+        </div>
+        <Badge variant="secondary">{formatInteger(results.length)} registros</Badge>
+      </div>
+      <div className="max-h-96 overflow-auto">
+        <table className="w-full min-w-[760px] text-sm">
+          <thead className="sticky top-0 bg-card text-muted-foreground">
+            <tr className="border-b">
+              <th className="px-4 py-3 text-left font-medium">Paciente</th>
+              <th className="px-4 py-3 text-left font-medium">Contacto</th>
+              <th className="px-4 py-3 text-left font-medium">Estado</th>
+              <th className="px-4 py-3 text-left font-medium">Elevator ID</th>
+              <th className="px-4 py-3 text-left font-medium">Stape</th>
+              <th className="px-4 py-3 text-left font-medium">Motivo</th>
+            </tr>
+          </thead>
+          <tbody>
+            {results.map((result) => (
+              <tr className="border-b last:border-b-0" key={`${result.paymentId}-${result.patientId}-${result.status}`}>
+                <td className="px-4 py-3 font-medium">{result.patientName}</td>
+                <td className="px-4 py-3 text-muted-foreground">{result.contact}</td>
+                <td className="px-4 py-3">
+                  <StatusBadge status={result.status} />
+                </td>
+                <td className="px-4 py-3 text-muted-foreground">
+                  {result.elevatorId ?? "-"}
+                </td>
+                <td className="px-4 py-3">
+                  {result.readyForStape ? (
+                    <Badge className="bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/15">
+                      Listo
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary">Pendiente</Badge>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-muted-foreground">{result.reason}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function StatusBadge({ status }: { status: ElevatorImportResult["status"] }) {
+  const labelByStatus = {
+    created: "Creado",
+    existing: "Ya existia",
+    failed: "Fallo",
+    skipped_missing_contact: "Sin contacto",
+  };
+
+  const classNameByStatus = {
+    created: "bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/15",
+    existing: "bg-sky-500/15 text-sky-300 hover:bg-sky-500/15",
+    failed: "bg-red-500/15 text-red-300 hover:bg-red-500/15",
+    skipped_missing_contact: "bg-amber-500/15 text-amber-300 hover:bg-amber-500/15",
+  };
+
+  return (
+    <Badge className={classNameByStatus[status]}>
+      {labelByStatus[status]}
+    </Badge>
   );
 }
 

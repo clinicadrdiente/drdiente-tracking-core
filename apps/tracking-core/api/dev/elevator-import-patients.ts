@@ -19,6 +19,17 @@ type PatientPaymentPayload = {
   branch?: string | null;
 };
 
+type ImportResult = {
+  paymentId: number | null;
+  patientId: number | null;
+  patientName: string;
+  contact: string;
+  status: "created" | "existing" | "skipped_missing_contact" | "failed";
+  elevatorId: string | null;
+  readyForStape: boolean;
+  reason: string;
+};
+
 export default async function handler(
   request: VercelRequest,
   response: VercelResponse,
@@ -45,11 +56,18 @@ export default async function handler(
   let existingLeads = 0;
   let skippedMissingContact = 0;
   let failed = 0;
+  const results: ImportResult[] = [];
 
   for (const patient of patients) {
     const leadInput = buildLeadInput(patient);
     if (!leadInput) {
       skippedMissingContact += 1;
+      results.push(buildImportResult(patient, {
+        elevatorId: null,
+        readyForStape: false,
+        reason: "Sin telefono/email para buscar o crear contacto",
+        status: "skipped_missing_contact",
+      }));
       continue;
     }
 
@@ -63,13 +81,31 @@ export default async function handler(
 
       if (existing[0]) {
         existingLeads += 1;
+        results.push(buildImportResult(patient, {
+          elevatorId: lead.elevatorId,
+          readyForStape: true,
+          reason: "Contacto ya existia en Elevator",
+          status: "existing",
+        }));
       } else {
         createdLeads += 1;
+        results.push(buildImportResult(patient, {
+          elevatorId: lead.elevatorId,
+          readyForStape: true,
+          reason: "Contacto creado en Elevator",
+          status: "created",
+        }));
       }
 
       await elevatorClient.updateLeadStage(lead.elevatorId, "anticipo_pagado");
-    } catch {
+    } catch (error) {
       failed += 1;
+      results.push(buildImportResult(patient, {
+        elevatorId: null,
+        readyForStape: false,
+        reason: error instanceof Error ? error.message : "Error desconocido",
+        status: "failed",
+      }));
     }
   }
 
@@ -89,6 +125,7 @@ export default async function handler(
     failed,
     rateLimitedPatients: 0,
     dispatched: matchedLeads,
+    results,
   });
 }
 
@@ -139,5 +176,21 @@ function splitPatientName(name?: string | null) {
   return {
     firstName: parts[0],
     lastName: parts.slice(1).join(" ") || null,
+  };
+}
+
+function buildImportResult(
+  patient: PatientPaymentPayload,
+  result: Pick<
+    ImportResult,
+    "elevatorId" | "readyForStape" | "reason" | "status"
+  >,
+): ImportResult {
+  return {
+    paymentId: typeof patient.paymentId === "number" ? patient.paymentId : null,
+    patientId: typeof patient.patientId === "number" ? patient.patientId : null,
+    patientName: patient.patientName?.trim() || "Paciente sin nombre",
+    contact: patient.patientEmail || patient.patientPhone || "Sin contacto",
+    ...result,
   };
 }
