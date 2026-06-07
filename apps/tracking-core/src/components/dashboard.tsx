@@ -57,6 +57,12 @@ interface MonthlyDashboard {
     revenue: number;
     share: number;
   }>;
+  cache?: {
+    hit: boolean;
+    stale: boolean;
+    cachedAt: string;
+    ttlSeconds: number;
+  };
 }
 
 interface DayBlock {
@@ -109,6 +115,9 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
+const DASHBOARD_BROWSER_CACHE_KEY = "drdienteMonthlyDashboardCache";
+const DASHBOARD_BROWSER_CACHE_TTL_MS = 5 * 60 * 1000;
+
 export function Dashboard() {
   const [secret, setSecret] = useState(() =>
     window.localStorage.getItem("trackingSecret") ?? "",
@@ -121,9 +130,21 @@ export function Dashboard() {
   const [syncResult, setSyncResult] = useState<PaymentsSyncResult | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
 
-  async function loadDashboard(nextSecret = secret) {
+  async function loadDashboard(
+    nextSecret = secret,
+    options: { skipBrowserCache?: boolean } = {},
+  ) {
     if (!nextSecret.trim()) {
       setError("Pega el TRACKING_API_SECRET para cargar datos reales.");
+      return;
+    }
+
+    const cachedDashboard = options.skipBrowserCache
+      ? null
+      : readBrowserDashboardCache();
+    if (cachedDashboard) {
+      setData(cachedDashboard);
+      setError(null);
       return;
     }
 
@@ -143,6 +164,7 @@ export function Dashboard() {
       }
 
       window.localStorage.setItem("trackingSecret", nextSecret.trim());
+      writeBrowserDashboardCache(body);
       setData(body);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Error desconocido.");
@@ -214,7 +236,7 @@ export function Dashboard() {
 
     function handleRefreshRequest() {
       setRoute("dashboard");
-      void loadDashboard(secret);
+      void loadDashboard(secret, { skipBrowserCache: true });
     }
 
     window.addEventListener("hashchange", handleHashChange);
@@ -258,12 +280,23 @@ export function Dashboard() {
             type="password"
             value={secret}
           />
-          <Button disabled={isLoading} onClick={() => void loadDashboard()}>
+          <Button
+            disabled={isLoading}
+            onClick={() => void loadDashboard(secret, { skipBrowserCache: true })}
+          >
             <RefreshCwIcon aria-hidden="true" data-icon="inline-start" />
             {isLoading ? "Cargando" : "Actualizar"}
           </Button>
         </div>
       </section>
+
+      {data?.cache ? (
+        <p className="text-muted-foreground text-xs">
+          Datos {data.cache.hit ? "desde cache" : "actualizados"} ·{" "}
+          {data.cache.stale ? "cache de respaldo por rate limit · " : ""}
+          cacheado a las {formatCacheTime(data.cache.cachedAt)}
+        </p>
+      ) : null}
 
       {error ? (
         <Card className="border-destructive/40">
@@ -276,7 +309,7 @@ export function Dashboard() {
         data={data}
         isLoading={isLoading}
         isSyncingToElevator={isSyncingToElevator}
-        onRefresh={() => void loadDashboard()}
+        onRefresh={() => void loadDashboard(secret, { skipBrowserCache: true })}
         onSendToElevator={() => void sendMonthToElevator()}
         route={route}
         syncError={syncError}
@@ -963,7 +996,43 @@ function normalizeRoute(path = "") {
   return path.replace(/^#\/?/, "").split("?")[0] || "dashboard";
 }
 
-function getCurrentMonthStartIso() {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+function readBrowserDashboardCache(): MonthlyDashboard | null {
+  try {
+    const rawCache = window.localStorage.getItem(DASHBOARD_BROWSER_CACHE_KEY);
+    if (!rawCache) {
+      return null;
+    }
+
+    const parsed = JSON.parse(rawCache) as {
+      cachedAt: number;
+      data: MonthlyDashboard;
+    };
+
+    if (Date.now() - parsed.cachedAt > DASHBOARD_BROWSER_CACHE_TTL_MS) {
+      window.localStorage.removeItem(DASHBOARD_BROWSER_CACHE_KEY);
+      return null;
+    }
+
+    return parsed.data;
+  } catch {
+    window.localStorage.removeItem(DASHBOARD_BROWSER_CACHE_KEY);
+    return null;
+  }
+}
+
+function writeBrowserDashboardCache(data: MonthlyDashboard) {
+  window.localStorage.setItem(
+    DASHBOARD_BROWSER_CACHE_KEY,
+    JSON.stringify({
+      cachedAt: Date.now(),
+      data,
+    }),
+  );
+}
+
+function formatCacheTime(value: string) {
+  return new Intl.DateTimeFormat("es-MX", {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
 }

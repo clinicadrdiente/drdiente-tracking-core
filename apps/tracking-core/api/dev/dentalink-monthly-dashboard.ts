@@ -34,7 +34,38 @@ interface DayBlock {
   patients: MonthlyPaymentBlock[];
 }
 
+interface MonthlyDashboardBody {
+  ok: true;
+  mode: string;
+  month?: {
+    label: string;
+    fromIso: string;
+    toIso: string;
+  };
+  revenueTotal: number;
+  paymentsTotal: number;
+  uniquePatientsTotal: number;
+  averagePaymentValue: number;
+  days: DayBlock[];
+  patients: MonthlyPaymentBlock[];
+  treatmentShare: ReturnType<typeof buildTreatmentShare>;
+  cache: {
+    hit: boolean;
+    stale: boolean;
+    cachedAt: string;
+    ttlSeconds: number;
+  };
+}
+
 const MAX_PAYMENT_PAGES = 20;
+const CACHE_TTL_MS = 10 * 60 * 1000;
+const STALE_CACHE_TTL_MS = 60 * 60 * 1000;
+
+let monthlyDashboardCache: {
+  key: string;
+  cachedAtMs: number;
+  body: MonthlyDashboardBody;
+} | null = null;
 
 export default async function handler(
   request: VercelRequest,
@@ -53,29 +84,44 @@ export default async function handler(
 
   try {
     const config = getDentalinkConfig();
-
-    if (config.mode !== "api") {
-      send(response, {
-        status: 200,
-        body: {
-          ok: true,
-          mode: config.mode,
-          revenueTotal: 0,
-          paymentsTotal: 0,
-          uniquePatientsTotal: 0,
-          averagePaymentValue: 0,
-          days: [],
-          patients: [],
-          treatmentShare: [],
-        },
-      });
-      return;
-    }
-
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
     const monthEnd = new Date(nextMonthStart.getTime() - 1000);
+    const cacheKey = `${config.mode}:${monthStart.toISOString()}:${monthEnd.toISOString()}`;
+    const cached = readMonthlyDashboardCache(cacheKey);
+
+    if (cached && !isForceRefresh(request)) {
+      send(response, {
+        status: 200,
+        body: withCacheMetadata(cached.body, cached.cachedAtMs, {
+          hit: true,
+          stale: false,
+        }),
+      });
+      return;
+    }
+
+    if (config.mode !== "api") {
+      const body: MonthlyDashboardBody = {
+        ok: true,
+        mode: config.mode,
+        revenueTotal: 0,
+        paymentsTotal: 0,
+        uniquePatientsTotal: 0,
+        averagePaymentValue: 0,
+        days: [],
+        patients: [],
+        treatmentShare: [],
+        cache: buildCacheMetadata(Date.now(), { hit: false, stale: false }),
+      };
+      send(response, {
+        status: 200,
+        body,
+      });
+      return;
+    }
+
     const paymentRecords = await fetchMonthlyPaymentRecords(
       config.baseUrl,
       config.apiAuthScheme,
@@ -147,30 +193,46 @@ export default async function handler(
     const uniquePatientsTotal = new Set(
       payments.map((payment) => payment.patientId).filter((id) => id > 0),
     ).size;
+    const body: MonthlyDashboardBody = {
+      ok: true,
+      mode: config.mode,
+      month: {
+        label: monthStart.toLocaleDateString("es-MX", {
+          month: "long",
+          year: "numeric",
+        }),
+        fromIso: monthStart.toISOString(),
+        toIso: monthEnd.toISOString(),
+      },
+      revenueTotal,
+      paymentsTotal: payments.length,
+      uniquePatientsTotal,
+      averagePaymentValue: payments.length > 0 ? revenueTotal / payments.length : 0,
+      days,
+      patients: payments,
+      treatmentShare: buildTreatmentShare(payments),
+      cache: buildCacheMetadata(Date.now(), { hit: false, stale: false }),
+    };
+
+    writeMonthlyDashboardCache(cacheKey, body);
 
     send(response, {
       status: 200,
-      body: {
-        ok: true,
-        mode: config.mode,
-        month: {
-          label: monthStart.toLocaleDateString("es-MX", {
-            month: "long",
-            year: "numeric",
-          }),
-          fromIso: monthStart.toISOString(),
-          toIso: monthEnd.toISOString(),
-        },
-        revenueTotal,
-        paymentsTotal: payments.length,
-        uniquePatientsTotal,
-        averagePaymentValue: payments.length > 0 ? revenueTotal / payments.length : 0,
-        days,
-        patients: payments,
-        treatmentShare: buildTreatmentShare(payments),
-      },
+      body,
     });
   } catch (error) {
+    const cached = readAnyFreshEnoughMonthlyDashboardCache();
+    if (cached) {
+      send(response, {
+        status: 200,
+        body: withCacheMetadata(cached.body, cached.cachedAtMs, {
+          hit: true,
+          stale: true,
+        }),
+      });
+      return;
+    }
+
     send(
       response,
       serverError("failed to build monthly Dentalink dashboard", {
@@ -178,6 +240,69 @@ export default async function handler(
       }),
     );
   }
+}
+
+function isForceRefresh(request: VercelRequest): boolean {
+  const value = request.query?.force;
+  return value === "1" || value === "true";
+}
+
+function readMonthlyDashboardCache(cacheKey: string) {
+  if (!monthlyDashboardCache || monthlyDashboardCache.key !== cacheKey) {
+    return null;
+  }
+
+  if (Date.now() - monthlyDashboardCache.cachedAtMs > CACHE_TTL_MS) {
+    return null;
+  }
+
+  return monthlyDashboardCache;
+}
+
+function readAnyFreshEnoughMonthlyDashboardCache() {
+  if (!monthlyDashboardCache) {
+    return null;
+  }
+
+  if (Date.now() - monthlyDashboardCache.cachedAtMs > STALE_CACHE_TTL_MS) {
+    return null;
+  }
+
+  return monthlyDashboardCache;
+}
+
+function writeMonthlyDashboardCache(cacheKey: string, body: MonthlyDashboardBody) {
+  monthlyDashboardCache = {
+    key: cacheKey,
+    cachedAtMs: Date.now(),
+    body,
+  };
+}
+
+function withCacheMetadata(
+  body: MonthlyDashboardBody,
+  cachedAtMs: number,
+  options: { hit: boolean; stale: boolean },
+): MonthlyDashboardBody {
+  return {
+    ...body,
+    cache: buildCacheMetadata(cachedAtMs, options),
+  };
+}
+
+function buildCacheMetadata(
+  cachedAtMs: number,
+  options: { hit: boolean; stale: boolean },
+) {
+  return {
+    hit: options.hit,
+    stale: options.stale,
+    cachedAt: new Date(cachedAtMs).toISOString(),
+    ttlSeconds: Math.max(
+      0,
+      Math.ceil((CACHE_TTL_MS - (Date.now() - cachedAtMs)) / 1000),
+    ),
+  };
 }
 
 async function fetchMonthlyPaymentRecords(
