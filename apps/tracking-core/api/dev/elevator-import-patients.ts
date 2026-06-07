@@ -24,6 +24,7 @@ type ImportResult = {
   patientId: number | null;
   patientName: string;
   contact: string;
+  branch: string;
   status: "created" | "existing" | "skipped_missing_contact" | "failed";
   elevatorId: string | null;
   readyForStape: boolean;
@@ -191,6 +192,7 @@ function buildImportResult(
     patientId: typeof patient.patientId === "number" ? patient.patientId : null,
     patientName: patient.patientName?.trim() || "Paciente sin nombre",
     contact: patient.patientEmail || patient.patientPhone || "Sin contacto",
+    branch: patient.branch?.trim() || "Sin sucursal",
     ...result,
   };
 }

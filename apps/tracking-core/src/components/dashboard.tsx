@@ -114,6 +114,7 @@ interface ElevatorImportResult {
   patientId: number | null;
   patientName: string;
   contact: string;
+  branch: string;
   status: "created" | "existing" | "skipped_missing_contact" | "failed";
   elevatorId: string | null;
   readyForStape: boolean;
@@ -816,11 +817,12 @@ function ElevatorImportResultsTable({
         <Badge variant="secondary">{formatInteger(results.length)} registros</Badge>
       </div>
       <div className="max-h-96 overflow-auto">
-        <table className="w-full min-w-[760px] text-sm">
+        <table className="w-full min-w-[860px] text-sm">
           <thead className="sticky top-0 bg-card text-muted-foreground">
             <tr className="border-b">
               <th className="px-4 py-3 text-left font-medium">Paciente</th>
               <th className="px-4 py-3 text-left font-medium">Contacto</th>
+              <th className="px-4 py-3 text-left font-medium">Sucursal</th>
               <th className="px-4 py-3 text-left font-medium">Estado</th>
               <th className="px-4 py-3 text-left font-medium">Elevator ID</th>
               <th className="px-4 py-3 text-left font-medium">Listo para Stape</th>
@@ -832,6 +834,7 @@ function ElevatorImportResultsTable({
               <tr className="border-b last:border-b-0" key={`${result.paymentId}-${result.patientId}-${result.status}`}>
                 <td className="px-4 py-3 font-medium">{result.patientName}</td>
                 <td className="px-4 py-3 text-muted-foreground">{result.contact}</td>
+                <td className="px-4 py-3 text-muted-foreground">{result.branch}</td>
                 <td className="px-4 py-3">
                   <StatusBadge status={result.status} />
                 </td>
