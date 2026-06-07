@@ -5,6 +5,8 @@ export interface WindsorMarketingRow {
   datasource?: string | null;
   source?: string | null;
   campaign?: string | null;
+  campaignId?: string | null;
+  campaignName?: string | null;
   accountName?: string | null;
   accountId?: string | null;
   adAccountName?: string | null;
@@ -12,13 +14,9 @@ export interface WindsorMarketingRow {
   businessManager?: string | null;
   spend?: number;
   clicks?: number;
-  sessions?: number;
   impressions?: number;
   reach?: number;
-  screenPageViews?: number;
   videoTrueviewViews?: number;
-  totalPageview?: number;
-  allConversions?: number;
   currency?: string | null;
   accountCurrency?: string | null;
 }
@@ -27,11 +25,9 @@ export interface WindsorSourceSummary {
   source: string;
   spend: number;
   clicks: number;
-  sessions: number;
   impressions: number;
   reach: number;
-  screenPageViews: number;
-  allConversions: number;
+  videoTrueviewViews: number;
   campaigns: number;
 }
 
@@ -47,11 +43,9 @@ export interface WindsorAccountSummary {
   rows: number;
   spend: number;
   clicks: number;
-  sessions: number;
   impressions: number;
   reach: number;
-  screenPageViews: number;
-  allConversions: number;
+  videoTrueviewViews: number;
 }
 
 export interface WindsorMarketingSummary {
@@ -67,13 +61,9 @@ export interface WindsorMarketingSummary {
   totals: {
     spend: number;
     clicks: number;
-    sessions: number;
     impressions: number;
     reach: number;
-    screenPageViews: number;
     videoTrueviewViews: number;
-    totalPageview: number;
-    allConversions: number;
   };
   bySource: WindsorSourceSummary[];
 }
@@ -130,20 +120,10 @@ export class WindsorClient {
       totals: {
         spend: rows.reduce((sum, row) => sum + (row.spend ?? 0), 0),
         clicks: rows.reduce((sum, row) => sum + (row.clicks ?? 0), 0),
-        sessions: rows.reduce((sum, row) => sum + (row.sessions ?? 0), 0),
         impressions: rows.reduce((sum, row) => sum + (row.impressions ?? 0), 0),
         reach: rows.reduce((sum, row) => sum + (row.reach ?? 0), 0),
-        screenPageViews: rows.reduce(
-          (sum, row) => sum + (row.screenPageViews ?? 0),
-          0,
-        ),
         videoTrueviewViews: rows.reduce(
           (sum, row) => sum + (row.videoTrueviewViews ?? 0),
-          0,
-        ),
-        totalPageview: rows.reduce((sum, row) => sum + (row.totalPageview ?? 0), 0),
-        allConversions: rows.reduce(
-          (sum, row) => sum + (row.allConversions ?? 0),
           0,
         ),
       },
@@ -226,7 +206,9 @@ function normalizeMarketingRow(row: Record<string, unknown>): WindsorMarketingRo
     date: readString(row, "date"),
     datasource: readString(row, "datasource"),
     source: readFirstString(row, ["source", "datasource"]),
-    campaign: readString(row, "campaign"),
+    campaign: readFirstString(row, ["campaign_name", "campaign"]),
+    campaignId: readString(row, "campaign_id"),
+    campaignName: readString(row, "campaign_name"),
     accountName: readFirstString(row, ["account_name", "account"]),
     accountId: readFirstString(row, ["account_id"]),
     adAccountName: readFirstString(row, ["ad_account_name", "adaccount_name"]),
@@ -238,13 +220,9 @@ function normalizeMarketingRow(row: Record<string, unknown>): WindsorMarketingRo
     ]),
     spend: readNumber(row, "spend"),
     clicks: readNumber(row, "clicks"),
-    sessions: readNumber(row, "sessions"),
     impressions: readNumber(row, "impressions"),
     reach: readNumber(row, "reach"),
-    screenPageViews: readNumber(row, "screen_page_views"),
     videoTrueviewViews: readNumber(row, "video_trueview_views"),
-    totalPageview: readNumber(row, "total_pageview"),
-    allConversions: readNumber(row, "all_conversions"),
     currency: readString(row, "currency"),
     accountCurrency: readString(row, "account_currency"),
   };
@@ -258,6 +236,8 @@ function rowMatchesTextFilters(
     row.source,
     row.datasource,
     row.campaign,
+    row.campaignId,
+    row.campaignName,
     row.accountName,
     row.accountId,
     row.adAccountName,
@@ -293,15 +273,10 @@ function summarizeBySource(rows: WindsorMarketingRow[]): WindsorSourceSummary[] 
       source,
       spend: sourceRows.reduce((sum, row) => sum + (row.spend ?? 0), 0),
       clicks: sourceRows.reduce((sum, row) => sum + (row.clicks ?? 0), 0),
-      sessions: sourceRows.reduce((sum, row) => sum + (row.sessions ?? 0), 0),
       impressions: sourceRows.reduce((sum, row) => sum + (row.impressions ?? 0), 0),
       reach: sourceRows.reduce((sum, row) => sum + (row.reach ?? 0), 0),
-      screenPageViews: sourceRows.reduce(
-        (sum, row) => sum + (row.screenPageViews ?? 0),
-        0,
-      ),
-      allConversions: sourceRows.reduce(
-        (sum, row) => sum + (row.allConversions ?? 0),
+      videoTrueviewViews: sourceRows.reduce(
+        (sum, row) => sum + (row.videoTrueviewViews ?? 0),
         0,
       ),
       campaigns: new Set(
@@ -347,15 +322,10 @@ function summarizeAccounts(rows: WindsorMarketingRow[]): WindsorAccountSummary[]
         rows: accountRows.length,
         spend: accountRows.reduce((sum, row) => sum + (row.spend ?? 0), 0),
         clicks: accountRows.reduce((sum, row) => sum + (row.clicks ?? 0), 0),
-        sessions: accountRows.reduce((sum, row) => sum + (row.sessions ?? 0), 0),
         impressions: accountRows.reduce((sum, row) => sum + (row.impressions ?? 0), 0),
         reach: accountRows.reduce((sum, row) => sum + (row.reach ?? 0), 0),
-        screenPageViews: accountRows.reduce(
-          (sum, row) => sum + (row.screenPageViews ?? 0),
-          0,
-        ),
-        allConversions: accountRows.reduce(
-          (sum, row) => sum + (row.allConversions ?? 0),
+        videoTrueviewViews: accountRows.reduce(
+          (sum, row) => sum + (row.videoTrueviewViews ?? 0),
           0,
         ),
       };

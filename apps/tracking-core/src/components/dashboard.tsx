@@ -218,13 +218,9 @@ interface WindsorMarketingSummary {
   totals?: {
     spend: number;
     clicks: number;
-    sessions?: number;
     impressions: number;
     reach?: number;
-    screenPageViews?: number;
     videoTrueviewViews?: number;
-    totalPageview?: number;
-    allConversions?: number;
   };
   bySource?: WindsorSourceSummary[];
 }
@@ -234,6 +230,8 @@ interface WindsorMarketingRow {
   datasource?: string | null;
   source?: string | null;
   campaign?: string | null;
+  campaignId?: string | null;
+  campaignName?: string | null;
   accountName?: string | null;
   accountId?: string | null;
   adAccountName?: string | null;
@@ -241,13 +239,9 @@ interface WindsorMarketingRow {
   businessManager?: string | null;
   spend?: number;
   clicks?: number;
-  sessions?: number;
   impressions?: number;
   reach?: number;
-  screenPageViews?: number;
   videoTrueviewViews?: number;
-  totalPageview?: number;
-  allConversions?: number;
   currency?: string | null;
   accountCurrency?: string | null;
 }
@@ -256,11 +250,9 @@ interface WindsorSourceSummary {
   source: string;
   spend: number;
   clicks: number;
-  sessions?: number;
   impressions: number;
   reach?: number;
-  screenPageViews?: number;
-  allConversions?: number;
+  videoTrueviewViews?: number;
   campaigns: number;
 }
 
@@ -276,11 +268,9 @@ interface WindsorAccountSummary {
   rows: number;
   spend: number;
   clicks: number;
-  sessions: number;
   impressions: number;
   reach: number;
-  screenPageViews: number;
-  allConversions: number;
+  videoTrueviewViews: number;
 }
 
 interface WindsorAccountsResult {
@@ -1837,11 +1827,9 @@ function WindsorMarketingCard({
   const totals = summary?.totals ?? {
     spend: 0,
     clicks: 0,
-    sessions: 0,
     impressions: 0,
     reach: 0,
-    screenPageViews: 0,
-    allConversions: 0,
+    videoTrueviewViews: 0,
   };
   const bySource = summary?.bySource ?? [];
 
@@ -1889,7 +1877,7 @@ function WindsorMarketingCard({
 
         {result ? (
           <>
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-6">
               <div className="rounded-xl border bg-background/50 p-4">
                 <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
                   Estado
@@ -1920,18 +1908,26 @@ function WindsorMarketingCard({
               </div>
               <div className="rounded-xl border bg-background/50 p-4">
                 <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
-                  Sesiones
+                  Impresiones
                 </p>
                 <p className="mt-2 font-semibold text-2xl">
-                  {formatInteger(totals.sessions ?? 0)}
+                  {formatInteger(totals.impressions ?? 0)}
                 </p>
               </div>
               <div className="rounded-xl border bg-background/50 p-4">
                 <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
-                  Conversiones
+                  Reach
                 </p>
                 <p className="mt-2 font-semibold text-2xl">
-                  {formatInteger(totals.allConversions ?? 0)}
+                  {formatInteger(totals.reach ?? 0)}
+                </p>
+              </div>
+              <div className="rounded-xl border bg-background/50 p-4">
+                <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
+                  Video views
+                </p>
+                <p className="mt-2 font-semibold text-2xl">
+                  {formatInteger(totals.videoTrueviewViews ?? 0)}
                 </p>
               </div>
             </div>
@@ -1957,9 +1953,9 @@ function WindsorMarketingCard({
                         <th className="px-4 py-3 text-left font-medium">Fuente</th>
                         <th className="px-4 py-3 text-right font-medium">Spend</th>
                         <th className="px-4 py-3 text-right font-medium">Clicks</th>
-                        <th className="px-4 py-3 text-right font-medium">Sesiones</th>
+                        <th className="px-4 py-3 text-right font-medium">Impresiones</th>
                         <th className="px-4 py-3 text-right font-medium">Reach</th>
-                        <th className="px-4 py-3 text-right font-medium">Conv.</th>
+                        <th className="px-4 py-3 text-right font-medium">Video views</th>
                         <th className="px-4 py-3 text-right font-medium">Campanas</th>
                       </tr>
                     </thead>
@@ -1974,13 +1970,13 @@ function WindsorMarketingCard({
                             {formatInteger(source.clicks)}
                           </td>
                           <td className="px-4 py-3 text-right">
-                            {formatInteger(source.sessions ?? 0)}
+                            {formatInteger(source.impressions ?? 0)}
                           </td>
                           <td className="px-4 py-3 text-right">
                             {formatInteger(source.reach ?? 0)}
                           </td>
                           <td className="px-4 py-3 text-right">
-                            {formatInteger(source.allConversions ?? 0)}
+                            {formatInteger(source.videoTrueviewViews ?? 0)}
                           </td>
                           <td className="px-4 py-3 text-right">
                             {formatInteger(source.campaigns)}

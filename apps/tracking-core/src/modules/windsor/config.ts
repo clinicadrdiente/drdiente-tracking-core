@@ -20,7 +20,7 @@ export function getWindsorConfig(): WindsorConfig {
     defaultDatePreset: getEnv("WINDSOR_DATE_PRESET", "last_180d"),
     defaultFields: getEnv(
       "WINDSOR_DEFAULT_FIELDS",
-      "date,datasource,account_name,source,campaign,clicks,sessions,spend,account_id,reach,screen_page_views,video_trueview_views,total_pageview,all_conversions,currency,account_currency",
+      "date,datasource,account_name,source,campaign,clicks,spend,account_id,reach,video_trueview_views,currency,account_currency,campaign_id,campaign_name,impressions",
     )
       .split(",")
       .map((field) => field.trim())
