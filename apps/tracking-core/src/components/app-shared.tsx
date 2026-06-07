@@ -3,6 +3,7 @@ import {
   ActivityIcon,
   BarChart3Icon,
   CalendarDaysIcon,
+  GaugeIcon,
   HelpCircleIcon,
   LayoutGridIcon,
   MegaphoneIcon,
@@ -31,10 +32,15 @@ export const navGroups: SidebarNavGroup[] = [
     label: "Operar",
     items: [
       {
+        title: "Resumen",
+        path: "#/resumen",
+        icon: <GaugeIcon />,
+        isActive: true,
+      },
+      {
         title: "Control",
         path: "#/dashboard",
         icon: <LayoutGridIcon />,
-        isActive: true,
       },
       {
         title: "Revenue",

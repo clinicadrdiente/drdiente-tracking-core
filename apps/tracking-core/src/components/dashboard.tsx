@@ -44,6 +44,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Delta, DeltaIcon, DeltaValue } from "@/components/delta";
 import { Projection } from "@/components/projection";
+import { Executive } from "@/components/executive";
 
 interface MonthlyDashboard {
   ok: boolean;
@@ -842,6 +843,10 @@ function DashboardRoute({
   windsorError: string | null;
   windsorResult: WindsorTestResult | null;
 }) {
+  if (route === "resumen" || route === "executive") {
+    return <Executive data={data} />;
+  }
+
   if (route === "proyeccion" || route === "projection") {
     return <Projection data={data} />;
   }
