@@ -810,7 +810,7 @@ function ElevatorImportResultsTable({
         <div>
           <p className="font-medium">Detalle de envio a Elevator</p>
           <p className="text-muted-foreground text-xs">
-            Revisa quien quedo listo para Stape y quien necesita correccion manual.
+            Revisa quien tiene payload preparado para Stape y quien necesita correccion manual.
           </p>
         </div>
         <Badge variant="secondary">{formatInteger(results.length)} registros</Badge>
@@ -823,7 +823,7 @@ function ElevatorImportResultsTable({
               <th className="px-4 py-3 text-left font-medium">Contacto</th>
               <th className="px-4 py-3 text-left font-medium">Estado</th>
               <th className="px-4 py-3 text-left font-medium">Elevator ID</th>
-              <th className="px-4 py-3 text-left font-medium">Stape</th>
+              <th className="px-4 py-3 text-left font-medium">Listo para Stape</th>
               <th className="px-4 py-3 text-left font-medium">Motivo</th>
             </tr>
           </thead>
@@ -841,7 +841,7 @@ function ElevatorImportResultsTable({
                 <td className="px-4 py-3">
                   {result.readyForStape ? (
                     <Badge className="bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/15">
-                      Listo
+                      Preparado
                     </Badge>
                   ) : (
                     <Badge variant="secondary">Pendiente</Badge>

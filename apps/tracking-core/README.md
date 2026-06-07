@@ -61,11 +61,29 @@ Ya existe una capa de entrada minima para exponer el core:
 
 Con esto ya se puede montar despues una API real sin reescribir el dominio.
 
+El cron diario esta configurado en `vercel.json`:
+
+```text
+0 5 * * *
+```
+
+Esto corre a las `05:00 UTC`, equivalente a `11:00 p.m.` hora Costa Rica.
+El endpoint del cron revisa las ultimas 30 horas y procesa hasta 50 pagos por corrida para reducir riesgo de rate limit en Dentalink.
+
 Los endpoints operativos requieren:
 
 ```text
 x-tracking-secret: <TRACKING_API_SECRET>
 ```
+
+El cron debe protegerse con esta variable en Vercel:
+
+```text
+CRON_SECRET=<valor-secreto-largo>
+```
+
+Si `CRON_SECRET` existe, `/api/cron/payments-sync` exige `Authorization: Bearer <CRON_SECRET>`.
+Si no existe, el endpoint permite solamente llamadas del `User-Agent` oficial de Vercel Cron.
 
 `/api/health` queda abierto para verificar el despliegue.
 
