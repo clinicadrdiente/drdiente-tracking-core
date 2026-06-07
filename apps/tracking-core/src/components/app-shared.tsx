@@ -8,6 +8,7 @@ import {
   MegaphoneIcon,
   SendIcon,
   SettingsIcon,
+  TrendingUpIcon,
   UsersIcon,
   WebhookIcon,
 } from "lucide-react";
@@ -39,6 +40,11 @@ export const navGroups: SidebarNavGroup[] = [
         title: "Revenue",
         path: "#/revenue",
         icon: <BarChart3Icon />,
+      },
+      {
+        title: "Proyeccion",
+        path: "#/proyeccion",
+        icon: <TrendingUpIcon />,
       },
       {
         title: "Pacientes",
