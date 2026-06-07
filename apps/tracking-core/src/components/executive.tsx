@@ -74,7 +74,7 @@ const BRANCH_DEFS = [
     label: "Clinica Dr Diente",
     sublabel: "Polanco",
     emoji: "🦷",
-    color: "#34d399",
+    color: "#1858fb",
     defaultGoal: 3_500_000,
     matchers: ["diente", "polanco"],
   },
@@ -83,7 +83,7 @@ const BRANCH_DEFS = [
     label: "Carlos Ariza Torcat",
     sublabel: "Roma Norte",
     emoji: "✨",
-    color: "#a78bfa",
+    color: "#18bafb",
     defaultGoal: 1_500_000,
     matchers: ["ariza", "torcat", "roma"],
   },
@@ -295,7 +295,7 @@ function ScopeTabs({
         <button
           className={`rounded-lg px-3 py-1.5 font-medium text-sm transition ${
             scope === tab.id
-              ? "bg-emerald-500/20 text-emerald-200"
+              ? "bg-brand/20 text-brand"
               : "text-muted-foreground hover:text-foreground"
           }`}
           key={tab.id}
@@ -346,10 +346,10 @@ function GlobalView({
   return (
     <div className="flex flex-col gap-5">
       {/* Estrella polar global */}
-      <Card className="overflow-hidden border-emerald-300/30 bg-[radial-gradient(circle_at_top,rgba(110,231,183,0.16),transparent_45%)]">
+      <Card className="overflow-hidden border-brand/30 bg-[radial-gradient(circle_at_top,rgba(24,186,251,0.16),transparent_45%)]">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
-            <TargetIcon aria-hidden="true" className="size-5 text-emerald-300" />
+            <TargetIcon aria-hidden="true" className="size-5 text-brand" />
             Estrella polar - toda la clinica
           </CardTitle>
         </CardHeader>
@@ -516,7 +516,7 @@ function BranchView({
   return (
     <div className="flex flex-col gap-5">
       <Card
-        className="overflow-hidden border-emerald-300/30"
+        className="overflow-hidden border-brand/30"
         style={{
           background: `radial-gradient(circle at top, ${branch.color}22, transparent 45%)`,
         }}
@@ -591,7 +591,7 @@ function BranchView({
                   <span className="truncate">
                     {patient.patientName ?? "Paciente"}
                   </span>
-                  <span className="font-semibold text-emerald-300">
+                  <span className="font-semibold text-brand">
                     {formatMoney(patient.amount)}
                   </span>
                 </div>
@@ -618,7 +618,7 @@ function BranchMiniCard({
   const goalPct = pct(branch.revenue, branch.goal);
   const tone = paceTone(branch.revenue, branch.goal * monthFraction());
   return (
-    <Card className="transition hover:border-emerald-300/40">
+    <Card className="transition hover:border-brand/40">
       <CardContent className="flex items-center gap-4 py-5">
         <div className="h-28 w-28 shrink-0">
           <GoalGauge
@@ -635,7 +635,7 @@ function BranchMiniCard({
             {branch.sublabel}
           </p>
           <p className="text-muted-foreground text-sm">{branch.label}</p>
-          <p className="mt-2 font-semibold text-2xl text-emerald-300">
+          <p className="mt-2 font-semibold text-2xl text-brand">
             {formatMoney(branch.revenue)}
           </p>
           <p className="text-muted-foreground text-xs">
@@ -712,7 +712,7 @@ function ReturnCard({
             />
             {usingWindsor ? (
               <button
-                className="mt-1 text-emerald-300 text-xs hover:underline"
+                className="mt-1 text-brand text-xs hover:underline"
                 onClick={() => patch({ adSpendOverride: null })}
                 type="button"
               >
@@ -786,11 +786,11 @@ function ChannelCard({
                 <div className="rounded-lg border bg-background/40 p-3" key={source.source}>
                   <div className="flex items-center justify-between gap-2">
                     <span className="truncate font-medium capitalize">{source.source}</span>
-                    <span className="font-semibold text-emerald-300">{formatMoney(spend)}</span>
+                    <span className="font-semibold text-brand">{formatMoney(spend)}</span>
                   </div>
                   <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
                     <div
-                      className="h-full rounded-full bg-emerald-300"
+                      className="h-full rounded-full bg-brand"
                       style={{ width: `${Math.max(2, share)}%` }}
                     />
                   </div>
@@ -865,14 +865,14 @@ function FunnelCard({
                 <span className="w-28 font-semibold text-lg">{formatInteger(step.value)}</span>
               )}
               {rate !== null ? (
-                <span className="text-emerald-300 text-xs">{formatPercent(rate)}</span>
+                <span className="text-brand text-xs">{formatPercent(rate)}</span>
               ) : null}
             </div>
           );
         })}
-        <div className="mt-1 flex items-center justify-between rounded-lg border border-emerald-300/30 bg-emerald-500/5 px-3 py-2">
+        <div className="mt-1 flex items-center justify-between rounded-lg border border-brand/30 bg-brand/5 px-3 py-2">
           <span className="font-medium">Revenue</span>
-          <span className="font-semibold text-emerald-300">{formatMoney(revenue)}</span>
+          <span className="font-semibold text-brand">{formatMoney(revenue)}</span>
         </div>
       </CardContent>
     </Card>
@@ -881,7 +881,7 @@ function FunnelCard({
 
 function GoalGauge({
   caption,
-  color = "#34d399",
+  color = "#1858fb",
   compact,
   pct: value,
   tone,
@@ -951,10 +951,10 @@ function PlainStatusLine({
     <div
       className={`flex items-start gap-2 rounded-xl border p-3 text-sm ${
         tone === "good"
-          ? "border-emerald-300/30 bg-emerald-500/5 text-emerald-100"
+          ? "border-brand/30 bg-brand/5 text-brand"
           : tone === "warn"
-            ? "border-amber-300/30 bg-amber-500/5 text-amber-100"
-            : "border-rose-300/30 bg-rose-500/5 text-rose-100"
+            ? "border-warn/30 bg-warn/5 text-warn"
+            : "border-danger/30 bg-danger/5 text-danger"
       }`}
     >
       {onPace ? (
@@ -982,11 +982,11 @@ function PlainStat({
       <p
         className={`mt-2 font-semibold text-2xl tracking-tight ${
           tone === "good"
-            ? "text-emerald-300"
+            ? "text-brand"
             : tone === "warn"
-              ? "text-amber-300"
+              ? "text-warn"
               : tone === "bad"
-                ? "text-rose-300"
+                ? "text-danger"
                 : ""
         }`}
       >
@@ -1012,7 +1012,7 @@ function MetricTile({
       <p className="text-muted-foreground text-xs uppercase tracking-wider">{label}</p>
       <p
         className={`mt-1 font-semibold text-2xl tracking-tight ${
-          tone === "good" ? "text-emerald-300" : "text-rose-300"
+          tone === "good" ? "text-brand" : "text-danger"
         }`}
       >
         {value}

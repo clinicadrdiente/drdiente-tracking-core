@@ -288,10 +288,10 @@ export function Projection({ data }: { data: ProjectionBaseline | null }) {
       </section>
 
       {/* Norte conservador <-> optimista */}
-      <Card className="overflow-hidden border-emerald-300/30 bg-[radial-gradient(circle_at_top_left,rgba(110,231,183,0.16),transparent_40%)]">
+      <Card className="overflow-hidden border-brand/30 bg-[radial-gradient(circle_at_top_left,rgba(110,231,183,0.16),transparent_40%)]">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
-            <SparklesIcon aria-hidden="true" className="size-5 text-emerald-300" />
+            <SparklesIcon aria-hidden="true" className="size-5 text-brand" />
             El norte del proximo mes
           </CardTitle>
         </CardHeader>
@@ -501,10 +501,10 @@ export function Projection({ data }: { data: ProjectionBaseline | null }) {
 function ScenarioCard({ scenario }: { scenario: ScenarioResult }) {
   const tone =
     scenario.key === "optimista"
-      ? "border-emerald-300/40 bg-emerald-500/5"
+      ? "border-brand/40 bg-brand/5"
       : scenario.key === "conservador"
-        ? "border-amber-300/30 bg-amber-500/5"
-        : "border-sky-300/30 bg-sky-500/5";
+        ? "border-warn/30 bg-warn/5"
+        : "border-brand/30 bg-brand/5";
 
   return (
     <Card className={tone}>
@@ -604,7 +604,7 @@ function ManualRoiCard({
               />
             </div>
           ) : (
-            <p className="rounded-lg border border-amber-300/40 bg-amber-500/10 p-3 text-amber-200 text-sm">
+            <p className="rounded-lg border border-warn/40 bg-warn/10 p-3 text-warn text-sm">
               Ese ROI no es alcanzable con la estructura de costos actual (los
               gastos variables se comen el margen). Baja el ROI objetivo o los
               gastos variables.
@@ -634,7 +634,7 @@ function NorthMetric({
       </p>
       <p
         className={`mt-2 font-semibold text-3xl tracking-tight ${
-          tone === "good" ? "text-emerald-300" : "text-rose-300"
+          tone === "good" ? "text-brand" : "text-danger"
         }`}
       >
         {value}
@@ -667,7 +667,7 @@ function BigMetric({
       </p>
       <p
         className={`font-semibold text-3xl tracking-tight ${
-          tone === "good" ? "text-emerald-300" : "text-rose-300"
+          tone === "good" ? "text-brand" : "text-danger"
         }`}
       >
         {value}
@@ -693,9 +693,9 @@ function SmallMetric({
       <p
         className={`font-semibold text-sm ${
           tone === "good"
-            ? "text-emerald-300"
+            ? "text-brand"
             : tone === "bad"
-              ? "text-rose-300"
+              ? "text-danger"
               : ""
         }`}
       >
@@ -813,7 +813,7 @@ function ModeButton({
     <button
       className={`rounded-md px-2 py-1 text-xs transition ${
         active
-          ? "bg-emerald-500/20 text-emerald-200"
+          ? "bg-brand/20 text-brand"
           : "text-muted-foreground hover:text-foreground"
       }`}
       onClick={onClick}

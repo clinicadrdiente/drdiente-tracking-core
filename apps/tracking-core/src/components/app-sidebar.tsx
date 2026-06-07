@@ -16,6 +16,7 @@ import { footerNavLinks, navGroups } from "@/components/app-shared";
 import { LatestChange } from "@/components/latest-change";
 import { RefreshCwIcon, SearchIcon } from "lucide-react";
 import { useEffect, useState } from "react";
+import elevatorMark from "@/ui/elevator-mark.png";
 
 export function AppSidebar() {
 	const [route, setRoute] = useState(() => normalizeRoute(window.location.hash));
@@ -39,7 +40,7 @@ export function AppSidebar() {
 			<SidebarHeader className="h-14 justify-center">
 				<SidebarMenuButton asChild>
 					<a href="#/dashboard">
-						<span className="grid size-7 place-items-center rounded-lg bg-emerald-300 font-bold text-black text-xs">
+						<span className="grid size-7 place-items-center rounded-lg bg-[#1858fb] font-bold text-white text-xs">
 							DD
 						</span>
 						<span className="font-medium">CLINICA DR DIENTE</span>
@@ -78,6 +79,15 @@ export function AppSidebar() {
 				))}
 			</SidebarContent>
 			<SidebarFooter>
+				<div className="flex items-center gap-2 px-2 pb-1 group-data-[collapsible=icon]:hidden">
+					<img alt="Elevator" className="h-6 w-auto" src={elevatorMark} />
+					<div className="leading-tight">
+						<p className="text-muted-foreground text-[9px] uppercase tracking-[0.2em]">
+							Plataforma por
+						</p>
+						<p className="font-semibold text-sm">Elevator</p>
+					</div>
+				</div>
 				<LatestChange />
 				<SidebarMenu className="mt-2">
 					{footerNavLinks.map((item) => (

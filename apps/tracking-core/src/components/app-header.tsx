@@ -7,6 +7,7 @@ import { AppBreadcrumbs } from "@/components/app-breadcrumbs";
 import { CustomSidebarTrigger } from "@/components/custom-sidebar-trigger";
 import { navLinks } from "@/components/app-shared";
 import { NavUser } from "@/components/nav-user";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { BellIcon } from "lucide-react";
 
 const activeItem = navLinks.find((item) => item.isActive);
@@ -27,6 +28,7 @@ export function AppHeader() {
 				<AppBreadcrumbs page={activeItem} />
 			</div>
 			<div className="flex items-center gap-3">
+				<ThemeToggle />
 				<Button aria-label="Notifications" size="icon" variant="ghost">
 					<BellIcon
 					/>

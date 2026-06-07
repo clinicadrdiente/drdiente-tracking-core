@@ -729,8 +729,8 @@ export function Dashboard() {
       ) : null}
 
       {statusError ? (
-        <Card className="border-amber-300/40">
-          <CardContent className="py-4 text-amber-200 text-sm">
+        <Card className="border-warn/40">
+          <CardContent className="py-4 text-warn text-sm">
             Estado del sistema no disponible: {statusError}
           </CardContent>
         </Card>
@@ -1070,7 +1070,7 @@ function ControlRoom({
   return (
     <>
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-[1.45fr_0.9fr]">
-        <Card className="overflow-hidden border-emerald-300/30 bg-[radial-gradient(circle_at_top_left,rgba(110,231,183,0.18),transparent_36%),linear-gradient(135deg,rgba(16,185,129,0.08),transparent_48%)]">
+        <Card className="overflow-hidden border-brand/30 bg-[radial-gradient(circle_at_top_left,rgba(24,186,251,0.18),transparent_36%),linear-gradient(135deg,rgba(24,88,251,0.10),transparent_48%)]">
           <CardHeader>
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div>
@@ -1078,7 +1078,7 @@ function ControlRoom({
                   Operacion
                 </CardTitle>
               </div>
-              <Badge className="w-fit bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/15">
+              <Badge className="w-fit bg-brand/15 text-brand hover:bg-brand/15">
                 {systemStatus?.config.stateStoreMode === "redis"
                   ? "Redis activo"
                   : "Redis pendiente"}
@@ -1223,8 +1223,8 @@ function ReadinessRow({
         <span
           className={
             tone === "good"
-              ? "grid size-9 place-items-center rounded-lg bg-emerald-500/15 text-emerald-300"
-              : "grid size-9 place-items-center rounded-lg bg-amber-500/15 text-amber-200"
+              ? "grid size-9 place-items-center rounded-lg bg-brand/15 text-brand"
+              : "grid size-9 place-items-center rounded-lg bg-warn/15 text-warn"
           }
         >
           {icon}
@@ -1355,9 +1355,9 @@ function GuidedAction({
 }) {
   const toneClass =
     tone === "done"
-      ? "border-emerald-300/30 bg-emerald-500/5"
+      ? "border-brand/30 bg-brand/5"
       : tone === "next"
-        ? "border-sky-300/30 bg-sky-500/5"
+        ? "border-brand/30 bg-brand/5"
         : "border-border bg-background/45";
 
   return (
@@ -1373,7 +1373,7 @@ function GuidedAction({
               <Badge
                 className={
                   tone === "done"
-                    ? "bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/15"
+                    ? "bg-brand/15 text-brand hover:bg-brand/15"
                     : "bg-muted text-muted-foreground hover:bg-muted"
                 }
               >
@@ -1565,13 +1565,13 @@ function TreatmentListCard({ data }: { data: MonthlyDashboard | null }) {
               >
                 <div className="flex items-center justify-between gap-3">
                   <span className="truncate font-medium">{treatment.category}</span>
-                  <span className="font-semibold text-emerald-400">
+                  <span className="font-semibold text-brand">
                     {formatMoney(treatment.revenue)}
                   </span>
                 </div>
                 <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
                   <div
-                    className="h-full rounded-full bg-emerald-300"
+                    className="h-full rounded-full bg-brand"
                     style={{ width: `${Math.max(3, treatment.share)}%` }}
                   />
                 </div>
@@ -1614,7 +1614,7 @@ function BranchRevenueCard({ data }: { data: MonthlyDashboard | null }) {
                     </p>
                   </div>
                   <div className="text-left md:text-right">
-                    <p className="font-semibold text-emerald-400 text-xl">
+                    <p className="font-semibold text-brand text-xl">
                       {formatMoney(branch.revenue)}
                     </p>
                     <p className="text-muted-foreground text-xs">
@@ -1624,7 +1624,7 @@ function BranchRevenueCard({ data }: { data: MonthlyDashboard | null }) {
                 </div>
                 <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
                   <div
-                    className="h-full rounded-full bg-emerald-300"
+                    className="h-full rounded-full bg-brand"
                     style={{ width: `${Math.max(3, branch.share)}%` }}
                   />
                 </div>
@@ -1844,7 +1844,7 @@ function WindsorMarketingCard({
   const bySource = summary?.bySource ?? [];
 
   return (
-    <Card className="border-sky-300/30">
+    <Card className="border-brand/30">
       <CardHeader className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
           <CardTitle>Windsor AI marketing data</CardTitle>
@@ -1878,7 +1878,7 @@ function WindsorMarketingCard({
         ) : null}
 
         {summary?.configured === false ? (
-          <div className="rounded-xl border border-amber-300/40 bg-amber-300/10 p-4 text-amber-200 text-sm">
+          <div className="rounded-xl border border-warn/40 bg-warn/10 p-4 text-warn text-sm">
             Falta configurar WINDSOR_API_KEY en Vercel y redeployar.
           </div>
         ) : null}
@@ -1892,7 +1892,7 @@ function WindsorMarketingCard({
                 <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
                   Estado
                 </p>
-                <p className="mt-2 font-semibold text-emerald-400">
+                <p className="mt-2 font-semibold text-brand">
                   {summary?.configured === false ? "Pendiente" : "Conectado"}
                 </p>
                 <p className="mt-1 text-muted-foreground text-xs">
@@ -1973,7 +1973,7 @@ function WindsorMarketingCard({
                       {bySource.map((source) => (
                         <tr className="border-b last:border-b-0" key={source.source}>
                           <td className="px-4 py-3 font-medium">{source.source}</td>
-                          <td className="px-4 py-3 text-right text-emerald-400">
+                          <td className="px-4 py-3 text-right text-brand">
                             {formatMoney(source.spend)}
                           </td>
                           <td className="px-4 py-3 text-right">
@@ -2022,7 +2022,7 @@ function WindsorAccountsCard({ accounts }: { accounts: WindsorAccountsResult }) 
   const rows = accounts.accounts ?? [];
 
   return (
-    <div className="overflow-hidden rounded-xl border border-sky-300/30">
+    <div className="overflow-hidden rounded-xl border border-brand/30">
       <div className="flex items-center justify-between border-b bg-background/50 px-4 py-3">
         <div>
           <p className="font-medium">Cuentas detectadas por Windsor</p>
@@ -2064,7 +2064,7 @@ function WindsorAccountsCard({ accounts }: { accounts: WindsorAccountsResult }) 
                   <td className="px-4 py-3 text-muted-foreground">
                     {account.businessManager ?? "-"}
                   </td>
-                  <td className="px-4 py-3 text-right text-emerald-400">
+                  <td className="px-4 py-3 text-right text-brand">
                     {formatMoney(account.spend)}
                   </td>
                   <td className="px-4 py-3 text-right">
@@ -2162,7 +2162,7 @@ function StapeTestCard({
                 <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
                   Stape demo
                 </p>
-                <p className="mt-2 font-semibold text-emerald-400">
+                <p className="mt-2 font-semibold text-brand">
                   Conexion activa
                 </p>
                 <details className="mt-3">
@@ -2204,7 +2204,7 @@ function FlowStep({
   return (
     <div className="rounded-xl border bg-background/50 p-4">
       <div className="flex items-center gap-3">
-        <span className="flex size-8 items-center justify-center rounded-full bg-emerald-300 font-semibold text-background">
+        <span className="flex size-8 items-center justify-center rounded-full bg-brand font-semibold text-background">
           {label}
         </span>
         <p className="font-semibold">{title}</p>
@@ -2222,7 +2222,7 @@ function RealFlowResult({ result }: { result: PaymentsSyncResult }) {
         : "No hubo pagos con match listo para Stape.";
 
   return (
-    <div className="rounded-xl border border-emerald-300/30 bg-background/50 p-4">
+    <div className="rounded-xl border border-brand/30 bg-background/50 p-4">
       <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
         <div>
           <p className="font-semibold text-lg">Resultado del flujo real</p>
@@ -2260,7 +2260,7 @@ function ElevatorSyncCard({
   syncError: string | null;
 }) {
   return (
-    <Card className="border-emerald-300/30">
+    <Card className="border-brand/30">
       <CardHeader className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
           <CardTitle>Enviar pacientes recientes a Elevator</CardTitle>
@@ -2342,7 +2342,7 @@ function ElevatorImportResultsTable({
                 </td>
                 <td className="px-4 py-3">
                   {result.readyForStape ? (
-                    <Badge className="bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/15">
+                    <Badge className="bg-brand/15 text-brand hover:bg-brand/15">
                       Preparado
                     </Badge>
                   ) : (
@@ -2368,10 +2368,10 @@ function StatusBadge({ status }: { status: ElevatorImportResult["status"] }) {
   };
 
   const classNameByStatus = {
-    created: "bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/15",
-    existing: "bg-sky-500/15 text-sky-300 hover:bg-sky-500/15",
-    failed: "bg-red-500/15 text-red-300 hover:bg-red-500/15",
-    skipped_missing_contact: "bg-amber-500/15 text-amber-300 hover:bg-amber-500/15",
+    created: "bg-brand/15 text-brand hover:bg-brand/15",
+    existing: "bg-brand/15 text-brand hover:bg-brand/15",
+    failed: "bg-danger/15 text-danger hover:bg-danger/15",
+    skipped_missing_contact: "bg-warn/15 text-warn hover:bg-warn/15",
   };
 
   return (
@@ -2463,7 +2463,7 @@ function PatientItem({ payment }: { payment: PaymentBlock }) {
         </ItemDescription>
       </ItemContent>
       <ItemActions className="flex-col items-end gap-1">
-        <span className="font-semibold text-emerald-400">
+        <span className="font-semibold text-brand">
           {formatMoney(payment.amount)}
         </span>
         <span className="text-muted-foreground text-xs">
@@ -2522,7 +2522,7 @@ function QuickPanel({ data }: { data: MonthlyDashboard | null }) {
           {topTreatments.map((treatment) => (
             <div className="flex items-center justify-between gap-3 text-sm" key={treatment.category}>
               <span className="truncate">{treatment.category}</span>
-              <span className="font-medium text-emerald-400">
+              <span className="font-medium text-brand">
                 {formatMoney(treatment.revenue)}
               </span>
             </div>
@@ -2558,7 +2558,7 @@ function DayRevenueBlock({ day }: { day: DayBlock }) {
                 <span className="truncate font-medium">
                   {patient.patientName ?? "Paciente"}
                 </span>
-                <span className="font-semibold text-emerald-400">
+                <span className="font-semibold text-brand">
                   {formatMoney(patient.amount)}
                 </span>
               </div>
