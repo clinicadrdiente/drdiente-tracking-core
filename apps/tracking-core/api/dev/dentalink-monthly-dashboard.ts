@@ -35,6 +35,16 @@ interface DayBlock {
   patients: MonthlyPaymentBlock[];
 }
 
+interface BranchSummary {
+  branch: string;
+  revenue: number;
+  payments: number;
+  uniquePatients: number;
+  averagePaymentValue: number;
+  share: number;
+  topPatients: MonthlyPaymentBlock[];
+}
+
 interface MonthlyDashboardBody {
   ok: true;
   mode: string;
@@ -50,6 +60,7 @@ interface MonthlyDashboardBody {
   days: DayBlock[];
   patients: MonthlyPaymentBlock[];
   treatmentShare: ReturnType<typeof buildTreatmentShare>;
+  branchShare: BranchSummary[];
   cache: {
     hit: boolean;
     stale: boolean;
@@ -123,6 +134,7 @@ export default async function handler(
         days: [],
         patients: [],
         treatmentShare: [],
+        branchShare: [],
         cache: buildCacheMetadata(Date.now(), { hit: false, stale: false }),
       };
       send(response, {
@@ -229,6 +241,7 @@ export default async function handler(
       days,
       patients: payments,
       treatmentShare: buildTreatmentShare(payments),
+      branchShare: buildBranchShare(payments),
       cache: buildCacheMetadata(Date.now(), { hit: false, stale: false }),
     };
 
@@ -572,6 +585,41 @@ function buildTreatmentShare(payments: MonthlyPaymentBlock[]) {
       revenue,
       share: revenueTotal > 0 ? (revenue / revenueTotal) * 100 : 0,
     }))
+    .sort((a, b) => b.revenue - a.revenue);
+}
+
+function buildBranchShare(payments: MonthlyPaymentBlock[]): BranchSummary[] {
+  const groups = new Map<string, MonthlyPaymentBlock[]>();
+  const revenueTotal = payments.reduce((sum, payment) => sum + payment.amount, 0);
+
+  for (const payment of payments) {
+    const branch = payment.branch?.trim() || "Sin sucursal";
+    const branchPayments = groups.get(branch) ?? [];
+    branchPayments.push(payment);
+    groups.set(branch, branchPayments);
+  }
+
+  return [...groups.entries()]
+    .map(([branch, branchPayments]) => {
+      const revenue = branchPayments.reduce((sum, payment) => sum + payment.amount, 0);
+      const uniquePatients = new Set(
+        branchPayments.map((payment) => payment.patientId).filter((id) => id > 0),
+      ).size;
+
+      return {
+        branch,
+        revenue,
+        payments: branchPayments.length,
+        uniquePatients,
+        averagePaymentValue:
+          branchPayments.length > 0 ? revenue / branchPayments.length : 0,
+        share: revenueTotal > 0 ? (revenue / revenueTotal) * 100 : 0,
+        topPatients: branchPayments
+          .slice()
+          .sort((a, b) => b.amount - a.amount)
+          .slice(0, 5),
+      };
+    })
     .sort((a, b) => b.revenue - a.revenue);
 }
 

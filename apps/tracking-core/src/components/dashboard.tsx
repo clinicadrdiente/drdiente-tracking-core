@@ -57,12 +57,23 @@ interface MonthlyDashboard {
     revenue: number;
     share: number;
   }>;
+  branchShare: BranchSummary[];
   cache?: {
     hit: boolean;
     stale: boolean;
     cachedAt: string;
     ttlSeconds: number;
   };
+}
+
+interface BranchSummary {
+  branch: string;
+  revenue: number;
+  payments: number;
+  uniquePatients: number;
+  averagePaymentValue: number;
+  share: number;
+  topPatients: PaymentBlock[];
 }
 
 interface DayBlock {
@@ -444,7 +455,10 @@ function DashboardRoute({
         <StatsGrid data={data} />
         <RevenueChart chartRows={chartRows} data={data} />
         <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <BranchRevenueCard data={data} />
           <TreatmentListCard data={data} />
+        </section>
+        <section className="grid grid-cols-1 gap-4">
           <DayBlocksCard data={data} />
         </section>
       </>
@@ -500,8 +514,9 @@ function DashboardRoute({
         />
         <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <RecentPatientsCard payments={topPayments} />
-          <DayBlocksCard data={data} />
+          <BranchRevenueCard data={data} />
         </section>
+        <DayBlocksCard data={data} />
       </>
     );
   }
@@ -592,6 +607,7 @@ function DashboardRoute({
         <RecentPatientsCard payments={topPayments} />
         <QuickPanel data={data} />
       </section>
+      <BranchRevenueCard data={data} />
       <DayBlocksCard data={data} />
     </>
   );
@@ -762,6 +778,77 @@ function TreatmentListCard({ data }: { data: MonthlyDashboard | null }) {
           ) : (
             <p className="py-8 text-center text-muted-foreground text-sm">
               Sin tratamientos cargados todavia.
+            </p>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function BranchRevenueCard({ data }: { data: MonthlyDashboard | null }) {
+  const branches = data?.branchShare ?? [];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Revenue por sucursal</CardTitle>
+        <CardDescription>
+          Pagos, pacientes unicos y monto promedio agrupados por sucursal Dentalink.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-col gap-3">
+          {branches.length > 0 ? (
+            branches.map((branch) => (
+              <div className="rounded-xl border bg-background/50 p-4" key={branch.branch}>
+                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <p className="font-semibold text-lg">{branch.branch}</p>
+                    <p className="text-muted-foreground text-sm">
+                      {formatInteger(branch.payments)} pagos ·{" "}
+                      {formatInteger(branch.uniquePatients)} pacientes · promedio{" "}
+                      {formatMoney(branch.averagePaymentValue)}
+                    </p>
+                  </div>
+                  <div className="text-left md:text-right">
+                    <p className="font-semibold text-emerald-400 text-xl">
+                      {formatMoney(branch.revenue)}
+                    </p>
+                    <p className="text-muted-foreground text-xs">
+                      {formatPercent(branch.share)} del revenue
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full bg-emerald-300"
+                    style={{ width: `${Math.max(3, branch.share)}%` }}
+                  />
+                </div>
+                <div className="mt-4 grid grid-cols-1 gap-2">
+                  {branch.topPatients.slice(0, 3).map((payment) => (
+                    <div
+                      className="flex items-center justify-between gap-3 rounded-lg bg-muted/30 px-3 py-2 text-sm"
+                      key={`${branch.branch}-${payment.paymentId}`}
+                    >
+                      <span className="truncate">
+                        {payment.patientName ?? "Paciente"} ·{" "}
+                        <span className="text-muted-foreground">
+                          {payment.patientReference ?? "Sin referencia"}
+                        </span>
+                      </span>
+                      <span className="shrink-0 font-medium">
+                        {formatMoney(payment.amount)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className="py-8 text-center text-muted-foreground text-sm">
+              Sin sucursales cargadas todavia.
             </p>
           )}
         </div>
@@ -1267,6 +1354,12 @@ function formatInteger(value: number) {
   return new Intl.NumberFormat("es-MX", {
     maximumFractionDigits: 0,
   }).format(value);
+}
+
+function formatPercent(value: number) {
+  return new Intl.NumberFormat("es-MX", {
+    maximumFractionDigits: 1,
+  }).format(value) + "%";
 }
 
 function normalizeRoute(path = "") {
