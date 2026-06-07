@@ -28,6 +28,14 @@ export function mapPatientRecord(
     ]),
     email: readString(record, config.patientEmailField),
     branch: readString(record, config.patientBranchField),
+    reference: readFirstString(record, [
+      config.patientReferenceField,
+      "referencia",
+      "fuente",
+      "origen",
+      "medio_referencia",
+      "canal",
+    ]),
     elevatorId: readString(additionalFields, config.elevatorIdField),
   };
 }

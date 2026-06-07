@@ -123,6 +123,31 @@ interface ElevatorImportResult {
   reason: string;
 }
 
+interface ReferenceDiagnostic {
+  ok: boolean;
+  configuredPatientReferenceField: string;
+  recommendation: string;
+  catalogProbes: Array<{
+    path: string;
+    ok: boolean;
+    status: number;
+    returnedCount: number | null;
+    sample: Array<{
+      id: string | null;
+      label: string | null;
+      keys: string[];
+    }>;
+  }>;
+  patientProbes: Array<{
+    patientId: number;
+    patientName: string | null;
+    fields: Array<{
+      key: string;
+      value: string;
+    }>;
+  }>;
+}
+
 const chartConfig = {
   revenue: {
     label: "Revenue",
@@ -144,6 +169,12 @@ export function Dashboard() {
   const [isSyncingToElevator, setIsSyncingToElevator] = useState(false);
   const [syncResult, setSyncResult] = useState<PaymentsSyncResult | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [isDiagnosingReferences, setIsDiagnosingReferences] = useState(false);
+  const [referenceDiagnostic, setReferenceDiagnostic] =
+    useState<ReferenceDiagnostic | null>(null);
+  const [referenceDiagnosticError, setReferenceDiagnosticError] = useState<
+    string | null
+  >(null);
 
   async function loadDashboard(
     nextSecret = secret,
@@ -237,6 +268,38 @@ export function Dashboard() {
     }
   }
 
+  async function diagnoseReferences() {
+    if (!secret.trim()) {
+      setReferenceDiagnosticError("Pega el TRACKING_API_SECRET antes de diagnosticar.");
+      return;
+    }
+
+    setIsDiagnosingReferences(true);
+    setReferenceDiagnosticError(null);
+
+    try {
+      const response = await fetch("/api/dev/dentalink-reference-diagnostic", {
+        headers: {
+          "x-tracking-secret": secret.trim(),
+        },
+      });
+      const body = (await response.json()) as ReferenceDiagnostic | { error?: string };
+
+      if (!response.ok || !("catalogProbes" in body)) {
+        throw new Error("error" in body ? body.error : "No se pudo diagnosticar referencias.");
+      }
+
+      setReferenceDiagnostic(body);
+      window.localStorage.setItem("trackingSecret", secret.trim());
+    } catch (requestError) {
+      setReferenceDiagnosticError(
+        requestError instanceof Error ? requestError.message : "Error desconocido.",
+      );
+    } finally {
+      setIsDiagnosingReferences(false);
+    }
+  }
+
   useEffect(() => {
     if (secret) {
       void loadDashboard(secret);
@@ -323,9 +386,13 @@ export function Dashboard() {
         chartRows={chartRows}
         data={data}
         isLoading={isLoading}
+        isDiagnosingReferences={isDiagnosingReferences}
         isSyncingToElevator={isSyncingToElevator}
+        onDiagnoseReferences={() => void diagnoseReferences()}
         onRefresh={() => void loadDashboard(secret, { skipBrowserCache: true })}
         onSendToElevator={() => void sendMonthToElevator()}
+        referenceDiagnostic={referenceDiagnostic}
+        referenceDiagnosticError={referenceDiagnosticError}
         route={route}
         syncError={syncError}
         syncResult={syncResult}
@@ -346,9 +413,13 @@ function DashboardRoute({
   chartRows,
   topPayments,
   isLoading,
+  isDiagnosingReferences,
   isSyncingToElevator,
+  onDiagnoseReferences,
   onRefresh,
   onSendToElevator,
+  referenceDiagnostic,
+  referenceDiagnosticError,
   syncError,
   syncResult,
 }: {
@@ -357,9 +428,13 @@ function DashboardRoute({
   chartRows: ChartRow[];
   topPayments: PaymentBlock[];
   isLoading: boolean;
+  isDiagnosingReferences: boolean;
   isSyncingToElevator: boolean;
+  onDiagnoseReferences: () => void;
   onRefresh: () => void;
   onSendToElevator: () => void;
+  referenceDiagnostic: ReferenceDiagnostic | null;
+  referenceDiagnosticError: string | null;
   syncError: string | null;
   syncResult: PaymentsSyncResult | null;
 }) {
@@ -417,6 +492,12 @@ function DashboardRoute({
     return (
       <>
         <StatsGrid data={data} />
+        <ReferenceDiagnosticCard
+          diagnostic={referenceDiagnostic}
+          error={referenceDiagnosticError}
+          isLoading={isDiagnosingReferences}
+          onDiagnose={onDiagnoseReferences}
+        />
         <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <RecentPatientsCard payments={topPayments} />
           <DayBlocksCard data={data} />
@@ -705,6 +786,95 @@ function DayBlocksCard({ data }: { data: MonthlyDashboard | null }) {
           ))}
         </div>
       </CardContent>
+    </Card>
+  );
+}
+
+function ReferenceDiagnosticCard({
+  diagnostic,
+  error,
+  isLoading,
+  onDiagnose,
+}: {
+  diagnostic: ReferenceDiagnostic | null;
+  error: string | null;
+  isLoading: boolean;
+  onDiagnose: () => void;
+}) {
+  const workingCatalog = diagnostic?.catalogProbes.find(
+    (probe) => probe.ok && (probe.returnedCount ?? 0) > 0,
+  );
+  const detectedFields =
+    diagnostic?.patientProbes.flatMap((probe) =>
+      probe.fields.map((field) => `${field.key}: ${field.value}`),
+    ) ?? [];
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div>
+          <CardTitle>Diagnostico de referencias Dentalink</CardTitle>
+          <CardDescription className="mt-2 max-w-3xl">
+            Busca el campo real de referencia del paciente y prueba catalogos de IDs
+            para convertir valores internos en nombres como GOOGLE MAPS.
+          </CardDescription>
+        </div>
+        <Button disabled={isLoading} onClick={onDiagnose} variant="secondary">
+          <RefreshCwIcon aria-hidden="true" data-icon="inline-start" />
+          {isLoading ? "Diagnosticando" : "Diagnosticar referencias"}
+        </Button>
+      </CardHeader>
+      {(diagnostic || error) && (
+        <CardContent className="space-y-4">
+          {error ? (
+            <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-destructive text-sm">
+              {error}
+            </div>
+          ) : null}
+
+          {diagnostic ? (
+            <>
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+                <div className="rounded-xl border bg-background/50 p-4">
+                  <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
+                    Campo configurado
+                  </p>
+                  <p className="mt-2 font-semibold">{diagnostic.configuredPatientReferenceField}</p>
+                </div>
+                <div className="rounded-xl border bg-background/50 p-4">
+                  <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
+                    Catalogo
+                  </p>
+                  <p className="mt-2 font-semibold">
+                    {workingCatalog
+                      ? `${workingCatalog.path} (${workingCatalog.returnedCount})`
+                      : "No encontrado"}
+                  </p>
+                </div>
+                <div className="rounded-xl border bg-background/50 p-4">
+                  <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
+                    Recomendacion
+                  </p>
+                  <p className="mt-2 font-semibold">{diagnostic.recommendation}</p>
+                </div>
+              </div>
+
+              <div className="rounded-xl border bg-background/50 p-4">
+                <p className="mb-3 text-muted-foreground text-xs uppercase tracking-[0.2em]">
+                  Campos detectados
+                </p>
+                {detectedFields.length > 0 ? (
+                  <pre className="max-h-56 overflow-auto whitespace-pre-wrap text-xs">
+                    {detectedFields.join("\n")}
+                  </pre>
+                ) : (
+                  <p className="text-muted-foreground text-sm">Sin candidatos.</p>
+                )}
+              </div>
+            </>
+          ) : null}
+        </CardContent>
+      )}
     </Card>
   );
 }

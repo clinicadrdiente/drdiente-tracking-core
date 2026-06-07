@@ -61,6 +61,13 @@ interface MonthlyDashboardBody {
 const MAX_PAYMENT_PAGES = 20;
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const STALE_CACHE_TTL_MS = 60 * 60 * 1000;
+const REFERENCE_CATALOG_PATHS = [
+  "/referencias/",
+  "/referencias",
+  "/pacientes/referencias/",
+  "/origenes/",
+  "/fuentes/",
+];
 
 let monthlyDashboardCache: {
   key: string;
@@ -133,6 +140,11 @@ export default async function handler(
       monthEnd,
     );
 
+    const referenceCatalog = await fetchReferenceCatalog(
+      config.baseUrl,
+      config.apiAuthScheme,
+      config.apiToken,
+    );
     const patientCache = new Map<number, PatientDetail>();
     const treatmentCache = new Map<number, TreatmentDetail>();
     const payments: MonthlyPaymentBlock[] = [];
@@ -152,6 +164,8 @@ export default async function handler(
           phoneField: config.patientPhoneField,
           firstNameField: config.patientFirstNameField,
           lastNameField: config.patientLastNameField,
+          referenceField: config.patientReferenceField,
+          referenceCatalog,
         },
       );
       const treatment = await getCachedTreatment(
@@ -374,6 +388,10 @@ interface PatientDetail {
   fullName: string | null;
 }
 
+interface ReferenceCatalog {
+  labelsById: Map<string, string>;
+}
+
 interface TreatmentDetail {
   name: string | null;
   budgetTotal: number;
@@ -391,6 +409,8 @@ async function getCachedPatient(
     phoneField: string;
     firstNameField: string;
     lastNameField: string;
+    referenceField: string;
+    referenceCatalog: ReferenceCatalog;
   },
 ): Promise<PatientDetail> {
   if (!Number.isFinite(patientId) || patientId <= 0) {
@@ -420,13 +440,11 @@ async function getCachedPatient(
         "telefono_fijo",
         "fono",
       ]),
-      reference: readFirstString(record, [
-        "referencia",
-        "fuente",
-        "origen",
-        "medio_referencia",
-        "canal",
-      ]),
+      reference: readPatientReference(
+        record,
+        fields.referenceField,
+        fields.referenceCatalog,
+      ),
       fullName: [firstName, lastName].filter(Boolean).join(" ") || null,
     };
     cache.set(patientId, patient);
@@ -436,6 +454,36 @@ async function getCachedPatient(
     cache.set(patientId, patient);
     return patient;
   }
+}
+
+async function fetchReferenceCatalog(
+  baseUrl: string,
+  apiAuthScheme: string,
+  apiToken: string,
+): Promise<ReferenceCatalog> {
+  for (const path of REFERENCE_CATALOG_PATHS) {
+    try {
+      const url = new URL(path.replace(/^\/+/, ""), baseUrl);
+      const body = await requestDentalink(url, apiAuthScheme, apiToken);
+      const labelsById = new Map<string, string>();
+
+      for (const record of readCollection(body)) {
+        const id = readReferenceId(record);
+        const label = readReferenceLabel(record);
+        if (id && label) {
+          labelsById.set(id, label);
+        }
+      }
+
+      if (labelsById.size > 0) {
+        return { labelsById };
+      }
+    } catch {
+      // Dentalink reference catalogs differ by account/permissions.
+    }
+  }
+
+  return { labelsById: new Map() };
 }
 
 async function getCachedTreatment(
@@ -618,6 +666,169 @@ function readFirstString(
   }
 
   return null;
+}
+
+function readPatientReference(
+  record: Record<string, unknown>,
+  preferredField: string,
+  catalog: ReferenceCatalog,
+): string | null {
+  const direct = readReferenceValue(record[preferredField], catalog);
+  if (direct) {
+    return direct;
+  }
+
+  for (const key of [
+    "referencia",
+    "id_referencia",
+    "fuente",
+    "id_fuente",
+    "origen",
+    "id_origen",
+    "medio_referencia",
+    "id_medio_referencia",
+    "canal",
+    "id_canal",
+  ]) {
+    const value = readReferenceValue(record[key], catalog);
+    if (value) {
+      return value;
+    }
+  }
+
+  for (const key of ["campos_adicionales", "camposAdicionales", "custom_fields"]) {
+    const value = readReferenceFromAdditionalFields(record[key], catalog);
+    if (value) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+function readReferenceFromAdditionalFields(
+  value: unknown,
+  catalog: ReferenceCatalog,
+): string | null {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      if (!isRecord(item)) {
+        continue;
+      }
+
+      const key = readReferenceLabel(item);
+      if (!key || !isReferenceKey(key)) {
+        continue;
+      }
+
+      const reference = readReferenceValue(
+        item.valor ?? item.value ?? item.respuesta ?? item.contenido,
+        catalog,
+      );
+      if (reference) {
+        return reference;
+      }
+    }
+  }
+
+  if (isRecord(value)) {
+    for (const [key, entry] of Object.entries(value)) {
+      if (isReferenceKey(key)) {
+        const reference = readReferenceValue(entry, catalog);
+        if (reference) {
+          return reference;
+        }
+      }
+
+      if (isRecord(entry)) {
+        const label = readReferenceLabel(entry);
+        if (label && isReferenceKey(label)) {
+          const reference = readReferenceValue(
+            entry.valor ?? entry.value ?? entry.respuesta ?? entry.contenido,
+            catalog,
+          );
+          if (reference) {
+            return reference;
+          }
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
+function readReferenceValue(value: unknown, catalog: ReferenceCatalog): string | null {
+  if (typeof value === "string" && value.trim() !== "") {
+    const trimmed = value.trim();
+    return catalog.labelsById.get(trimmed) ?? trimmed;
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const id = String(value);
+    return catalog.labelsById.get(id) ?? `Referencia #${id}`;
+  }
+
+  if (isRecord(value)) {
+    const label = readReferenceLabel(value);
+    if (label) {
+      return label;
+    }
+
+    const id = readReferenceId(value);
+    if (id) {
+      return catalog.labelsById.get(id) ?? `Referencia #${id}`;
+    }
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const reference = readReferenceValue(item, catalog);
+      if (reference) {
+        return reference;
+      }
+    }
+  }
+
+  return null;
+}
+
+function readReferenceId(record: Record<string, unknown>): string | null {
+  for (const key of ["id", "id_referencia", "id_fuente", "id_origen", "codigo"]) {
+    const value = record[key];
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return String(value);
+    }
+
+    if (typeof value === "string" && value.trim() !== "") {
+      return value.trim();
+    }
+  }
+
+  return null;
+}
+
+function readReferenceLabel(record: Record<string, unknown>): string | null {
+  return readFirstString(record, [
+    "nombre",
+    "name",
+    "valor",
+    "value",
+    "descripcion",
+    "description",
+    "texto",
+    "label",
+  ]);
+}
+
+function isReferenceKey(value: string): boolean {
+  const normalized = value.toLowerCase();
+  return (
+    normalized.includes("refer") ||
+    normalized.includes("fuente") ||
+    normalized.includes("origen") ||
+    normalized.includes("canal")
+  );
 }
 
 function readNumber(record: Record<string, unknown>, key: string): number {

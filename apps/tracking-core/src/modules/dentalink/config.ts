@@ -15,6 +15,7 @@ export interface DentalinkConfig {
   patientPhoneField: string;
   patientEmailField: string;
   patientBranchField: string;
+  patientReferenceField: string;
   paymentIdField: string;
   paymentPatientIdField: string;
   paymentTreatmentIdField: string;
@@ -62,6 +63,7 @@ export function getDentalinkConfig(): DentalinkConfig {
     patientPhoneField: getEnv("DENTALINK_PATIENT_PHONE_FIELD", "telefono"),
     patientEmailField: getEnv("DENTALINK_PATIENT_EMAIL_FIELD", "email"),
     patientBranchField: getEnv("DENTALINK_PATIENT_BRANCH_FIELD", "sucursal"),
+    patientReferenceField: getEnv("DENTALINK_PATIENT_REFERENCE_FIELD", "referencia"),
     paymentIdField: getEnv("DENTALINK_PAYMENT_ID_FIELD", "id"),
     paymentPatientIdField: getEnv(
       "DENTALINK_PAYMENT_PATIENT_ID_FIELD",

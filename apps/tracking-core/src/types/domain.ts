@@ -49,6 +49,7 @@ export interface DentalinkPatient {
   email?: string | null;
   elevatorId?: string | null;
   branch?: string | null;
+  reference?: string | null;
 }
 
 export interface AppointmentEvent {
