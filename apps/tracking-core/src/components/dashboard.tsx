@@ -85,6 +85,21 @@ interface PaymentBlock {
   createdAt: string | null;
 }
 
+interface PaymentsSyncResult {
+  processed: number;
+  skipped: number;
+  sinceIso: string;
+  paymentsFound: number;
+  alreadyProcessed: number;
+  newPayments: number;
+  maxPayments: number | null;
+  matchedLeads: number;
+  unmatchedLeads: number;
+  createdLeads: number;
+  rateLimitedPatients: number;
+  dispatched: number;
+}
+
 const chartConfig = {
   revenue: {
     label: "Revenue",
@@ -100,6 +115,9 @@ export function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [route, setRoute] = useState(() => normalizeRoute(window.location.hash));
+  const [isSyncingToElevator, setIsSyncingToElevator] = useState(false);
+  const [syncResult, setSyncResult] = useState<PaymentsSyncResult | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   async function loadDashboard(nextSecret = secret) {
     if (!nextSecret.trim()) {
@@ -128,6 +146,50 @@ export function Dashboard() {
       setError(requestError instanceof Error ? requestError.message : "Error desconocido.");
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  async function sendMonthToElevator() {
+    if (!secret.trim()) {
+      setSyncError("Pega el TRACKING_API_SECRET antes de enviar a Elevator.");
+      return;
+    }
+
+    const sinceIso = data?.month.fromIso ?? getCurrentMonthStartIso();
+    setIsSyncingToElevator(true);
+    setSyncError(null);
+    setSyncResult(null);
+
+    try {
+      const response = await fetch(
+        `/api/cron/payments-sync?since=${encodeURIComponent(sinceIso)}&maxPayments=50`,
+        {
+          method: "POST",
+          headers: {
+            "x-tracking-secret": secret.trim(),
+          },
+        },
+      );
+      const body = (await response.json()) as
+        | PaymentsSyncResult
+        | { error?: string; details?: { message?: string } };
+
+      if (!response.ok || !("processed" in body)) {
+        throw new Error(
+          "details" in body && body.details?.message
+            ? body.details.message
+            : "No se pudo enviar a Elevator.",
+        );
+      }
+
+      setSyncResult(body);
+      window.localStorage.setItem("trackingSecret", secret.trim());
+    } catch (requestError) {
+      setSyncError(
+        requestError instanceof Error ? requestError.message : "Error desconocido.",
+      );
+    } finally {
+      setIsSyncingToElevator(false);
     }
   }
 
@@ -206,8 +268,12 @@ export function Dashboard() {
         chartRows={chartRows}
         data={data}
         isLoading={isLoading}
+        isSyncingToElevator={isSyncingToElevator}
         onRefresh={() => void loadDashboard()}
+        onSendToElevator={() => void sendMonthToElevator()}
         route={route}
+        syncError={syncError}
+        syncResult={syncResult}
         topPayments={topPayments}
       />
     </div>
@@ -225,14 +291,22 @@ function DashboardRoute({
   chartRows,
   topPayments,
   isLoading,
+  isSyncingToElevator,
   onRefresh,
+  onSendToElevator,
+  syncError,
+  syncResult,
 }: {
   route: string;
   data: MonthlyDashboard | null;
   chartRows: ChartRow[];
   topPayments: PaymentBlock[];
   isLoading: boolean;
+  isSyncingToElevator: boolean;
   onRefresh: () => void;
+  onSendToElevator: () => void;
+  syncError: string | null;
+  syncResult: PaymentsSyncResult | null;
 }) {
   if (route === "revenue") {
     return (
@@ -249,30 +323,38 @@ function DashboardRoute({
 
   if (route === "patients" || route === "dentalink/patients") {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Pacientes del mes</CardTitle>
-          <CardDescription>
-            Ultimos pacientes jalados desde Dentalink con contacto, tratamiento y monto.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ItemGroup className="gap-2">
-            {(data?.patients ?? []).length > 0 ? (
-              data?.patients.map((payment) => (
-                <PatientItem key={payment.paymentId} payment={payment} />
-              ))
-            ) : (
-              <EmptyState
-                cta="Actualizar Dentalink"
-                isLoading={isLoading}
-                message="No hay pacientes cargados todavia."
-                onClick={onRefresh}
-              />
-            )}
-          </ItemGroup>
-        </CardContent>
-      </Card>
+      <>
+        <ElevatorSyncCard
+          isSyncing={isSyncingToElevator}
+          onSend={onSendToElevator}
+          result={syncResult}
+          syncError={syncError}
+        />
+        <Card>
+          <CardHeader>
+            <CardTitle>Pacientes del mes</CardTitle>
+            <CardDescription>
+              Ultimos pacientes jalados desde Dentalink con contacto, tratamiento y monto.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ItemGroup className="gap-2">
+              {(data?.patients ?? []).length > 0 ? (
+                data?.patients.map((payment) => (
+                  <PatientItem key={payment.paymentId} payment={payment} />
+                ))
+              ) : (
+                <EmptyState
+                  cta="Actualizar Dentalink"
+                  isLoading={isLoading}
+                  message="No hay pacientes cargados todavia."
+                  onClick={onRefresh}
+                />
+              )}
+            </ItemGroup>
+          </CardContent>
+        </Card>
+      </>
     );
   }
 
@@ -299,16 +381,24 @@ function DashboardRoute({
 
   if (route === "elevator" || route.startsWith("elevator/")) {
     return (
-      <IntegrationPanel
-        badge="API conectada"
-        description="Elevator ya recibe leads desde el tracking core. El siguiente paso es mejorar el matching entre pacientes pagados en Dentalink y contactos creados en Elevator."
-        rows={[
-          ["Modo", "api"],
-          ["Leads demo", "creacion y deduplicacion activa"],
-          ["Matching pagos", `${formatInteger(data?.patients.length ?? 0)} pagos disponibles`],
-        ]}
-        title="Elevator CRM"
-      />
+      <>
+        <ElevatorSyncCard
+          isSyncing={isSyncingToElevator}
+          onSend={onSendToElevator}
+          result={syncResult}
+          syncError={syncError}
+        />
+        <IntegrationPanel
+          badge="API conectada"
+          description="Elevator ya recibe leads desde el tracking core. El siguiente paso es mejorar el matching entre pacientes pagados en Dentalink y contactos creados en Elevator."
+          rows={[
+            ["Modo", "api"],
+            ["Leads demo", "creacion y deduplicacion activa"],
+            ["Matching pagos", `${formatInteger(data?.patients.length ?? 0)} pagos disponibles`],
+          ]}
+          title="Elevator CRM"
+        />
+      </>
     );
   }
 
@@ -600,6 +690,69 @@ function IntegrationPanel({
   );
 }
 
+function ElevatorSyncCard({
+  isSyncing,
+  onSend,
+  result,
+  syncError,
+}: {
+  isSyncing: boolean;
+  onSend: () => void;
+  result: PaymentsSyncResult | null;
+  syncError: string | null;
+}) {
+  return (
+    <Card className="border-emerald-300/30">
+      <CardHeader className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div>
+          <CardTitle>Enviar pacientes recientes a Elevator</CardTitle>
+          <CardDescription className="mt-2 max-w-3xl">
+            Toma pagos Dentalink desde el inicio del mes, crea el contacto si no
+            existe en Elevator, evita duplicados por telefono/email y deja el lead
+            listo para enviar conversiones a Stape cuando se conecte.
+          </CardDescription>
+        </div>
+        <Button disabled={isSyncing} onClick={onSend}>
+          <RefreshCwIcon aria-hidden="true" data-icon="inline-start" />
+          {isSyncing ? "Enviando" : "Enviar a Elevator"}
+        </Button>
+      </CardHeader>
+      {(result || syncError) && (
+        <CardContent>
+          {syncError ? (
+            <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-destructive text-sm">
+              {syncError}
+            </div>
+          ) : null}
+          {result ? (
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              <SyncMetric label="Pagos encontrados" value={result.paymentsFound} />
+              <SyncMetric label="Leads creados" value={result.createdLeads} />
+              <SyncMetric label="Leads encontrados" value={result.matchedLeads} />
+              <SyncMetric label="Ya procesados" value={result.alreadyProcessed} />
+              <SyncMetric label="Sin match/contacto" value={result.unmatchedLeads} />
+              <SyncMetric label="Eventos preparados" value={result.dispatched} />
+            </div>
+          ) : null}
+        </CardContent>
+      )}
+    </Card>
+  );
+}
+
+function SyncMetric({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-xl border bg-background/50 p-4">
+      <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
+        {label}
+      </p>
+      <p className="mt-2 font-semibold text-2xl tabular-nums">
+        {formatInteger(value)}
+      </p>
+    </div>
+  );
+}
+
 function EmptyState({
   message,
   cta,
@@ -801,4 +954,9 @@ function formatInteger(value: number) {
 
 function normalizeRoute(path = "") {
   return path.replace(/^#\/?/, "").split("?")[0] || "dashboard";
+}
+
+function getCurrentMonthStartIso() {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 }
