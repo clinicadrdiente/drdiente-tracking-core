@@ -80,6 +80,7 @@ interface PaymentBlock {
   patientName: string | null;
   patientEmail: string | null;
   patientPhone: string | null;
+  patientReference: string | null;
   treatmentId: number;
   treatmentName: string | null;
   treatmentBudgetTotal: number;
@@ -114,6 +115,7 @@ interface ElevatorImportResult {
   patientId: number | null;
   patientName: string;
   contact: string;
+  reference: string;
   branch: string;
   status: "created" | "existing" | "skipped_missing_contact" | "failed";
   elevatorId: string | null;
@@ -817,11 +819,12 @@ function ElevatorImportResultsTable({
         <Badge variant="secondary">{formatInteger(results.length)} registros</Badge>
       </div>
       <div className="max-h-96 overflow-auto">
-        <table className="w-full min-w-[860px] text-sm">
+        <table className="w-full min-w-[960px] text-sm">
           <thead className="sticky top-0 bg-card text-muted-foreground">
             <tr className="border-b">
               <th className="px-4 py-3 text-left font-medium">Paciente</th>
               <th className="px-4 py-3 text-left font-medium">Contacto</th>
+              <th className="px-4 py-3 text-left font-medium">Referencia</th>
               <th className="px-4 py-3 text-left font-medium">Sucursal</th>
               <th className="px-4 py-3 text-left font-medium">Estado</th>
               <th className="px-4 py-3 text-left font-medium">Elevator ID</th>
@@ -834,6 +837,7 @@ function ElevatorImportResultsTable({
               <tr className="border-b last:border-b-0" key={`${result.paymentId}-${result.patientId}-${result.status}`}>
                 <td className="px-4 py-3 font-medium">{result.patientName}</td>
                 <td className="px-4 py-3 text-muted-foreground">{result.contact}</td>
+                <td className="px-4 py-3 text-muted-foreground">{result.reference}</td>
                 <td className="px-4 py-3 text-muted-foreground">{result.branch}</td>
                 <td className="px-4 py-3">
                   <StatusBadge status={result.status} />
@@ -959,6 +963,7 @@ function PatientItem({ payment }: { payment: PaymentBlock }) {
         <ItemTitle>{payment.patientName ?? "Paciente sin nombre"}</ItemTitle>
         <ItemDescription className="line-clamp-2">
           {payment.patientEmail ?? "Sin email"} · {payment.patientPhone ?? "Sin telefono"} ·{" "}
+          {payment.patientReference ?? "Sin referencia"} ·{" "}
           {payment.treatmentName ?? `Tratamiento #${payment.treatmentId || "-"}`}
         </ItemDescription>
       </ItemContent>

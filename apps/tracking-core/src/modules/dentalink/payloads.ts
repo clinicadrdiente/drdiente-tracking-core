@@ -17,7 +17,15 @@ export function mapPatientRecord(
     patientId: readNumber(record, config.patientIdField),
     firstName: readString(record, config.patientFirstNameField) ?? "",
     lastName: readString(record, config.patientLastNameField),
-    phone: readString(record, config.patientPhoneField),
+    phone: readFirstString(record, [
+      config.patientPhoneField,
+      "telefono_movil",
+      "telefono_celular",
+      "celular",
+      "movil",
+      "telefono_fijo",
+      "fono",
+    ]),
     email: readString(record, config.patientEmailField),
     branch: readString(record, config.patientBranchField),
     elevatorId: readString(additionalFields, config.elevatorIdField),
@@ -102,6 +110,20 @@ function readRecord(
 function readString(record: DentalinkRecord, key: string): string | null {
   const value = record[key];
   return typeof value === "string" ? value : null;
+}
+
+function readFirstString(
+  record: DentalinkRecord,
+  keys: string[],
+): string | null {
+  for (const key of keys) {
+    const value = readString(record, key);
+    if (value?.trim()) {
+      return value;
+    }
+  }
+
+  return null;
 }
 
 function readNumber(record: DentalinkRecord, key: string): number {

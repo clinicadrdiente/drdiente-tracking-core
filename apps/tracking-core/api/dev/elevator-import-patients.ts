@@ -15,6 +15,7 @@ type PatientPaymentPayload = {
   patientName?: string | null;
   patientEmail?: string | null;
   patientPhone?: string | null;
+  patientReference?: string | null;
   treatmentName?: string | null;
   branch?: string | null;
 };
@@ -24,6 +25,7 @@ type ImportResult = {
   patientId: number | null;
   patientName: string;
   contact: string;
+  reference: string;
   branch: string;
   status: "created" | "existing" | "skipped_missing_contact" | "failed";
   elevatorId: string | null;
@@ -161,7 +163,10 @@ function buildLeadInput(patient: PatientPaymentPayload): LeadInput | null {
     attribution: {
       utmSource: "dentalink",
       utmMedium: "dashboard_import",
-      utmCampaign: patient.treatmentName ?? "dentalink_patient_import",
+      utmCampaign:
+        patient.patientReference ??
+        patient.treatmentName ??
+        "dentalink_patient_import",
       landingUrl: null,
     },
   };
@@ -192,6 +197,7 @@ function buildImportResult(
     patientId: typeof patient.patientId === "number" ? patient.patientId : null,
     patientName: patient.patientName?.trim() || "Paciente sin nombre",
     contact: patient.patientEmail || patient.patientPhone || "Sin contacto",
+    reference: patient.patientReference?.trim() || "Sin referencia",
     branch: patient.branch?.trim() || "Sin sucursal",
     ...result,
   };

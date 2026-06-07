@@ -14,6 +14,7 @@ interface MonthlyPaymentBlock {
   patientName: string | null;
   patientEmail: string | null;
   patientPhone: string | null;
+  patientReference: string | null;
   treatmentId: number;
   treatmentName: string | null;
   treatmentBudgetTotal: number;
@@ -174,6 +175,7 @@ export default async function handler(
           patient.fullName,
         patientEmail: patient.email,
         patientPhone: patient.phone,
+        patientReference: patient.reference,
         treatmentId,
         treatmentName: treatment.name,
         treatmentBudgetTotal: treatment.budgetTotal,
@@ -368,6 +370,7 @@ async function requestDentalink(
 interface PatientDetail {
   email: string | null;
   phone: string | null;
+  reference: string | null;
   fullName: string | null;
 }
 
@@ -408,7 +411,22 @@ async function getCachedPatient(
     const lastName = readString(record, fields.lastNameField);
     const patient = {
       email: readString(record, fields.emailField),
-      phone: readString(record, fields.phoneField),
+      phone: readFirstString(record, [
+        fields.phoneField,
+        "telefono_movil",
+        "telefono_celular",
+        "celular",
+        "movil",
+        "telefono_fijo",
+        "fono",
+      ]),
+      reference: readFirstString(record, [
+        "referencia",
+        "fuente",
+        "origen",
+        "medio_referencia",
+        "canal",
+      ]),
       fullName: [firstName, lastName].filter(Boolean).join(" ") || null,
     };
     cache.set(patientId, patient);
@@ -567,6 +585,7 @@ function emptyPatient(): PatientDetail {
   return {
     email: null,
     phone: null,
+    reference: null,
     fullName: null,
   };
 }
@@ -585,6 +604,20 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function readString(record: Record<string, unknown>, key: string): string | null {
   const value = record[key];
   return typeof value === "string" && value.trim() !== "" ? value : null;
+}
+
+function readFirstString(
+  record: Record<string, unknown>,
+  keys: string[],
+): string | null {
+  for (const key of keys) {
+    const value = readString(record, key);
+    if (value) {
+      return value;
+    }
+  }
+
+  return null;
 }
 
 function readNumber(record: Record<string, unknown>, key: string): number {
