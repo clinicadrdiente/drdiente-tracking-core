@@ -564,12 +564,12 @@ function DashboardRoute({
   if (route === "stape" || route.startsWith("stape/")) {
     return (
       <IntegrationPanel
-        badge="Pendiente"
-        description="Stape sigue en modo stub hasta que tu jefe habilite el server GTM. Ya tenemos el payload base: monto, paciente, tratamiento, fecha y fuente."
+        badge="Configurable"
+        description="Stape recibe eventos desde el tracking core cuando STAPE_MODE esta en api. El payload incluye paciente, monto, sucursal, tratamiento y fuente."
         rows={[
-          ["Estado", "stub"],
-          ["Payload", "listo para conversiones"],
-          ["Bloqueante", "activar server GTM / Stape"],
+          ["Estado", "api cuando Vercel tenga variables"],
+          ["Endpoint", "/api/dev/stape-ping"],
+          ["Test", "/api/dev/test-stape"],
         ]}
         title="Stape + Conversion API"
       />

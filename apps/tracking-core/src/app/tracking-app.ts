@@ -19,6 +19,7 @@ export class TrackingApp {
       config: {
         elevatorMode: process.env.ELEVATOR_MODE ?? "stub",
         dentalinkMode: process.env.DENTALINK_MODE ?? "stub",
+        stapeMode: this.services.stapeClient.getMode(),
         stateStoreMode,
         defaultCurrency: this.services.config.defaultCurrency,
         highTicketThreshold: this.services.config.highTicketThreshold,
@@ -33,7 +34,7 @@ export class TrackingApp {
       integrations: {
         elevator: process.env.ELEVATOR_MODE ?? "stub",
         dentalink: process.env.DENTALINK_MODE ?? "stub",
-        stape: "stub",
+        stape: this.services.stapeClient.getMode(),
       },
     };
   }

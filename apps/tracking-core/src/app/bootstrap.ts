@@ -1,7 +1,7 @@
 import { createDentalinkClient, type DentalinkClient } from "../modules/dentalink/client.js";
 import { createElevatorClient, type ElevatorClient } from "../modules/elevator/client.js";
 import { ConsoleLogger, type Logger } from "../modules/observability/logger.js";
-import { StubStapeClient, type StapeClient } from "../modules/stape/client.js";
+import { createStapeClient, type StapeClient } from "../modules/stape/client.js";
 import {
   FileStateStore,
   InMemoryStateStore,
@@ -28,7 +28,7 @@ export function bootstrapApp(): AppServices {
     logger: new ConsoleLogger(),
     elevatorClient: createElevatorClient(),
     dentalinkClient: createDentalinkClient(),
-    stapeClient: new StubStapeClient(),
+    stapeClient: createStapeClient(),
     stateStore: createStateStore(stateStoreConfig),
   };
 }
