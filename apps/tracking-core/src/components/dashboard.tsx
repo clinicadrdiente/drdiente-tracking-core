@@ -20,7 +20,6 @@ import {
 import {
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
@@ -679,15 +678,9 @@ export function Dashboard() {
     <div className="flex flex-col gap-4">
       <section className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="font-medium text-emerald-400 text-xs tracking-[0.32em] uppercase">
-            Centro de control
-          </p>
-          <h1 className="text-balance font-semibold text-4xl tracking-tight md:text-6xl">
-            Una pantalla para operar Dr Diente.
+          <h1 className="text-balance font-semibold text-4xl tracking-tight md:text-5xl">
+            Dr Diente Core
           </h1>
-          <p className="mt-2 text-muted-foreground">
-            Dentalink, Elevator, Stape, Redis y Windsor organizados por prioridad.
-          </p>
         </div>
         <div className="flex w-full gap-2 md:w-auto">
           <Input
@@ -708,11 +701,11 @@ export function Dashboard() {
       </section>
 
       {data?.cache ? (
-        <p className="text-muted-foreground text-xs">
-          Datos {data.cache.hit ? "desde cache" : "actualizados"} ·{" "}
-          {data.cache.stale ? "cache de respaldo por rate limit · " : ""}
-          cacheado a las {formatCacheTime(data.cache.cachedAt)}
-        </p>
+        <div className="flex">
+          <Badge variant="secondary">
+            {data.cache.hit ? "Cache" : "Actualizado"} · {formatCacheTime(data.cache.cachedAt)}
+          </Badge>
+        </div>
       ) : null}
 
       {error ? (
@@ -864,9 +857,6 @@ function DashboardRoute({
         <Card>
           <CardHeader>
             <CardTitle>Pacientes del mes</CardTitle>
-            <CardDescription>
-              Ultimos pacientes jalados desde Dentalink con contacto, tratamiento y monto.
-            </CardDescription>
           </CardHeader>
           <CardContent>
             <ItemGroup className="gap-2">
@@ -940,7 +930,6 @@ function DashboardRoute({
         />
         <IntegrationPanel
           badge="API conectada"
-          description="Elevator ya recibe leads desde el tracking core. El siguiente paso es mejorar el matching entre pacientes pagados en Dentalink y contactos creados en Elevator."
           rows={[
             ["Modo", "api"],
             ["Leads demo", "creacion y deduplicacion activa"],
@@ -971,7 +960,6 @@ function DashboardRoute({
     return (
       <IntegrationPanel
         badge="Sistema"
-        description="Aqui se centralizan variables, secret local, estado de integraciones y logs operativos del tracking core."
         rows={[
           ["Dentalink", "api"],
           ["Elevator", "api"],
@@ -987,7 +975,6 @@ function DashboardRoute({
     return (
       <IntegrationPanel
         badge={route === "status" ? "Healthy" : "Interno"}
-        description="Panel interno para revisar salud del sistema, pagos disponibles y acciones de diagnostico sin entrar directo a Vercel."
         rows={[
           ["Revenue", formatMoney(data?.revenueTotal ?? 0)],
           ["Pagos", formatInteger(data?.paymentsTotal ?? 0)],
@@ -1066,12 +1053,8 @@ function ControlRoom({
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div>
                 <CardTitle className="text-3xl md:text-4xl">
-                  Operacion del ecosistema
+                  Operacion
                 </CardTitle>
-                <CardDescription className="mt-2 max-w-2xl text-base">
-                  Primero carga Dentalink. Despues confirma Elevator y Stape. Windsor
-                  queda para separar gasto de marketing por marca/cuenta.
-                </CardDescription>
               </div>
               <Badge className="w-fit bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/15">
                 {systemStatus?.config.stateStoreMode === "redis"
@@ -1085,21 +1068,14 @@ function ControlRoom({
               <HeroMetric
                 label="Revenue del mes"
                 value={formatMoney(data?.revenueTotal ?? 0)}
-                hint={data?.month.label ?? "Sin datos cargados"}
               />
               <HeroMetric
-                label="Pacientes unicos"
+                label="Pacientes"
                 value={formatInteger(data?.uniquePatientsTotal ?? 0)}
-                hint={`${formatInteger(data?.paymentsTotal ?? 0)} pagos Dentalink`}
               />
               <HeroMetric
-                label="Pagos ya memorizados"
+                label="Pagos guardados"
                 value={formatInteger(systemStatus?.paymentSync.processedPaymentCount ?? 0)}
-                hint={
-                  systemStatus?.paymentSync.lastCheckIso
-                    ? `ultimo sync ${formatCacheTime(systemStatus.paymentSync.lastCheckIso)}`
-                    : "sin sync registrado"
-                }
               />
             </div>
           </CardContent>
@@ -1125,8 +1101,7 @@ function ControlRoom({
 
         <Card>
           <CardHeader>
-            <CardTitle>Lectura rapida</CardTitle>
-            <CardDescription>Que significa el estado actual.</CardDescription>
+            <CardTitle>Estado</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <ReadinessRow
@@ -1193,11 +1168,9 @@ function ControlRoom({
 }
 
 function HeroMetric({
-  hint,
   label,
   value,
 }: {
-  hint: string;
   label: string;
   value: string;
 }) {
@@ -1207,7 +1180,6 @@ function HeroMetric({
         {label}
       </p>
       <p className="mt-3 font-semibold text-3xl tracking-tight">{value}</p>
-      <p className="mt-1 text-muted-foreground text-sm">{hint}</p>
     </div>
   );
 }
@@ -1237,9 +1209,6 @@ function ReadinessRow({
         </span>
         <div className="min-w-0">
           <p className="font-medium">{label}</p>
-          <p className="text-muted-foreground text-xs">
-            {tone === "good" ? "listo para operar" : "requiere revision"}
-          </p>
         </div>
       </div>
       <Badge variant={tone === "good" ? "default" : "secondary"}>{status}</Badge>
@@ -1277,15 +1246,11 @@ function GuidedActionsCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Que hago ahora</CardTitle>
-        <CardDescription>
-          Acciones en orden. Si una sale bien, sigue con la siguiente.
-        </CardDescription>
+        <CardTitle>Acciones</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         <GuidedAction
           actionLabel={isLoading ? "Actualizando" : "Actualizar"}
-          description="Carga pagos, pacientes, revenue y sucursales del mes."
           disabled={isLoading}
           icon={<RefreshCwIcon aria-hidden="true" />}
           onClick={onRefresh}
@@ -1300,7 +1265,6 @@ function GuidedActionsCard({
         />
         <GuidedAction
           actionLabel={isSyncingToElevator ? "Enviando" : "Enviar"}
-          description="Crea o reconoce contactos en Elevator y prepara conversiones."
           disabled={isSyncingToElevator || !data}
           icon={<SendIcon aria-hidden="true" />}
           onClick={onSendToElevator}
@@ -1317,7 +1281,6 @@ function GuidedActionsCard({
         />
         <GuidedAction
           actionLabel={isTestingRealFlow ? "Probando" : "Probar"}
-          description="Valida el flujo completo: Dentalink -> Elevator -> Stape."
           disabled={isTestingRealFlow}
           icon={<WebhookIcon aria-hidden="true" />}
           onClick={onTestRealFlow}
@@ -1332,7 +1295,6 @@ function GuidedActionsCard({
         />
         <GuidedAction
           actionLabel={isDetectingWindsorAccounts ? "Detectando" : "Detectar"}
-          description="Encuentra cuentas de marketing para separar Dr Diente de Rimas."
           disabled={isDetectingWindsorAccounts}
           icon={<TargetIcon aria-hidden="true" />}
           onClick={onDetectWindsorAccounts}
@@ -1352,7 +1314,6 @@ function GuidedActionsCard({
 
 function GuidedAction({
   actionLabel,
-  description,
   disabled,
   icon,
   onClick,
@@ -1362,7 +1323,6 @@ function GuidedAction({
   tone,
 }: {
   actionLabel: string;
-  description: string;
   disabled: boolean;
   icon: ReactNode;
   onClick: () => void;
@@ -1399,7 +1359,6 @@ function GuidedAction({
               </Badge>
             </div>
             <p className="mt-2 font-semibold">{title}</p>
-            <p className="mt-1 text-muted-foreground text-sm">{description}</p>
           </div>
         </div>
         <Button disabled={disabled} onClick={onClick} variant={tone === "done" ? "secondary" : "default"}>
@@ -1425,9 +1384,6 @@ function OperationsResultCard({
     <Card>
       <CardHeader>
         <CardTitle>Ultima accion ejecutada</CardTitle>
-        <CardDescription>
-          Resultado resumido sin tener que leer todo el JSON.
-        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {syncError || realFlowError ? (
@@ -1492,9 +1448,6 @@ function RevenueChart({
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle>Revenue</CardTitle>
-          <CardDescription>
-            Del dia 1 al ultimo dia del mes. Dias sin pago quedan en cero.
-          </CardDescription>
         </div>
         <Badge variant="secondary">{data?.month?.label ?? "Sin datos"}</Badge>
       </CardHeader>
@@ -1554,9 +1507,6 @@ function RecentPatientsCard({ payments }: { payments: PaymentBlock[] }) {
     <Card className="lg:col-span-2">
       <CardHeader>
         <CardTitle>Ultimos pacientes Dentalink</CardTitle>
-        <CardDescription>
-          Pagos recientes del mes con email, telefono, tratamiento y monto.
-        </CardDescription>
       </CardHeader>
       <CardContent>
         <ItemGroup className="gap-2">
@@ -1582,9 +1532,6 @@ function TreatmentListCard({ data }: { data: MonthlyDashboard | null }) {
     <Card>
       <CardHeader>
         <CardTitle>Tratamientos y revenue</CardTitle>
-        <CardDescription>
-          Ranking por monto pagado en Dentalink durante el mes actual.
-        </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="flex flex-col gap-3">
@@ -1629,9 +1576,6 @@ function BranchRevenueCard({ data }: { data: MonthlyDashboard | null }) {
     <Card>
       <CardHeader>
         <CardTitle>Revenue por sucursal</CardTitle>
-        <CardDescription>
-          Pagos, pacientes unicos y monto promedio agrupados por sucursal Dentalink.
-        </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="flex flex-col gap-3">
@@ -1698,9 +1642,6 @@ function DayBlocksCard({ data }: { data: MonthlyDashboard | null }) {
     <Card>
       <CardHeader>
         <CardTitle>Bloques del mes</CardTitle>
-        <CardDescription>
-          Desde el dia 1 hasta el ultimo dia del mes, con pacientes por dia.
-        </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -1746,10 +1687,6 @@ function ReferenceDiagnosticCard({
       <CardHeader className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
           <CardTitle>Diagnostico de referencias Dentalink</CardTitle>
-          <CardDescription className="mt-2 max-w-3xl">
-            Busca el campo real de referencia del paciente y prueba catalogos de IDs
-            para convertir valores internos en nombres como GOOGLE MAPS.
-          </CardDescription>
         </div>
         <Button disabled={isLoading} onClick={onDiagnose} variant="secondary">
           <RefreshCwIcon aria-hidden="true" data-icon="inline-start" />
@@ -1824,12 +1761,10 @@ function ReferenceDiagnosticCard({
 
 function IntegrationPanel({
   title,
-  description,
   badge,
   rows,
 }: {
   title: string;
-  description: string;
   badge: string;
   rows: Array<[string, string]>;
 }) {
@@ -1838,7 +1773,6 @@ function IntegrationPanel({
       <CardHeader className="flex flex-row items-start justify-between gap-4">
         <div>
           <CardTitle>{title}</CardTitle>
-          <CardDescription className="mt-2 max-w-3xl">{description}</CardDescription>
         </div>
         <Badge variant="secondary">{badge}</Badge>
       </CardHeader>
@@ -1890,11 +1824,6 @@ function WindsorMarketingCard({
       <CardHeader className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
           <CardTitle>Windsor AI marketing data</CardTitle>
-          <CardDescription className="mt-2 max-w-3xl">
-            Trae gasto, clicks e impresiones de las plataformas de marketing para
-            cruzarlo despues con revenue real de Dentalink y conversiones enviadas
-            por Stape.
-          </CardDescription>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Button
@@ -2059,10 +1988,6 @@ function WindsorAccountsCard({ accounts }: { accounts: WindsorAccountsResult }) 
       <div className="flex items-center justify-between border-b bg-background/50 px-4 py-3">
         <div>
           <p className="font-medium">Cuentas detectadas por Windsor</p>
-          <p className="text-muted-foreground text-xs">
-            Revisa aqui cual pertenece a Dr Diente y cual a Rimas. Luego usamos el
-            ID correcto como filtro.
-          </p>
         </div>
         <Badge variant="secondary">
           {formatInteger(rows.length)} cuentas · {formatInteger(accounts.rowCount ?? 0)} filas
@@ -2149,11 +2074,6 @@ function StapeTestCard({
       <CardHeader className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
           <CardTitle>Flujo de conversiones</CardTitle>
-          <CardDescription className="mt-2 max-w-3xl">
-            Prueba primero que Stape recibe eventos demo. Despues prueba el flujo
-            real: Dentalink detecta pagos, Elevator identifica el contacto y Stape
-            recibe la conversion.
-          </CardDescription>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Button disabled={isTesting} onClick={onTest} variant="secondary">
@@ -2169,17 +2089,14 @@ function StapeTestCard({
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
           <FlowStep
-            description="Lee pagos y pacientes recientes."
             label="1"
             title="Dentalink"
           />
           <FlowStep
-            description="Busca o crea el contacto."
             label="2"
             title="Elevator"
           />
           <FlowStep
-            description="Recibe la conversion server-side."
             label="3"
             title="Stape"
           />
@@ -2210,26 +2127,29 @@ function StapeTestCard({
                 <p className="mt-2 font-semibold text-emerald-400">
                   Conexion activa
                 </p>
-                <pre className="mt-3 max-h-44 overflow-auto whitespace-pre-wrap text-xs">
-                  {JSON.stringify(result.event, null, 2)}
-                </pre>
+                <details className="mt-3">
+                  <summary className="cursor-pointer text-sm">JSON</summary>
+                  <pre className="mt-3 max-h-44 overflow-auto whitespace-pre-wrap text-xs">
+                    {JSON.stringify(result.event, null, 2)}
+                  </pre>
+                </details>
               </div>
               <div className="rounded-xl border bg-background/50 p-4">
                 <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
                   Configuracion
                 </p>
-                <pre className="mt-3 max-h-44 overflow-auto whitespace-pre-wrap text-xs">
-                  {JSON.stringify(result.ping, null, 2)}
-                </pre>
+                <details className="mt-3">
+                  <summary className="cursor-pointer text-sm">JSON</summary>
+                  <pre className="mt-3 max-h-44 overflow-auto whitespace-pre-wrap text-xs">
+                    {JSON.stringify(result.ping, null, 2)}
+                  </pre>
+                </details>
               </div>
             </div>
           ) : null}
           </div>
         ) : (
-          <p className="text-muted-foreground text-sm">
-            Usa “Probar Stape demo” para validar conexion. Usa “Probar flujo real”
-            para saber si ya se mandaron compras reales a Stape.
-          </p>
+          <p className="text-muted-foreground text-sm">Sin prueba ejecutada.</p>
         )}
       </CardContent>
     </Card>
@@ -2237,11 +2157,9 @@ function StapeTestCard({
 }
 
 function FlowStep({
-  description,
   label,
   title,
 }: {
-  description: string;
   label: string;
   title: string;
 }) {
@@ -2253,7 +2171,6 @@ function FlowStep({
         </span>
         <p className="font-semibold">{title}</p>
       </div>
-      <p className="mt-3 text-muted-foreground text-sm">{description}</p>
     </div>
   );
 }
@@ -2283,9 +2200,12 @@ function RealFlowResult({ result }: { result: PaymentsSyncResult }) {
         <SyncMetric label="Match Elevator" value={result.matchedLeads} />
         <SyncMetric label="Enviados Stape" value={result.dispatched} />
       </div>
-      <pre className="mt-4 max-h-48 overflow-auto whitespace-pre-wrap rounded-xl border bg-background/70 p-3 text-xs">
-        {JSON.stringify(result, null, 2)}
-      </pre>
+      <details className="mt-4 rounded-xl border bg-background/70 p-3">
+        <summary className="cursor-pointer font-medium text-sm">JSON</summary>
+        <pre className="mt-3 max-h-48 overflow-auto whitespace-pre-wrap text-xs">
+          {JSON.stringify(result, null, 2)}
+        </pre>
+      </details>
     </div>
   );
 }
@@ -2306,11 +2226,6 @@ function ElevatorSyncCard({
       <CardHeader className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
           <CardTitle>Enviar pacientes recientes a Elevator</CardTitle>
-          <CardDescription className="mt-2 max-w-3xl">
-            Usa los pacientes ya cargados en este dashboard, crea el contacto si
-            no existe en Elevator, evita duplicados por telefono/email y deja el
-            lead listo para enviar conversiones a Stape cuando se conecte.
-          </CardDescription>
         </div>
         <Button disabled={isSyncing} onClick={onSend}>
           <RefreshCwIcon aria-hidden="true" data-icon="inline-start" />
@@ -2357,9 +2272,6 @@ function ElevatorImportResultsTable({
       <div className="flex items-center justify-between border-b bg-background/50 px-4 py-3">
         <div>
           <p className="font-medium">Detalle de envio a Elevator</p>
-          <p className="text-muted-foreground text-xs">
-            Revisa quien tiene payload preparado para Stape y quien necesita correccion manual.
-          </p>
         </div>
         <Badge variant="secondary">{formatInteger(results.length)} registros</Badge>
       </div>
@@ -2531,7 +2443,6 @@ function QuickPanel({ data }: { data: MonthlyDashboard | null }) {
     <Card>
       <CardHeader>
         <CardTitle>Quick actions</CardTitle>
-        <CardDescription>Acciones de operacion y exportacion.</CardDescription>
       </CardHeader>
       <CardContent>
         <ItemGroup className="gap-0">
