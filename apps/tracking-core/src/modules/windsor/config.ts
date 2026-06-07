@@ -2,6 +2,7 @@ export interface WindsorConfig {
   apiKey: string;
   baseUrl: string;
   defaultConnector: string;
+  defaultDatePreset: string;
   defaultFields: string[];
   includeTextFilters: string[];
   excludeTextFilters: string[];
@@ -16,9 +17,10 @@ export function getWindsorConfig(): WindsorConfig {
     apiKey: getEnv("WINDSOR_API_KEY"),
     baseUrl: getEnv("WINDSOR_BASE_URL", "https://connectors.windsor.ai"),
     defaultConnector: getEnv("WINDSOR_DEFAULT_CONNECTOR", "all"),
+    defaultDatePreset: getEnv("WINDSOR_DATE_PRESET", "last_180d"),
     defaultFields: getEnv(
       "WINDSOR_DEFAULT_FIELDS",
-      "date,source,campaign,spend,clicks,impressions,account_name,account_id,ad_account_name,ad_account_id,business_manager",
+      "date,datasource,account_name,source,campaign,clicks,sessions,spend,account_id,reach,screen_page_views,video_trueview_views,total_pageview,all_conversions,currency,account_currency",
     )
       .split(",")
       .map((field) => field.trim())

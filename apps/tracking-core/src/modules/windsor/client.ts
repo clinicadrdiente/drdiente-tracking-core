@@ -2,6 +2,7 @@ import { getWindsorConfig, type WindsorConfig } from "./config.js";
 
 export interface WindsorMarketingRow {
   date?: string | null;
+  datasource?: string | null;
   source?: string | null;
   campaign?: string | null;
   accountName?: string | null;
@@ -11,14 +12,26 @@ export interface WindsorMarketingRow {
   businessManager?: string | null;
   spend?: number;
   clicks?: number;
+  sessions?: number;
   impressions?: number;
+  reach?: number;
+  screenPageViews?: number;
+  videoTrueviewViews?: number;
+  totalPageview?: number;
+  allConversions?: number;
+  currency?: string | null;
+  accountCurrency?: string | null;
 }
 
 export interface WindsorSourceSummary {
   source: string;
   spend: number;
   clicks: number;
+  sessions: number;
   impressions: number;
+  reach: number;
+  screenPageViews: number;
+  allConversions: number;
   campaigns: number;
 }
 
@@ -34,7 +47,11 @@ export interface WindsorAccountSummary {
   rows: number;
   spend: number;
   clicks: number;
+  sessions: number;
   impressions: number;
+  reach: number;
+  screenPageViews: number;
+  allConversions: number;
 }
 
 export interface WindsorMarketingSummary {
@@ -50,7 +67,13 @@ export interface WindsorMarketingSummary {
   totals: {
     spend: number;
     clicks: number;
+    sessions: number;
     impressions: number;
+    reach: number;
+    screenPageViews: number;
+    videoTrueviewViews: number;
+    totalPageview: number;
+    allConversions: number;
   };
   bySource: WindsorSourceSummary[];
 }
@@ -81,14 +104,13 @@ export class WindsorClient {
     return this.request(url);
   }
 
-  async getMarketingSummary(
-    datePreset = "last_30d",
-  ): Promise<WindsorMarketingSummary> {
+  async getMarketingSummary(datePreset?: string): Promise<WindsorMarketingSummary> {
     const connector = this.config.defaultConnector;
+    const resolvedDatePreset = datePreset ?? this.config.defaultDatePreset;
     const url = new URL(connector, normalizeBaseUrl(this.config.baseUrl));
     url.searchParams.set("api_key", this.config.apiKey);
     url.searchParams.set("fields", this.config.defaultFields.join(","));
-    url.searchParams.set("date_preset", datePreset);
+    url.searchParams.set("date_preset", resolvedDatePreset);
     url.searchParams.set("_max_rows", "500");
 
     const body = await this.request(url);
@@ -97,7 +119,7 @@ export class WindsorClient {
 
     return {
       connector,
-      datePreset,
+      datePreset: resolvedDatePreset,
       filters: {
         includeText: this.config.includeTextFilters,
         excludeText: this.config.excludeTextFilters,
@@ -108,23 +130,39 @@ export class WindsorClient {
       totals: {
         spend: rows.reduce((sum, row) => sum + (row.spend ?? 0), 0),
         clicks: rows.reduce((sum, row) => sum + (row.clicks ?? 0), 0),
+        sessions: rows.reduce((sum, row) => sum + (row.sessions ?? 0), 0),
         impressions: rows.reduce((sum, row) => sum + (row.impressions ?? 0), 0),
+        reach: rows.reduce((sum, row) => sum + (row.reach ?? 0), 0),
+        screenPageViews: rows.reduce(
+          (sum, row) => sum + (row.screenPageViews ?? 0),
+          0,
+        ),
+        videoTrueviewViews: rows.reduce(
+          (sum, row) => sum + (row.videoTrueviewViews ?? 0),
+          0,
+        ),
+        totalPageview: rows.reduce((sum, row) => sum + (row.totalPageview ?? 0), 0),
+        allConversions: rows.reduce(
+          (sum, row) => sum + (row.allConversions ?? 0),
+          0,
+        ),
       },
       bySource: summarizeBySource(rows),
     };
   }
 
-  async getAccountSummaries(datePreset = "last_30d"): Promise<{
+  async getAccountSummaries(datePreset?: string): Promise<{
     connector: string;
     datePreset: string;
     rowCount: number;
     accounts: WindsorAccountSummary[];
   }> {
     const connector = this.config.defaultConnector;
+    const resolvedDatePreset = datePreset ?? this.config.defaultDatePreset;
     const url = new URL(connector, normalizeBaseUrl(this.config.baseUrl));
     url.searchParams.set("api_key", this.config.apiKey);
     url.searchParams.set("fields", this.config.defaultFields.join(","));
-    url.searchParams.set("date_preset", datePreset);
+    url.searchParams.set("date_preset", resolvedDatePreset);
     url.searchParams.set("_max_rows", "500");
 
     const body = await this.request(url);
@@ -132,7 +170,7 @@ export class WindsorClient {
 
     return {
       connector,
-      datePreset,
+      datePreset: resolvedDatePreset,
       rowCount: rows.length,
       accounts: summarizeAccounts(rows),
     };
@@ -186,7 +224,8 @@ function readRows(body: unknown): Record<string, unknown>[] {
 function normalizeMarketingRow(row: Record<string, unknown>): WindsorMarketingRow {
   return {
     date: readString(row, "date"),
-    source: readString(row, "source"),
+    datasource: readString(row, "datasource"),
+    source: readFirstString(row, ["source", "datasource"]),
     campaign: readString(row, "campaign"),
     accountName: readFirstString(row, ["account_name", "account"]),
     accountId: readFirstString(row, ["account_id"]),
@@ -199,7 +238,15 @@ function normalizeMarketingRow(row: Record<string, unknown>): WindsorMarketingRo
     ]),
     spend: readNumber(row, "spend"),
     clicks: readNumber(row, "clicks"),
+    sessions: readNumber(row, "sessions"),
     impressions: readNumber(row, "impressions"),
+    reach: readNumber(row, "reach"),
+    screenPageViews: readNumber(row, "screen_page_views"),
+    videoTrueviewViews: readNumber(row, "video_trueview_views"),
+    totalPageview: readNumber(row, "total_pageview"),
+    allConversions: readNumber(row, "all_conversions"),
+    currency: readString(row, "currency"),
+    accountCurrency: readString(row, "account_currency"),
   };
 }
 
@@ -209,6 +256,7 @@ function rowMatchesTextFilters(
 ): boolean {
   const searchableText = [
     row.source,
+    row.datasource,
     row.campaign,
     row.accountName,
     row.accountId,
@@ -245,7 +293,17 @@ function summarizeBySource(rows: WindsorMarketingRow[]): WindsorSourceSummary[] 
       source,
       spend: sourceRows.reduce((sum, row) => sum + (row.spend ?? 0), 0),
       clicks: sourceRows.reduce((sum, row) => sum + (row.clicks ?? 0), 0),
+      sessions: sourceRows.reduce((sum, row) => sum + (row.sessions ?? 0), 0),
       impressions: sourceRows.reduce((sum, row) => sum + (row.impressions ?? 0), 0),
+      reach: sourceRows.reduce((sum, row) => sum + (row.reach ?? 0), 0),
+      screenPageViews: sourceRows.reduce(
+        (sum, row) => sum + (row.screenPageViews ?? 0),
+        0,
+      ),
+      allConversions: sourceRows.reduce(
+        (sum, row) => sum + (row.allConversions ?? 0),
+        0,
+      ),
       campaigns: new Set(
         sourceRows.map((row) => row.campaign).filter((campaign): campaign is string =>
           Boolean(campaign),
@@ -289,7 +347,17 @@ function summarizeAccounts(rows: WindsorMarketingRow[]): WindsorAccountSummary[]
         rows: accountRows.length,
         spend: accountRows.reduce((sum, row) => sum + (row.spend ?? 0), 0),
         clicks: accountRows.reduce((sum, row) => sum + (row.clicks ?? 0), 0),
+        sessions: accountRows.reduce((sum, row) => sum + (row.sessions ?? 0), 0),
         impressions: accountRows.reduce((sum, row) => sum + (row.impressions ?? 0), 0),
+        reach: accountRows.reduce((sum, row) => sum + (row.reach ?? 0), 0),
+        screenPageViews: accountRows.reduce(
+          (sum, row) => sum + (row.screenPageViews ?? 0),
+          0,
+        ),
+        allConversions: accountRows.reduce(
+          (sum, row) => sum + (row.allConversions ?? 0),
+          0,
+        ),
       };
     })
     .sort((a, b) => b.spend - a.spend);

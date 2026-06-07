@@ -48,6 +48,7 @@ export default async function handler(
         configured: true,
         baseUrl: config.baseUrl,
         defaultConnector: config.defaultConnector,
+        defaultDatePreset: config.defaultDatePreset,
         defaultFields: config.defaultFields,
         connectorsPreview: preview(connectors),
       },

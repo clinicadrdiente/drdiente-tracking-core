@@ -27,7 +27,7 @@ export default async function handler(
   }
 
   const client = createWindsorClient();
-  const datePreset = readQueryString(request.query?.datePreset) || "last_30d";
+  const datePreset = readQueryString(request.query?.datePreset);
 
   if (!client.isConfigured()) {
     send(response, {
@@ -42,7 +42,7 @@ export default async function handler(
   }
 
   try {
-    const summary = await client.getAccountSummaries(datePreset);
+    const summary = await client.getAccountSummaries(datePreset ?? undefined);
     send(response, {
       status: 200,
       body: {

@@ -218,13 +218,20 @@ interface WindsorMarketingSummary {
   totals?: {
     spend: number;
     clicks: number;
+    sessions?: number;
     impressions: number;
+    reach?: number;
+    screenPageViews?: number;
+    videoTrueviewViews?: number;
+    totalPageview?: number;
+    allConversions?: number;
   };
   bySource?: WindsorSourceSummary[];
 }
 
 interface WindsorMarketingRow {
   date?: string | null;
+  datasource?: string | null;
   source?: string | null;
   campaign?: string | null;
   accountName?: string | null;
@@ -234,14 +241,26 @@ interface WindsorMarketingRow {
   businessManager?: string | null;
   spend?: number;
   clicks?: number;
+  sessions?: number;
   impressions?: number;
+  reach?: number;
+  screenPageViews?: number;
+  videoTrueviewViews?: number;
+  totalPageview?: number;
+  allConversions?: number;
+  currency?: string | null;
+  accountCurrency?: string | null;
 }
 
 interface WindsorSourceSummary {
   source: string;
   spend: number;
   clicks: number;
+  sessions?: number;
   impressions: number;
+  reach?: number;
+  screenPageViews?: number;
+  allConversions?: number;
   campaigns: number;
 }
 
@@ -257,7 +276,11 @@ interface WindsorAccountSummary {
   rows: number;
   spend: number;
   clicks: number;
+  sessions: number;
   impressions: number;
+  reach: number;
+  screenPageViews: number;
+  allConversions: number;
 }
 
 interface WindsorAccountsResult {
@@ -575,10 +598,9 @@ export function Dashboard() {
         throw new Error(readErrorMessage(pingBody, "No se pudo validar Windsor."));
       }
 
-      const summaryResponse = await fetch(
-        "/api/dev/windsor-marketing-summary?datePreset=last_30d",
-        { headers },
-      );
+      const summaryResponse = await fetch("/api/dev/windsor-marketing-summary", {
+        headers,
+      });
       const summaryBody = (await summaryResponse.json()) as WindsorMarketingSummary;
 
       if (!summaryResponse.ok) {
@@ -614,7 +636,7 @@ export function Dashboard() {
     setWindsorAccounts(null);
 
     try {
-      const response = await fetch("/api/dev/windsor-accounts?datePreset=last_30d", {
+      const response = await fetch("/api/dev/windsor-accounts", {
         headers: {
           "x-tracking-secret": secret.trim(),
         },
@@ -1815,7 +1837,11 @@ function WindsorMarketingCard({
   const totals = summary?.totals ?? {
     spend: 0,
     clicks: 0,
+    sessions: 0,
     impressions: 0,
+    reach: 0,
+    screenPageViews: 0,
+    allConversions: 0,
   };
   const bySource = summary?.bySource ?? [];
 
@@ -1863,7 +1889,7 @@ function WindsorMarketingCard({
 
         {result ? (
           <>
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
               <div className="rounded-xl border bg-background/50 p-4">
                 <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
                   Estado
@@ -1894,10 +1920,18 @@ function WindsorMarketingCard({
               </div>
               <div className="rounded-xl border bg-background/50 p-4">
                 <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
-                  Impresiones
+                  Sesiones
                 </p>
                 <p className="mt-2 font-semibold text-2xl">
-                  {formatInteger(totals.impressions)}
+                  {formatInteger(totals.sessions ?? 0)}
+                </p>
+              </div>
+              <div className="rounded-xl border bg-background/50 p-4">
+                <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
+                  Conversiones
+                </p>
+                <p className="mt-2 font-semibold text-2xl">
+                  {formatInteger(totals.allConversions ?? 0)}
                 </p>
               </div>
             </div>
@@ -1908,11 +1942,7 @@ function WindsorMarketingCard({
                   <p className="font-medium">Performance por fuente</p>
                   <p className="text-muted-foreground text-xs">
                     Conector {summary?.connector ?? "sin definir"} ·{" "}
-                    {summary?.datePreset ?? "last_30d"}
-                  </p>
-                  <p className="mt-1 text-muted-foreground text-xs">
-                    Incluye: {summary?.filters?.includeText?.join(", ") || "todo"} ·
-                    Excluye: {summary?.filters?.excludeText?.join(", ") || "nada"}
+                    {summary?.datePreset ?? "last_180d"}
                   </p>
                 </div>
                 <Badge variant="secondary">
@@ -1921,13 +1951,15 @@ function WindsorMarketingCard({
               </div>
               {bySource.length > 0 ? (
                 <div className="max-h-80 overflow-auto">
-                  <table className="w-full min-w-[720px] text-sm">
+                  <table className="w-full min-w-[860px] text-sm">
                     <thead className="sticky top-0 bg-card text-muted-foreground">
                       <tr className="border-b">
                         <th className="px-4 py-3 text-left font-medium">Fuente</th>
                         <th className="px-4 py-3 text-right font-medium">Spend</th>
                         <th className="px-4 py-3 text-right font-medium">Clicks</th>
-                        <th className="px-4 py-3 text-right font-medium">Impresiones</th>
+                        <th className="px-4 py-3 text-right font-medium">Sesiones</th>
+                        <th className="px-4 py-3 text-right font-medium">Reach</th>
+                        <th className="px-4 py-3 text-right font-medium">Conv.</th>
                         <th className="px-4 py-3 text-right font-medium">Campanas</th>
                       </tr>
                     </thead>
@@ -1942,7 +1974,13 @@ function WindsorMarketingCard({
                             {formatInteger(source.clicks)}
                           </td>
                           <td className="px-4 py-3 text-right">
-                            {formatInteger(source.impressions)}
+                            {formatInteger(source.sessions ?? 0)}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            {formatInteger(source.reach ?? 0)}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            {formatInteger(source.allConversions ?? 0)}
                           </td>
                           <td className="px-4 py-3 text-right">
                             {formatInteger(source.campaigns)}
@@ -1953,10 +1991,7 @@ function WindsorMarketingCard({
                   </table>
                 </div>
               ) : (
-                <p className="p-4 text-muted-foreground text-sm">
-                  Windsor respondio, pero no devolvio filas con esos campos. Si pasa
-                  esto, ajustamos WINDSOR_DEFAULT_CONNECTOR o WINDSOR_DEFAULT_FIELDS.
-                </p>
+                <p className="p-4 text-muted-foreground text-sm">Sin filas.</p>
               )}
             </div>
 
@@ -1970,10 +2005,7 @@ function WindsorMarketingCard({
             </details>
           </>
         ) : (
-          <p className="text-muted-foreground text-sm">
-            Usa “Probar Windsor” cuando la variable WINDSOR_API_KEY este guardada
-            en Vercel. Esto no modifica Dentalink, Elevator ni Stape.
-          </p>
+          <p className="text-muted-foreground text-sm">Sin prueba ejecutada.</p>
         )}
       </CardContent>
     </Card>
