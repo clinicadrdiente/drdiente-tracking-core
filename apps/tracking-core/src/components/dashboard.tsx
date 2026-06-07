@@ -156,6 +156,14 @@ interface ReferenceDiagnostic {
       key: string;
       value: string;
     }>;
+    checkedPaths?: Array<{
+      path: string;
+      status: number;
+      fields: Array<{
+        key: string;
+        value: string;
+      }>;
+    }>;
   }>;
 }
 
@@ -895,6 +903,15 @@ function ReferenceDiagnosticCard({
     diagnostic?.patientProbes.flatMap((probe) =>
       probe.fields.map((field) => `${field.key}: ${field.value}`),
     ) ?? [];
+  const checkedPaths =
+    diagnostic?.patientProbes.flatMap((probe) =>
+      (probe.checkedPaths ?? []).map((path) => {
+        const fields = path.fields
+          .map((field) => `${field.key}=${field.value}`)
+          .join(", ");
+        return `Paciente ${probe.patientId} · ${path.path} · status ${path.status}${fields ? ` · ${fields}` : ""}`;
+      }),
+    ) ?? [];
 
   return (
     <Card>
@@ -958,6 +975,17 @@ function ReferenceDiagnosticCard({
                   <p className="text-muted-foreground text-sm">Sin candidatos.</p>
                 )}
               </div>
+
+              {checkedPaths.length > 0 ? (
+                <div className="rounded-xl border bg-background/50 p-4">
+                  <p className="mb-3 text-muted-foreground text-xs uppercase tracking-[0.2em]">
+                    Rutas alternativas probadas
+                  </p>
+                  <pre className="max-h-56 overflow-auto whitespace-pre-wrap text-xs">
+                    {checkedPaths.join("\n")}
+                  </pre>
+                </div>
+              ) : null}
             </>
           ) : null}
         </CardContent>

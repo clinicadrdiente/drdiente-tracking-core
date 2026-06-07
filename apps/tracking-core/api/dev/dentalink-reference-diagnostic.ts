@@ -28,19 +28,30 @@ interface PatientReferenceProbe {
     key: string;
     value: string;
   }>;
+  checkedPaths: Array<{
+    path: string;
+    status: number;
+    fields: Array<{
+      key: string;
+      value: string;
+    }>;
+  }>;
 }
 
 const REFERENCE_CATALOG_PATHS = [
   "/referencias/",
   "/referencias",
-  "/referencias_pacientes/",
-  "/referencias_pacientes",
-  "/pacientes/referencias/",
-  "/origenes/",
-  "/fuentes/",
-  "/canales/",
   "/campos_adicionales/",
 ];
+
+const PATIENT_REFERENCE_PATH_TEMPLATES = [
+  "/pacientes/{id}/campos_adicionales/",
+  "/pacientes/{id}/campos_adicionales",
+  "/pacientes/{id}/adicionales/",
+  "/pacientes/{id}/referencias/",
+];
+
+const MAX_PATIENT_REFERENCE_PROBES = 3;
 
 export default async function handler(
   request: VercelRequest,
@@ -74,7 +85,7 @@ export default async function handler(
 
     const [catalogProbes, patientProbes] = await Promise.all([
       probeReferenceCatalogs(config.baseUrl, config.apiAuthScheme, config.apiToken),
-      probeRecentPatientReferences(config),
+      probeRecentPatientReferences(config, request),
     ]);
 
     send(response, {
@@ -126,7 +137,10 @@ async function probeReferenceCatalogs(
   return probes;
 }
 
-async function probeRecentPatientReferences(config: ReturnType<typeof getDentalinkConfig>) {
+async function probeRecentPatientReferences(
+  config: ReturnType<typeof getDentalinkConfig>,
+  request: VercelRequest,
+) {
   const sinceIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const paymentsUrl = new URL(config.paymentsPath.replace(/^\/+/, ""), config.baseUrl);
   paymentsUrl.search = buildPaymentsQuery(config.paymentDateField, sinceIso);
@@ -140,12 +154,27 @@ async function probeRecentPatientReferences(config: ReturnType<typeof getDentali
     return [];
   }
 
+  const explicitPatientId = readQueryPatientId(request);
   const payments = readCollection(paymentsResult.body);
   const seenPatients = new Set<number>();
   const probes: PatientReferenceProbe[] = [];
 
+  if (explicitPatientId) {
+    const payment = payments.find(
+      (candidate) =>
+        readNumber(candidate, config.paymentPatientIdField) === explicitPatientId,
+    );
+    return [
+      await probePatientReference(
+        config,
+        explicitPatientId,
+        payment ? readString(payment, config.paymentPatientNameField) : null,
+      ),
+    ];
+  }
+
   for (const payment of payments) {
-    if (probes.length >= 10) {
+    if (probes.length >= MAX_PATIENT_REFERENCE_PROBES) {
       break;
     }
 
@@ -155,43 +184,97 @@ async function probeRecentPatientReferences(config: ReturnType<typeof getDentali
     }
 
     seenPatients.add(patientId);
-    const patientUrl = new URL(
-      config.patientsPathTemplate.replace("{id}", String(patientId)).replace(/^\/+/, ""),
-      config.baseUrl,
-    );
-    const patientResult = await requestDentalink(
-      patientUrl,
-      config.apiAuthScheme,
-      config.apiToken,
-    );
-
-    if (!patientResult.ok) {
-      probes.push({
+    probes.push(
+      await probePatientReference(
+        config,
         patientId,
-        patientName: readString(payment, config.paymentPatientNameField),
-        fields: [{ key: "request", value: `unavailable_${patientResult.status}` }],
-      });
-      continue;
-    }
-
-    const patient = unwrapRecord(patientResult.body);
-    const patientNameFromRecord = [
-      readString(patient, config.patientFirstNameField),
-      readString(patient, config.patientLastNameField),
-    ]
-      .filter(Boolean)
-      .join(" ");
-
-    probes.push({
-      patientId,
-      patientName:
-        readString(payment, config.paymentPatientNameField) ??
-        (patientNameFromRecord || null),
-      fields: describeReferenceFields(patient, config.patientReferenceField),
-    });
+        readString(payment, config.paymentPatientNameField),
+      ),
+    );
+    await wait(250);
   }
 
   return probes;
+}
+
+async function probePatientReference(
+  config: ReturnType<typeof getDentalinkConfig>,
+  patientId: number,
+  paymentPatientName: string | null,
+): Promise<PatientReferenceProbe> {
+  const patientUrl = new URL(
+    config.patientsPathTemplate.replace("{id}", String(patientId)).replace(/^\/+/, ""),
+    config.baseUrl,
+  );
+  const patientResult = await requestDentalink(
+    patientUrl,
+    config.apiAuthScheme,
+    config.apiToken,
+  );
+
+  if (!patientResult.ok) {
+    return {
+      patientId,
+      patientName: paymentPatientName,
+      fields: [{ key: "patient_detail", value: `unavailable_${patientResult.status}` }],
+      checkedPaths: [],
+    };
+  }
+
+  const patient = unwrapRecord(patientResult.body);
+  const patientNameFromRecord = [
+    readString(patient, config.patientFirstNameField),
+    readString(patient, config.patientLastNameField),
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const checkedPaths: PatientReferenceProbe["checkedPaths"] = [];
+  const fields = describeReferenceFields(patient, config.patientReferenceField);
+
+  if (hasUsefulReferenceFields(fields)) {
+    return {
+      patientId,
+      patientName: paymentPatientName ?? (patientNameFromRecord || null),
+      fields,
+      checkedPaths,
+    };
+  }
+
+  for (const pathTemplate of PATIENT_REFERENCE_PATH_TEMPLATES) {
+    const path = pathTemplate.replace("{id}", String(patientId));
+    const url = new URL(path.replace(/^\/+/, ""), config.baseUrl);
+    const result = await requestDentalink(url, config.apiAuthScheme, config.apiToken);
+    const candidateFields = result.ok
+      ? describeReferenceFieldsFromUnknown(result.body)
+      : [];
+
+    checkedPaths.push({
+      path,
+      status: result.status,
+      fields: candidateFields,
+    });
+
+    if (hasUsefulReferenceFields(candidateFields)) {
+      fields.push(...candidateFields.map((field) => ({
+        key: `${path}.${field.key}`,
+        value: field.value,
+      })));
+      break;
+    }
+
+    if (result.status === 429) {
+      break;
+    }
+
+    await wait(250);
+  }
+
+  return {
+    patientId,
+    patientName: paymentPatientName ?? (patientNameFromRecord || null),
+    fields,
+    checkedPaths,
+  };
 }
 
 async function requestDentalink(
@@ -275,6 +358,42 @@ function describeAdditionalReferenceFields(
   return fields;
 }
 
+function describeReferenceFieldsFromUnknown(
+  body: unknown,
+): Array<{ key: string; value: string }> {
+  if (Array.isArray(body)) {
+    return body
+      .filter(isRecord)
+      .flatMap((record, index) =>
+        describeReferenceFields(record, "referencia").map((field) => ({
+          key: `${index}.${field.key}`,
+          value: field.value,
+        })),
+      )
+      .filter((field) => field.key !== "reference_fields");
+  }
+
+  if (isRecord(body) && Array.isArray(body.data)) {
+    return describeReferenceFieldsFromUnknown(body.data);
+  }
+
+  if (isRecord(body)) {
+    return describeReferenceFields(unwrapRecord(body), "referencia");
+  }
+
+  return [];
+}
+
+function hasUsefulReferenceFields(fields: Array<{ key: string; value: string }>): boolean {
+  return fields.some(
+    (field) =>
+      field.key !== "reference_fields" &&
+      field.key !== "request" &&
+      !field.value.startsWith("unavailable_") &&
+      field.value !== "no candidates found",
+  );
+}
+
 function buildRecommendation(
   catalogProbes: ReferenceCatalogProbe[],
   patientProbes: PatientReferenceProbe[],
@@ -295,6 +414,23 @@ function buildRecommendation(
   }
 
   return "No se detecto campo de referencia en pacientes recientes. Revisar permisos de Pacientes/Campos adicionales en Dentalink.";
+}
+
+function readQueryPatientId(request: VercelRequest): number | null {
+  const value = request.query?.patientId;
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (typeof raw !== "string" || raw.trim() === "") {
+    return null;
+  }
+
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 }
 
 function readCollection(body: unknown): Record<string, unknown>[] {

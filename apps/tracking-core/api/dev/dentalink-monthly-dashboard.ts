@@ -72,6 +72,7 @@ interface MonthlyDashboardBody {
 const MAX_PAYMENT_PAGES = 20;
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const STALE_CACHE_TTL_MS = 60 * 60 * 1000;
+const REFERENCE_CATALOG_CACHE_TTL_MS = 60 * 60 * 1000;
 const REFERENCE_CATALOG_PATHS = [
   "/referencias/",
   "/referencias",
@@ -86,6 +87,11 @@ let monthlyDashboardCache: {
   key: string;
   cachedAtMs: number;
   body: MonthlyDashboardBody;
+} | null = null;
+
+let referenceCatalogCache: {
+  cachedAtMs: number;
+  catalog: ReferenceCatalog;
 } | null = null;
 
 export default async function handler(
@@ -476,6 +482,13 @@ async function fetchReferenceCatalog(
   apiAuthScheme: string,
   apiToken: string,
 ): Promise<ReferenceCatalog> {
+  if (
+    referenceCatalogCache &&
+    Date.now() - referenceCatalogCache.cachedAtMs < REFERENCE_CATALOG_CACHE_TTL_MS
+  ) {
+    return referenceCatalogCache.catalog;
+  }
+
   for (const path of REFERENCE_CATALOG_PATHS) {
     try {
       const url = new URL(path.replace(/^\/+/, ""), baseUrl);
@@ -491,14 +504,24 @@ async function fetchReferenceCatalog(
       }
 
       if (labelsById.size > 0) {
-        return { labelsById };
+        const catalog = { labelsById };
+        referenceCatalogCache = {
+          cachedAtMs: Date.now(),
+          catalog,
+        };
+        return catalog;
       }
     } catch {
       // Dentalink reference catalogs differ by account/permissions.
     }
   }
 
-  return { labelsById: new Map() };
+  const emptyCatalog = { labelsById: new Map<string, string>() };
+  referenceCatalogCache = {
+    cachedAtMs: Date.now(),
+    catalog: emptyCatalog,
+  };
+  return emptyCatalog;
 }
 
 async function getCachedTreatment(
