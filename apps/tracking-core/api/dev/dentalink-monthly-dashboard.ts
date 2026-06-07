@@ -64,6 +64,8 @@ const STALE_CACHE_TTL_MS = 60 * 60 * 1000;
 const REFERENCE_CATALOG_PATHS = [
   "/referencias/",
   "/referencias",
+  "/referencias_pacientes/",
+  "/referencias_pacientes",
   "/pacientes/referencias/",
   "/origenes/",
   "/fuentes/",
@@ -680,14 +682,22 @@ function readPatientReference(
 
   for (const key of [
     "referencia",
+    "nombre_referencia",
+    "referencia_nombre",
     "id_referencia",
+    "referido_por",
+    "referido",
     "fuente",
+    "nombre_fuente",
     "id_fuente",
     "origen",
+    "nombre_origen",
     "id_origen",
     "medio_referencia",
+    "nombre_medio_referencia",
     "id_medio_referencia",
     "canal",
+    "nombre_canal",
     "id_canal",
   ]) {
     const value = readReferenceValue(record[key], catalog);
@@ -794,7 +804,14 @@ function readReferenceValue(value: unknown, catalog: ReferenceCatalog): string |
 }
 
 function readReferenceId(record: Record<string, unknown>): string | null {
-  for (const key of ["id", "id_referencia", "id_fuente", "id_origen", "codigo"]) {
+  for (const key of [
+    "id",
+    "id_referencia",
+    "id_fuente",
+    "id_origen",
+    "id_canal",
+    "codigo",
+  ]) {
     const value = record[key];
     if (typeof value === "number" && Number.isFinite(value)) {
       return String(value);

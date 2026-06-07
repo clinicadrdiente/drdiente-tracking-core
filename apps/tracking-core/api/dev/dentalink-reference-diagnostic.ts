@@ -33,6 +33,8 @@ interface PatientReferenceProbe {
 const REFERENCE_CATALOG_PATHS = [
   "/referencias/",
   "/referencias",
+  "/referencias_pacientes/",
+  "/referencias_pacientes",
   "/pacientes/referencias/",
   "/origenes/",
   "/fuentes/",
@@ -316,7 +318,14 @@ function unwrapRecord(body: unknown): Record<string, unknown> {
 }
 
 function readReferenceId(record: Record<string, unknown>): string | null {
-  for (const key of ["id", "id_referencia", "id_fuente", "id_origen", "codigo"]) {
+  for (const key of [
+    "id",
+    "id_referencia",
+    "id_fuente",
+    "id_origen",
+    "id_canal",
+    "codigo",
+  ]) {
     const value = record[key];
     if (typeof value === "number" && Number.isFinite(value)) {
       return String(value);

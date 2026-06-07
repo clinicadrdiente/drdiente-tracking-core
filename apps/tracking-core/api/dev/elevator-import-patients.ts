@@ -153,6 +153,7 @@ function buildLeadInput(patient: PatientPaymentPayload): LeadInput | null {
   }
 
   const { firstName, lastName } = splitPatientName(patient.patientName);
+  const marketingSource = normalizeMarketingSource(patient.patientReference);
 
   return {
     firstName,
@@ -161,14 +162,59 @@ function buildLeadInput(patient: PatientPaymentPayload): LeadInput | null {
     email,
     branch: patient.branch ?? "Dentalink",
     attribution: {
-      utmSource: "dentalink",
+      utmSource: marketingSource.source,
       utmMedium: "dashboard_import",
-      utmCampaign:
-        patient.patientReference ??
-        patient.treatmentName ??
-        "dentalink_patient_import",
+      utmCampaign: marketingSource.campaign ?? patient.treatmentName ?? "dentalink_patient_import",
       landingUrl: null,
     },
+  };
+}
+
+function normalizeMarketingSource(reference?: string | null): {
+  source: string;
+  campaign: string | null;
+} {
+  const raw = reference?.trim();
+  if (!raw) {
+    return { source: "dentalink", campaign: null };
+  }
+
+  const normalized = raw
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+  if (normalized.includes("google maps")) {
+    return { source: "google_maps", campaign: raw };
+  }
+
+  if (normalized.includes("google instagram")) {
+    return { source: "google_instagram", campaign: raw };
+  }
+
+  if (normalized.includes("hubspot") && normalized.includes("google")) {
+    return { source: "hubspot_google", campaign: raw };
+  }
+
+  if (normalized.includes("google")) {
+    return { source: "google", campaign: raw };
+  }
+
+  if (normalized.includes("instagram")) {
+    return { source: "instagram", campaign: raw };
+  }
+
+  if (normalized.includes("facebook") || normalized.includes("meta")) {
+    return { source: "meta", campaign: raw };
+  }
+
+  if (normalized.includes("recomend")) {
+    return { source: "referido", campaign: raw };
+  }
+
+  return {
+    source: normalized.replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "dentalink",
+    campaign: raw,
   };
 }
 
