@@ -36,6 +36,7 @@ export function parseLeadInput(body: unknown): LeadInput | null {
     utmSource: asOptionalString(body.attribution.utmSource),
     utmMedium: asOptionalString(body.attribution.utmMedium),
     utmCampaign: asOptionalString(body.attribution.utmCampaign),
+    campaignId: asOptionalString(body.attribution.campaignId),
     landingUrl: asOptionalString(body.attribution.landingUrl),
   };
 

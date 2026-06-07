@@ -17,6 +17,10 @@ export interface AttributionData {
   utmSource?: string | null;
   utmMedium?: string | null;
   utmCampaign?: string | null;
+  // Stable platform campaign id (Windsor `campaign_id`). This is the JOIN key
+  // between Windsor spend and Dentalink revenue — preferred over campaign name,
+  // which is editable and breaks the match silently.
+  campaignId?: string | null;
   landingUrl?: string | null;
 }
 

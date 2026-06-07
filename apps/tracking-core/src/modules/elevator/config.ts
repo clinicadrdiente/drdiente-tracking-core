@@ -18,6 +18,10 @@ export interface ElevatorConfig {
   lastNameField: string;
   stageField: string;
   attributionFieldPrefix: string;
+  // Optional object key under which attribution fields are nested when writing
+  // to / reading from the contact (e.g. GoHighLevel's `customFields`). When
+  // empty, attribution fields are written/read flat at the contact root.
+  attributionContainer: string;
 }
 
 function getEnv(name: string, fallback = ""): string {
@@ -49,5 +53,6 @@ export function getElevatorConfig(): ElevatorConfig {
     lastNameField: getEnv("ELEVATOR_LAST_NAME_FIELD", "lastName"),
     stageField: getEnv("ELEVATOR_STAGE_FIELD", "stage"),
     attributionFieldPrefix: getEnv("ELEVATOR_ATTRIBUTION_FIELD_PREFIX", "attr_"),
+    attributionContainer: getEnv("ELEVATOR_ATTRIBUTION_CONTAINER", ""),
   };
 }
