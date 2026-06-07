@@ -202,6 +202,9 @@ export function Dashboard() {
   const [isTestingStape, setIsTestingStape] = useState(false);
   const [stapeTestResult, setStapeTestResult] = useState<StapeTestResult | null>(null);
   const [stapeTestError, setStapeTestError] = useState<string | null>(null);
+  const [isTestingRealFlow, setIsTestingRealFlow] = useState(false);
+  const [realFlowResult, setRealFlowResult] = useState<PaymentsSyncResult | null>(null);
+  const [realFlowError, setRealFlowError] = useState<string | null>(null);
 
   async function loadDashboard(
     nextSecret = secret,
@@ -372,6 +375,42 @@ export function Dashboard() {
     }
   }
 
+  async function testRealConversionFlow() {
+    if (!secret.trim()) {
+      setRealFlowError("Pega el TRACKING_API_SECRET antes de probar el flujo real.");
+      return;
+    }
+
+    setIsTestingRealFlow(true);
+    setRealFlowError(null);
+    setRealFlowResult(null);
+
+    try {
+      const response = await fetch("/api/dev/test-payment-sync", {
+        method: "POST",
+        headers: {
+          "x-tracking-secret": secret.trim(),
+        },
+      });
+      const body = (await response.json()) as
+        | PaymentsSyncResult
+        | { error?: string; details?: { message?: string } };
+
+      if (!response.ok || !("processed" in body)) {
+        throw new Error(readErrorMessage(body, "No se pudo probar el flujo real."));
+      }
+
+      setRealFlowResult(body);
+      window.localStorage.setItem("trackingSecret", secret.trim());
+    } catch (requestError) {
+      setRealFlowError(
+        requestError instanceof Error ? requestError.message : "Error desconocido.",
+      );
+    } finally {
+      setIsTestingRealFlow(false);
+    }
+  }
+
   useEffect(() => {
     if (secret) {
       void loadDashboard(secret);
@@ -460,13 +499,17 @@ export function Dashboard() {
         isLoading={isLoading}
         isDiagnosingReferences={isDiagnosingReferences}
         isSyncingToElevator={isSyncingToElevator}
+        isTestingRealFlow={isTestingRealFlow}
         isTestingStape={isTestingStape}
         onDiagnoseReferences={() => void diagnoseReferences()}
         onRefresh={() => void loadDashboard(secret, { skipBrowserCache: true })}
         onSendToElevator={() => void sendMonthToElevator()}
+        onTestRealFlow={() => void testRealConversionFlow()}
         onTestStape={() => void testStape()}
         referenceDiagnostic={referenceDiagnostic}
         referenceDiagnosticError={referenceDiagnosticError}
+        realFlowError={realFlowError}
+        realFlowResult={realFlowResult}
         route={route}
         stapeTestError={stapeTestError}
         stapeTestResult={stapeTestResult}
@@ -491,13 +534,17 @@ function DashboardRoute({
   isLoading,
   isDiagnosingReferences,
   isSyncingToElevator,
+  isTestingRealFlow,
   isTestingStape,
   onDiagnoseReferences,
   onRefresh,
   onSendToElevator,
+  onTestRealFlow,
   onTestStape,
   referenceDiagnostic,
   referenceDiagnosticError,
+  realFlowError,
+  realFlowResult,
   syncError,
   syncResult,
   stapeTestError,
@@ -510,13 +557,17 @@ function DashboardRoute({
   isLoading: boolean;
   isDiagnosingReferences: boolean;
   isSyncingToElevator: boolean;
+  isTestingRealFlow: boolean;
   isTestingStape: boolean;
   onDiagnoseReferences: () => void;
   onRefresh: () => void;
   onSendToElevator: () => void;
+  onTestRealFlow: () => void;
   onTestStape: () => void;
   referenceDiagnostic: ReferenceDiagnostic | null;
   referenceDiagnosticError: string | null;
+  realFlowError: string | null;
+  realFlowResult: PaymentsSyncResult | null;
   syncError: string | null;
   syncResult: PaymentsSyncResult | null;
   stapeTestError: string | null;
@@ -630,8 +681,12 @@ function DashboardRoute({
     return (
       <StapeTestCard
         error={stapeTestError}
+        isTestingRealFlow={isTestingRealFlow}
         isTesting={isTestingStape}
+        onTestRealFlow={onTestRealFlow}
         onTest={onTestStape}
+        realFlowError={realFlowError}
+        realFlowResult={realFlowResult}
         result={stapeTestResult}
       />
     );
@@ -1094,62 +1149,165 @@ function IntegrationPanel({
 function StapeTestCard({
   error,
   isTesting,
+  isTestingRealFlow,
   onTest,
+  onTestRealFlow,
+  realFlowError,
+  realFlowResult,
   result,
 }: {
   error: string | null;
   isTesting: boolean;
+  isTestingRealFlow: boolean;
   onTest: () => void;
+  onTestRealFlow: () => void;
+  realFlowError: string | null;
+  realFlowResult: PaymentsSyncResult | null;
   result: StapeTestResult | null;
 }) {
   return (
     <Card>
       <CardHeader className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
-          <CardTitle>Stape + Conversion API</CardTitle>
+          <CardTitle>Flujo de conversiones</CardTitle>
           <CardDescription className="mt-2 max-w-3xl">
-            Valida que Vercel tenga las variables de Stape y manda un evento demo
-            al server GTM. Si responde 202, el tracking core ya esta enviando.
+            Prueba primero que Stape recibe eventos demo. Despues prueba el flujo
+            real: Dentalink detecta pagos, Elevator identifica el contacto y Stape
+            recibe la conversion.
           </CardDescription>
         </div>
-        <Button disabled={isTesting} onClick={onTest}>
-          <RefreshCwIcon aria-hidden="true" data-icon="inline-start" />
-          {isTesting ? "Probando" : "Probar Stape"}
-        </Button>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button disabled={isTesting} onClick={onTest} variant="secondary">
+            <RefreshCwIcon aria-hidden="true" data-icon="inline-start" />
+            {isTesting ? "Probando demo" : "Probar Stape demo"}
+          </Button>
+          <Button disabled={isTestingRealFlow} onClick={onTestRealFlow}>
+            <RefreshCwIcon aria-hidden="true" data-icon="inline-start" />
+            {isTestingRealFlow ? "Probando flujo" : "Probar flujo real"}
+          </Button>
+        </div>
       </CardHeader>
-      {(error || result) && (
-        <CardContent className="space-y-4">
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <FlowStep
+            description="Lee pagos y pacientes recientes."
+            label="1"
+            title="Dentalink"
+          />
+          <FlowStep
+            description="Busca o crea el contacto."
+            label="2"
+            title="Elevator"
+          />
+          <FlowStep
+            description="Recibe la conversion server-side."
+            label="3"
+            title="Stape"
+          />
+        </div>
+
+        {error || result || realFlowError || realFlowResult ? (
+          <div className="space-y-4">
           {error ? (
             <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-destructive text-sm">
               {error}
             </div>
           ) : null}
 
-          {result ? (
-            <>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <div className="rounded-xl border bg-background/50 p-4">
-                  <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
-                    Configuracion
-                  </p>
-                  <pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap text-xs">
-                    {JSON.stringify(result.ping, null, 2)}
-                  </pre>
-                </div>
-                <div className="rounded-xl border bg-background/50 p-4">
-                  <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
-                    Evento demo
-                  </p>
-                  <pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap text-xs">
-                    {JSON.stringify(result.event, null, 2)}
-                  </pre>
-                </div>
-              </div>
-            </>
+          {realFlowError ? (
+            <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-destructive text-sm">
+              {realFlowError}
+            </div>
           ) : null}
-        </CardContent>
-      )}
+
+          {realFlowResult ? <RealFlowResult result={realFlowResult} /> : null}
+
+          {result ? (
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <div className="rounded-xl border bg-background/50 p-4">
+                <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
+                  Stape demo
+                </p>
+                <p className="mt-2 font-semibold text-emerald-400">
+                  Conexion activa
+                </p>
+                <pre className="mt-3 max-h-44 overflow-auto whitespace-pre-wrap text-xs">
+                  {JSON.stringify(result.event, null, 2)}
+                </pre>
+              </div>
+              <div className="rounded-xl border bg-background/50 p-4">
+                <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
+                  Configuracion
+                </p>
+                <pre className="mt-3 max-h-44 overflow-auto whitespace-pre-wrap text-xs">
+                  {JSON.stringify(result.ping, null, 2)}
+                </pre>
+              </div>
+            </div>
+          ) : null}
+          </div>
+        ) : (
+          <p className="text-muted-foreground text-sm">
+            Usa “Probar Stape demo” para validar conexion. Usa “Probar flujo real”
+            para saber si ya se mandaron compras reales a Stape.
+          </p>
+        )}
+      </CardContent>
     </Card>
+  );
+}
+
+function FlowStep({
+  description,
+  label,
+  title,
+}: {
+  description: string;
+  label: string;
+  title: string;
+}) {
+  return (
+    <div className="rounded-xl border bg-background/50 p-4">
+      <div className="flex items-center gap-3">
+        <span className="flex size-8 items-center justify-center rounded-full bg-emerald-300 font-semibold text-background">
+          {label}
+        </span>
+        <p className="font-semibold">{title}</p>
+      </div>
+      <p className="mt-3 text-muted-foreground text-sm">{description}</p>
+    </div>
+  );
+}
+
+function RealFlowResult({ result }: { result: PaymentsSyncResult }) {
+  const status =
+    result.dispatched > 0
+      ? "Stape recibio conversiones reales."
+      : result.matchedLeads > 0
+        ? "Hubo match en Elevator, pero no se envio a Stape."
+        : "No hubo pagos con match listo para Stape.";
+
+  return (
+    <div className="rounded-xl border border-emerald-300/30 bg-background/50 p-4">
+      <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+        <div>
+          <p className="font-semibold text-lg">Resultado del flujo real</p>
+          <p className="text-muted-foreground text-sm">{status}</p>
+        </div>
+        <Badge variant={result.dispatched > 0 ? "default" : "secondary"}>
+          {result.dispatched > 0 ? "Enviado a Stape" : "Sin envio real"}
+        </Badge>
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <SyncMetric label="Pagos revisados" value={result.paymentsFound} />
+        <SyncMetric label="Nuevos pagos" value={result.newPayments} />
+        <SyncMetric label="Match Elevator" value={result.matchedLeads} />
+        <SyncMetric label="Enviados Stape" value={result.dispatched} />
+      </div>
+      <pre className="mt-4 max-h-48 overflow-auto whitespace-pre-wrap rounded-xl border bg-background/70 p-3 text-xs">
+        {JSON.stringify(result, null, 2)}
+      </pre>
+    </div>
   );
 }
 
