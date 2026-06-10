@@ -45,7 +45,6 @@ export async function handlePaymentsSync(
       throw error;
     }
 
-    safeToMarkProcessed.push(payment);
     const leads = await elevatorClient.findLeadsByIdentity(
       patient.phone ?? "",
       patient.email,
@@ -56,6 +55,7 @@ export async function handlePaymentsSync(
       const leadInput = buildLeadInputFromDentalink(patient, payment);
       if (!leadInput) {
         unmatchedLeads += 1;
+        safeToMarkProcessed.push(payment);
         continue;
       }
 
@@ -83,6 +83,7 @@ export async function handlePaymentsSync(
 
     if (alreadyCounted) {
       skippedDuplicateBudget += 1;
+      safeToMarkProcessed.push(payment);
       continue;
     }
 
@@ -96,6 +97,7 @@ export async function handlePaymentsSync(
       await stateStore.markPaymentProcessed(purchaseDedupeKey);
     }
     dispatched += 1;
+    safeToMarkProcessed.push(payment);
   }
 
   await markPaymentsProcessed(stateStore, safeToMarkProcessed);
