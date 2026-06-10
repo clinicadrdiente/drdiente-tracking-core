@@ -92,7 +92,7 @@ export function Dashboard() {
 
     try {
       const url = activeRange
-        ? `/api/dev/dentalink-monthly-dashboard?rangeDays=${activeRange}`
+        ? `/api/dev/dentalink-monthly-dashboard?rangeDays=${activeRange}&compare=previous`
         : "/api/dev/dentalink-monthly-dashboard";
       const response = await fetch(url, {
         headers: {

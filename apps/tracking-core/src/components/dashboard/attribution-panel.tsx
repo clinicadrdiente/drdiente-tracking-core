@@ -1,3 +1,4 @@
+import React from "react";
 import { Area, AreaChart, CartesianGrid, XAxis } from "recharts";
 import {
   ActivityIcon,
@@ -34,6 +35,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Delta, DeltaIcon, DeltaValue } from "@/components/delta";
 import { ModuleFrame } from "./module-frame";
+import { percentDelta } from "@/lib/date-ranges";
 import type { MonthlyDashboard, PaymentBlock, DayBlock } from "@/types/dashboard";
 
 const chartConfig = {
@@ -94,7 +96,7 @@ export function StatCard({
   label: string;
   value: string;
   delta: number;
-  hint: string;
+  hint: string | React.ReactNode;
 }) {
   return (
     <Card>
@@ -117,30 +119,71 @@ export function StatCard({
   );
 }
 
-export function StatsGrid({ data }: { data: MonthlyDashboard | null }) {
+function KpiDelta({ current, previous }: { current: number; previous: number | undefined }) {
+  if (previous === undefined) return null;
+  const delta = percentDelta(current, previous);
+  if (delta === null) {
+    return <span className="ml-1.5 text-muted-foreground text-xs">nuevo</span>;
+  }
+  return (
+    <Delta className="ml-1.5 text-xs" value={delta} variant="default">
+      <DeltaIcon />
+      <DeltaValue suffix="%" />
+    </Delta>
+  );
+}
+
+export function StatsGrid({
+  data,
+  comparison,
+}: {
+  data: MonthlyDashboard | null;
+  comparison?: MonthlyDashboard["comparison"];
+}) {
+  const cmp = comparison;
   return (
     <section className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
       <StatCard
         delta={0}
-        hint={data?.month?.label ?? "Mes actual"}
+        hint={
+          <span className="flex items-center gap-1">
+            {data?.month?.label ?? "Mes actual"}
+            <KpiDelta current={data?.revenueTotal ?? 0} previous={cmp?.revenueTotal} />
+          </span>
+        }
         label="Revenue total"
         value={formatMoney(data?.revenueTotal ?? 0)}
       />
       <StatCard
         delta={0}
-        hint="Pagos Dentalink"
+        hint={
+          <span className="flex items-center gap-1">
+            Pagos Dentalink
+            <KpiDelta current={data?.paymentsTotal ?? 0} previous={cmp?.paymentsTotal} />
+          </span>
+        }
         label="Pagos"
         value={formatInteger(data?.paymentsTotal ?? 0)}
       />
       <StatCard
         delta={0}
-        hint="Pacientes unicos"
+        hint={
+          <span className="flex items-center gap-1">
+            Pacientes unicos
+            <KpiDelta current={data?.uniquePatientsTotal ?? 0} previous={cmp?.uniquePatientsTotal} />
+          </span>
+        }
         label="Pacientes"
         value={formatInteger(data?.uniquePatientsTotal ?? 0)}
       />
       <StatCard
         delta={0}
-        hint="Promedio por pago"
+        hint={
+          <span className="flex items-center gap-1">
+            Promedio por pago
+            <KpiDelta current={data?.averagePaymentValue ?? 0} previous={cmp?.averagePaymentValue} />
+          </span>
+        }
         label="Ticket promedio"
         value={formatMoney(data?.averagePaymentValue ?? 0)}
       />
@@ -307,8 +350,17 @@ export function TreatmentListCard({ data }: { data: MonthlyDashboard | null }) {
   );
 }
 
-export function BranchRevenueCard({ data }: { data: MonthlyDashboard | null }) {
+export function BranchRevenueCard({
+  data,
+  comparison,
+}: {
+  data: MonthlyDashboard | null;
+  comparison?: MonthlyDashboard["comparison"];
+}) {
   const branches = data?.branchShare ?? [];
+  const cmpBranchMap = new Map(
+    (comparison?.branchShare ?? []).map((b) => [b.branch, b])
+  );
 
   return (
     <Card>
@@ -338,6 +390,29 @@ export function BranchRevenueCard({ data }: { data: MonthlyDashboard | null }) {
                     </p>
                   </div>
                 </div>
+                {cmpBranchMap.size > 0 && (() => {
+                  const cmpBranch = cmpBranchMap.get(branch.branch);
+                  const delta = cmpBranch ? percentDelta(branch.revenue, cmpBranch.revenue) : null;
+                  return (
+                    <div className="mt-2 flex items-center gap-2 text-muted-foreground text-xs">
+                      {cmpBranch !== undefined ? (
+                        <>
+                          <span>Anterior: {formatMoney(cmpBranch.revenue)}</span>
+                          {delta !== null ? (
+                            <Delta value={delta} variant="default">
+                              <DeltaIcon />
+                              <DeltaValue suffix="%" />
+                            </Delta>
+                          ) : (
+                            <span>nuevo</span>
+                          )}
+                        </>
+                      ) : (
+                        <span>Sin datos periodo anterior</span>
+                      )}
+                    </div>
+                  );
+                })()}
                 <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
                   <div
                     className="h-full rounded-full bg-brand"
@@ -522,16 +597,18 @@ export function EmptyState({
 export function AttributionPanel({
   chartRows,
   data,
+  comparison,
 }: {
   chartRows: ChartRow[];
   data: MonthlyDashboard | null;
+  comparison?: MonthlyDashboard["comparison"];
 }) {
   return (
     <ModuleFrame accent="attribution" title="Revenue y pacientes">
-      <StatsGrid data={data} />
+      <StatsGrid comparison={comparison} data={data} />
       <RevenueChart chartRows={chartRows} data={data} />
       <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <BranchRevenueCard data={data} />
+        <BranchRevenueCard comparison={comparison} data={data} />
         <TreatmentListCard data={data} />
       </section>
       <DayBlocksCard data={data} />

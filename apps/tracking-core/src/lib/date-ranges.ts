@@ -1,6 +1,31 @@
 export type RangeDays = 7 | 30 | 180;
 
 /**
+ * The equal-length window immediately before {fromIso,toIso} (no overlap, no gap).
+ * The returned window ends 1 ms before the given window starts and spans the same duration.
+ */
+export function previousRange(range: { fromIso: string; toIso: string }): { fromIso: string; toIso: string } {
+  const from = new Date(range.fromIso).getTime();
+  const to = new Date(range.toIso).getTime();
+  const durationMs = to - from;
+  const prevTo = from - 1; // 1 ms before the current window starts — no gap, no overlap
+  const prevFrom = prevTo - durationMs;
+  return {
+    fromIso: new Date(prevFrom).toISOString(),
+    toIso: new Date(prevTo).toISOString(),
+  };
+}
+
+/**
+ * Returns the percent change from previous to current as a number (e.g. 12.4 for +12.4%).
+ * Returns null when previous is 0 (division by zero — caller should show "nuevo" in UI).
+ */
+export function percentDelta(current: number, previous: number): number | null {
+  if (previous === 0) return null;
+  return ((current - previous) / previous) * 100;
+}
+
+/**
  * Returns {fromIso, toIso} for the trailing N days ending now (UTC, inclusive of today).
  * "Today" means the end of today UTC (23:59:59.999).
  */

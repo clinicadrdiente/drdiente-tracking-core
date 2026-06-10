@@ -1,3 +1,4 @@
+import React, { useState } from "react";
 import {
   RefreshCwIcon,
   UserRoundIcon,
@@ -282,31 +283,45 @@ export function DashboardRoute({
 
   if (route === "revenue") {
     const monthBuckets: MonthBucket[] = data?.months ?? [];
+    const [compareEnabled, setCompareEnabled] = useState(false);
+    const comparison = compareEnabled ? data?.comparison : undefined;
     return (
       <>
         <div className="flex items-center justify-between gap-4">
           <p className="text-muted-foreground text-sm">
             {rangeDays ? `Últimos ${rangeDays} días` : (data?.month?.label ?? "Mes actual")}
           </p>
-          <Select
-            value={rangeDays !== null ? String(rangeDays) : "month"}
-            onValueChange={(val) => {
-              const next = val === "month" ? null : (Number(val) as 7 | 30 | 180);
-              onRangeChange(next);
-            }}
-          >
-            <SelectTrigger className="w-44">
-              <SelectValue placeholder="Rango" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="month">Mes actual</SelectItem>
-              <SelectItem value="7">Últimos 7 días</SelectItem>
-              <SelectItem value="30">Últimos 30 días</SelectItem>
-              <SelectItem value="180">Últimos 180 días</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            {rangeDays !== null && (
+              <Button
+                onClick={() => setCompareEnabled((v) => !v)}
+                size="sm"
+                variant={compareEnabled ? "default" : "outline"}
+              >
+                {compareEnabled ? "Comparando" : "Comparar con periodo anterior"}
+              </Button>
+            )}
+            <Select
+              value={rangeDays !== null ? String(rangeDays) : "month"}
+              onValueChange={(val) => {
+                const next = val === "month" ? null : (Number(val) as 7 | 30 | 180);
+                setCompareEnabled(false);
+                onRangeChange(next);
+              }}
+            >
+              <SelectTrigger className="w-44">
+                <SelectValue placeholder="Rango" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="month">Mes actual</SelectItem>
+                <SelectItem value="7">Últimos 7 días</SelectItem>
+                <SelectItem value="30">Últimos 30 días</SelectItem>
+                <SelectItem value="180">Últimos 180 días</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-        <StatsGrid data={data} />
+        <StatsGrid comparison={comparison} data={data} />
         <RevenueChart chartRows={chartRows} data={data} />
         {monthBuckets.length > 1 ? (
           <Card>
@@ -338,7 +353,7 @@ export function DashboardRoute({
           </Card>
         ) : null}
         <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <BranchRevenueCard data={data} />
+          <BranchRevenueCard comparison={comparison} data={data} />
           <TreatmentListCard data={data} />
         </section>
         <section className="grid grid-cols-1 gap-4">

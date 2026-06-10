@@ -30,6 +30,15 @@ export interface MonthlyDashboard {
     share: number;
   }>;
   branchShare: BranchSummary[];
+  comparison?: {
+    fromIso: string;
+    toIso: string;
+    revenueTotal: number;
+    paymentsTotal: number;
+    uniquePatientsTotal: number;
+    averagePaymentValue: number;
+    branchShare: Array<{ branch: string; revenue: number; payments: number }>;
+  };
   cache?: {
     hit: boolean;
     stale: boolean;
