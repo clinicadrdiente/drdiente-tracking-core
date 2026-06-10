@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, resolve } from "node:path";
+import type { DailyBranchReport } from "../../types/domain.js";
 
 export interface PaymentSyncState {
   lastCheckIso?: string;
@@ -16,6 +17,10 @@ export interface StateStore {
   claimPaymentProcessed(paymentId: string): Promise<boolean>;
   writeHeartbeat(key: string, isoTimestamp: string): Promise<void>;
   readHeartbeat(key: string): Promise<string | null>;
+  /** Upsert by reportId (same branch+date overwrites). */
+  saveDailyReport(report: DailyBranchReport): Promise<void>;
+  /** Reports with date in [fromDate, toDate] (inclusive, "YYYY-MM-DD"), newest first. */
+  listDailyReports(fromDate: string, toDate: string): Promise<DailyBranchReport[]>;
 }
 
 export class InMemoryStateStore implements StateStore {
@@ -23,6 +28,7 @@ export class InMemoryStateStore implements StateStore {
     processedPaymentIds: [],
   };
   private heartbeats: Map<string, string> = new Map();
+  private dailyReports: Map<string, DailyBranchReport> = new Map();
 
   async getPaymentSyncState(): Promise<PaymentSyncState> {
     return {
@@ -62,6 +68,16 @@ export class InMemoryStateStore implements StateStore {
 
   async readHeartbeat(key: string): Promise<string | null> {
     return this.heartbeats.get(key) ?? null;
+  }
+
+  async saveDailyReport(report: DailyBranchReport): Promise<void> {
+    this.dailyReports.set(report.reportId, { ...report });
+  }
+
+  async listDailyReports(fromDate: string, toDate: string): Promise<DailyBranchReport[]> {
+    return Array.from(this.dailyReports.values())
+      .filter((r) => r.date >= fromDate && r.date <= toDate)
+      .sort((a, b) => b.date.localeCompare(a.date));
   }
 }
 
@@ -114,6 +130,24 @@ export class FileStateStore implements StateStore {
     return heartbeats?.[key] ?? null;
   }
 
+  async saveDailyReport(report: DailyBranchReport): Promise<void> {
+    const state = await this.readRawState();
+    const existing = (state.dailyReports as Record<string, DailyBranchReport> | undefined) ?? {};
+    existing[report.reportId] = report;
+    state.dailyReports = existing;
+    await this.writeRawState(state);
+  }
+
+  async listDailyReports(fromDate: string, toDate: string): Promise<DailyBranchReport[]> {
+    const state = await this.readRawState();
+    const reports = Object.values(
+      (state.dailyReports as Record<string, DailyBranchReport> | undefined) ?? {},
+    ) as DailyBranchReport[];
+    return reports
+      .filter((r) => r.date >= fromDate && r.date <= toDate)
+      .sort((a, b) => b.date.localeCompare(a.date));
+  }
+
   private async readState(): Promise<PaymentSyncState> {
     const raw = await this.readRawState();
     const parsed = raw as unknown as PaymentSyncState;
@@ -157,6 +191,7 @@ export class FileStateStore implements StateStore {
 export class RedisStateStore implements StateStore {
   private readonly stateKey: string;
   private readonly processedSetKey: string;
+  private readonly dailyReportsKey: string;
 
   constructor(
     private readonly restUrl: string,
@@ -166,6 +201,7 @@ export class RedisStateStore implements StateStore {
   ) {
     this.stateKey = `${keyPrefix}:payment-sync:state`;
     this.processedSetKey = `${keyPrefix}:payment-sync:processed`;
+    this.dailyReportsKey = `${keyPrefix}:daily-reports`;
   }
 
   async getPaymentSyncState(): Promise<PaymentSyncState> {
@@ -222,6 +258,21 @@ export class RedisStateStore implements StateStore {
   async readHeartbeat(key: string): Promise<string | null> {
     const fullKey = `${this.stateKey}:heartbeat:${key}`;
     return await this.command<string | null>(["GET", fullKey]);
+  }
+
+  async saveDailyReport(report: DailyBranchReport): Promise<void> {
+    await this.command(["HSET", this.dailyReportsKey, report.reportId, JSON.stringify(report)]);
+  }
+
+  async listDailyReports(fromDate: string, toDate: string): Promise<DailyBranchReport[]> {
+    const raw = await this.command<Record<string, string> | null>(["HGETALL", this.dailyReportsKey]);
+    if (!raw || typeof raw !== "object") {
+      return [];
+    }
+    const reports = Object.values(raw).map((v) => JSON.parse(v) as DailyBranchReport);
+    return reports
+      .filter((r) => r.date >= fromDate && r.date <= toDate)
+      .sort((a, b) => b.date.localeCompare(a.date));
   }
 
   private async command<T = unknown>(

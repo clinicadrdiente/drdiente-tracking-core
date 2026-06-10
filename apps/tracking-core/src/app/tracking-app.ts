@@ -7,7 +7,7 @@ import type { StateStore } from "../modules/state/state-store.js";
 import type { AppointmentEvent, LeadInput } from "../types/domain.js";
 
 export class TrackingApp {
-  constructor(private readonly services: AppServices) {}
+  constructor(readonly services: AppServices) {}
 
   get stateStore(): StateStore {
     return this.services.stateStore;

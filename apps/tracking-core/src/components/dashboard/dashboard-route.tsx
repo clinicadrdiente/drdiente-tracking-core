@@ -35,6 +35,7 @@ import type {
   WindsorAccountsResult,
   WindsorTestResult,
 } from "@/types/dashboard";
+import { DailyReport } from "@/components/dashboard/daily-report";
 import { SystemHealthPanel, SystemHealthCard } from "@/components/dashboard/system-health";
 import { GuidedActionsCard, OperationsResultCard, SyncMetric } from "@/components/dashboard/actions";
 import { WindsorMarketingCard } from "@/components/dashboard/windsor-panel";
@@ -221,6 +222,7 @@ export function DashboardRoute({
   onTestWindsor,
   rangeDays,
   onRangeChange,
+  secret,
   referenceDiagnostic,
   referenceDiagnosticError,
   realFlowError,
@@ -256,6 +258,7 @@ export function DashboardRoute({
   onTestWindsor: () => void;
   rangeDays: 7 | 30 | 180 | null;
   onRangeChange: (days: 7 | 30 | 180 | null) => void;
+  secret: string;
   referenceDiagnostic: ReferenceDiagnostic | null;
   referenceDiagnosticError: string | null;
   realFlowError: string | null;
@@ -473,6 +476,10 @@ export function DashboardRoute({
 
   if (route === "help" || route === "status") {
     return <SystemHealthPanel route={route} data={data} systemStatus={systemStatus} cronHeartbeatStatus={cronHeartbeatStatus} />;
+  }
+
+  if (route === "reporte-diario") {
+    return <DailyReport secret={secret} />;
   }
 
   return (

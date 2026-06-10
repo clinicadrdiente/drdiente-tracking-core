@@ -516,6 +516,7 @@ export function Dashboard() {
         realFlowError={realFlowError}
         realFlowResult={realFlowResult}
         route={route}
+        secret={secret}
         stapeTestError={stapeTestError}
         stapeTestResult={stapeTestResult}
         syncError={syncError}
