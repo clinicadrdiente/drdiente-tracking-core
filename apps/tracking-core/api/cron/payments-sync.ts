@@ -40,6 +40,19 @@ export default async function handler(
   const result = await trackingHttpHandlers.postPaymentsSync(
     toHttpRequest(request),
   );
+
+  // Write heartbeat so /api/health/cron-heartbeat can report freshness
+  if (result.status >= 200 && result.status < 300) {
+    try {
+      await trackingHttpHandlers.stateStore.writeHeartbeat(
+        "payments-sync-cron",
+        new Date().toISOString(),
+      );
+    } catch {
+      // Heartbeat failure must not fail the cron response
+    }
+  }
+
   send(response, result);
 }
 
