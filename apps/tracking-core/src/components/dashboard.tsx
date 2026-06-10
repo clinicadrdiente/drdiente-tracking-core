@@ -24,6 +24,7 @@ import type {
 import { DashboardRoute } from "@/components/dashboard/dashboard-route";
 import { type ChartRow } from "@/components/dashboard/attribution-panel";
 
+
 const DASHBOARD_BROWSER_CACHE_KEY = "drdienteMonthlyDashboardCache";
 const DASHBOARD_BROWSER_CACHE_TTL_MS = 5 * 60 * 1000;
 
@@ -62,19 +63,23 @@ export function Dashboard() {
     null,
   );
   const [cronHeartbeatStatus, setCronHeartbeatStatus] = useState<"ok" | "stale" | "unknown" | null>(null);
+  const [rangeDays, setRangeDays] = useState<7 | 30 | 180 | null>(null);
 
   async function loadDashboard(
     nextSecret = secret,
-    options: { skipBrowserCache?: boolean } = {},
+    options: { skipBrowserCache?: boolean; rangeDaysOverride?: 7 | 30 | 180 | null } = {},
   ) {
     if (!nextSecret.trim()) {
       setError("Pega el TRACKING_API_SECRET para cargar datos reales.");
       return;
     }
 
+    const activeRange: 7 | 30 | 180 | null =
+      "rangeDaysOverride" in options ? (options.rangeDaysOverride ?? null) : rangeDays;
+
     const cachedDashboard = options.skipBrowserCache
       ? null
-      : readBrowserDashboardCache();
+      : readBrowserDashboardCache(activeRange);
     if (cachedDashboard) {
       setData(cachedDashboard);
       setError(null);
@@ -86,7 +91,10 @@ export function Dashboard() {
     setError(null);
 
     try {
-      const response = await fetch("/api/dev/dentalink-monthly-dashboard", {
+      const url = activeRange
+        ? `/api/dev/dentalink-monthly-dashboard?rangeDays=${activeRange}`
+        : "/api/dev/dentalink-monthly-dashboard";
+      const response = await fetch(url, {
         headers: {
           "x-tracking-secret": nextSecret.trim(),
         },
@@ -98,7 +106,7 @@ export function Dashboard() {
       }
 
       window.localStorage.setItem("trackingSecret", nextSecret.trim());
-      writeBrowserDashboardCache(body);
+      writeBrowserDashboardCache(body, activeRange);
       setData(body);
       void loadSystemStatus(nextSecret);
     } catch (requestError) {
@@ -494,10 +502,15 @@ export function Dashboard() {
         onDetectWindsorAccounts={() => void detectWindsorAccounts()}
         onDiagnoseReferences={() => void diagnoseReferences()}
         onRefresh={() => void loadDashboard(secret, { skipBrowserCache: true })}
+        onRangeChange={(days) => {
+          setRangeDays(days);
+          void loadDashboard(secret, { skipBrowserCache: true, rangeDaysOverride: days });
+        }}
         onSendToElevator={() => void sendMonthToElevator()}
         onTestRealFlow={() => void testRealConversionFlow()}
         onTestStape={() => void testStape()}
         onTestWindsor={() => void testWindsor()}
+        rangeDays={rangeDays}
         referenceDiagnostic={referenceDiagnostic}
         referenceDiagnosticError={referenceDiagnosticError}
         realFlowError={realFlowError}
@@ -516,7 +529,6 @@ export function Dashboard() {
     </div>
   );
 }
-
 
 
 
@@ -547,9 +559,14 @@ function normalizeRoute(path = "") {
   return path.replace(/^#\/?/, "").split("?")[0] || "dashboard";
 }
 
-function readBrowserDashboardCache(): MonthlyDashboard | null {
+function rangeCacheKey(range: 7 | 30 | 180 | null): string {
+  return range !== null ? `${DASHBOARD_BROWSER_CACHE_KEY}:range${range}` : DASHBOARD_BROWSER_CACHE_KEY;
+}
+
+function readBrowserDashboardCache(range: 7 | 30 | 180 | null = null): MonthlyDashboard | null {
+  const key = rangeCacheKey(range);
   try {
-    const rawCache = window.localStorage.getItem(DASHBOARD_BROWSER_CACHE_KEY);
+    const rawCache = window.localStorage.getItem(key);
     if (!rawCache) {
       return null;
     }
@@ -560,20 +577,20 @@ function readBrowserDashboardCache(): MonthlyDashboard | null {
     };
 
     if (Date.now() - parsed.cachedAt > DASHBOARD_BROWSER_CACHE_TTL_MS) {
-      window.localStorage.removeItem(DASHBOARD_BROWSER_CACHE_KEY);
+      window.localStorage.removeItem(key);
       return null;
     }
 
     return parsed.data;
   } catch {
-    window.localStorage.removeItem(DASHBOARD_BROWSER_CACHE_KEY);
+    window.localStorage.removeItem(key);
     return null;
   }
 }
 
-function writeBrowserDashboardCache(data: MonthlyDashboard) {
+function writeBrowserDashboardCache(data: MonthlyDashboard, range: 7 | 30 | 180 | null = null) {
   window.localStorage.setItem(
-    DASHBOARD_BROWSER_CACHE_KEY,
+    rangeCacheKey(range),
     JSON.stringify({
       cachedAt: Date.now(),
       data,

@@ -15,9 +15,17 @@ import {
   ItemGroup,
 } from "@/components/ui/item";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Projection } from "@/components/projection";
 import { Executive } from "@/components/executive";
 import type {
+  MonthBucket,
   MonthlyDashboard,
   SystemStatus,
   PaymentBlock,
@@ -61,6 +69,7 @@ function formatInteger(value: number) {
 
 export function ControlRoom({
   chartRows,
+  cronHeartbeatStatus,
   data,
   isDetectingWindsorAccounts,
   isLoading,
@@ -79,6 +88,7 @@ export function ControlRoom({
   windsorAccounts,
 }: {
   chartRows: ChartRow[];
+  cronHeartbeatStatus: "ok" | "stale" | "unknown" | null;
   data: MonthlyDashboard | null;
   isDetectingWindsorAccounts: boolean;
   isLoading: boolean;
@@ -150,7 +160,7 @@ export function ControlRoom({
           </CardFooter>
         </Card>
 
-        <SystemHealthCard systemStatus={systemStatus} />
+        <SystemHealthCard systemStatus={systemStatus} cronHeartbeatStatus={cronHeartbeatStatus} />
       </section>
 
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-[0.95fr_1.05fr]">
@@ -192,6 +202,7 @@ export function DashboardRoute({
   route,
   data,
   systemStatus,
+  cronHeartbeatStatus,
   chartRows,
   topPayments,
   isLoading,
@@ -208,6 +219,8 @@ export function DashboardRoute({
   onTestRealFlow,
   onTestStape,
   onTestWindsor,
+  rangeDays,
+  onRangeChange,
   referenceDiagnostic,
   referenceDiagnosticError,
   realFlowError,
@@ -224,6 +237,7 @@ export function DashboardRoute({
   route: string;
   data: MonthlyDashboard | null;
   systemStatus: SystemStatus | null;
+  cronHeartbeatStatus: "ok" | "stale" | "unknown" | null;
   chartRows: ChartRow[];
   topPayments: PaymentBlock[];
   isLoading: boolean;
@@ -240,6 +254,8 @@ export function DashboardRoute({
   onTestRealFlow: () => void;
   onTestStape: () => void;
   onTestWindsor: () => void;
+  rangeDays: 7 | 30 | 180 | null;
+  onRangeChange: (days: 7 | 30 | 180 | null) => void;
   referenceDiagnostic: ReferenceDiagnostic | null;
   referenceDiagnosticError: string | null;
   realFlowError: string | null;
@@ -262,10 +278,62 @@ export function DashboardRoute({
   }
 
   if (route === "revenue") {
+    const monthBuckets: MonthBucket[] = data?.months ?? [];
     return (
       <>
+        <div className="flex items-center justify-between gap-4">
+          <p className="text-muted-foreground text-sm">
+            {rangeDays ? `Últimos ${rangeDays} días` : (data?.month?.label ?? "Mes actual")}
+          </p>
+          <Select
+            value={rangeDays !== null ? String(rangeDays) : "month"}
+            onValueChange={(val) => {
+              const next = val === "month" ? null : (Number(val) as 7 | 30 | 180);
+              onRangeChange(next);
+            }}
+          >
+            <SelectTrigger className="w-44">
+              <SelectValue placeholder="Rango" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="month">Mes actual</SelectItem>
+              <SelectItem value="7">Últimos 7 días</SelectItem>
+              <SelectItem value="30">Últimos 30 días</SelectItem>
+              <SelectItem value="180">Últimos 180 días</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         <StatsGrid data={data} />
         <RevenueChart chartRows={chartRows} data={data} />
+        {monthBuckets.length > 1 ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Por mes</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col gap-3">
+                {monthBuckets.map((bucket) => (
+                  <div
+                    className="flex items-center justify-between gap-3 rounded-xl border bg-background/50 p-4"
+                    key={bucket.monthKey}
+                  >
+                    <div>
+                      <p className="font-medium capitalize">{bucket.label}</p>
+                      <p className="text-muted-foreground text-sm">{bucket.payments} pagos</p>
+                    </div>
+                    <p className="font-semibold text-brand">
+                      {new Intl.NumberFormat("es-MX", {
+                        style: "currency",
+                        currency: "MXN",
+                        maximumFractionDigits: 0,
+                      }).format(bucket.revenue)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
         <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <BranchRevenueCard data={data} />
           <TreatmentListCard data={data} />
@@ -404,12 +472,13 @@ export function DashboardRoute({
   }
 
   if (route === "help" || route === "status") {
-    return <SystemHealthPanel route={route} data={data} systemStatus={systemStatus} />;
+    return <SystemHealthPanel route={route} data={data} systemStatus={systemStatus} cronHeartbeatStatus={cronHeartbeatStatus} />;
   }
 
   return (
     <ControlRoom
       chartRows={chartRows}
+      cronHeartbeatStatus={cronHeartbeatStatus}
       data={data}
       isDetectingWindsorAccounts={isDetectingWindsorAccounts}
       isLoading={isLoading}

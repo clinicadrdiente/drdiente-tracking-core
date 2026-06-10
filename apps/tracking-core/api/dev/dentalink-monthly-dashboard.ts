@@ -7,6 +7,7 @@ import {
 } from "../_lib/http.js";
 import { requireTrackingSecret, serverError } from "../../src/index.js";
 import { getDentalinkConfig } from "../../src/modules/dentalink/config.js";
+import { trailingRange, groupByMonth, type RangeDays, type MonthBucket } from "../../src/lib/date-ranges.js";
 
 interface MonthlyPaymentBlock {
   paymentId: number;
@@ -53,6 +54,12 @@ interface MonthlyDashboardBody {
     fromIso: string;
     toIso: string;
   };
+  range: {
+    days: number | null;
+    fromIso: string;
+    toIso: string;
+  };
+  months: MonthBucket[];
   revenueTotal: number;
   paymentsTotal: number;
   uniquePatientsTotal: number;
@@ -115,10 +122,30 @@ export default async function handler(
   try {
     const config = getDentalinkConfig();
     const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-    const monthEnd = new Date(nextMonthStart.getTime() - 1000);
-    const cacheKey = `${config.mode}:${monthStart.toISOString()}:${monthEnd.toISOString()}`;
+    const rangeDaysParam = parseRangeDays(request.query?.rangeDays);
+
+    let fromDate: Date;
+    let toDate: Date;
+    let rangeField: { days: number | null; fromIso: string; toIso: string };
+
+    if (rangeDaysParam !== null) {
+      const { fromIso, toIso } = trailingRange(rangeDaysParam, now);
+      fromDate = new Date(fromIso);
+      toDate = new Date(toIso);
+      rangeField = { days: rangeDaysParam, fromIso, toIso };
+    } else {
+      // Default: current-month behavior (byte-identical to before)
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      fromDate = monthStart;
+      toDate = new Date(nextMonthStart.getTime() - 1000);
+      rangeField = { days: null, fromIso: fromDate.toISOString(), toIso: toDate.toISOString() };
+    }
+
+    const monthStart = fromDate;
+    const monthEnd = toDate;
+    const rangeSuffix = rangeDaysParam !== null ? `:range${rangeDaysParam}` : "";
+    const cacheKey = `${config.mode}:${monthStart.toISOString()}:${monthEnd.toISOString()}${rangeSuffix}`;
     const cached = readMonthlyDashboardCache(cacheKey);
 
     if (cached && !isForceRefresh(request)) {
@@ -136,6 +163,8 @@ export default async function handler(
       const body: MonthlyDashboardBody = {
         ok: true,
         mode: config.mode,
+        range: rangeField,
+        months: [],
         revenueTotal: 0,
         paymentsTotal: 0,
         uniquePatientsTotal: 0,
@@ -232,17 +261,20 @@ export default async function handler(
     const uniquePatientsTotal = new Set(
       payments.map((payment) => payment.patientId).filter((id) => id > 0),
     ).size;
+    const months = groupByMonth(days);
     const body: MonthlyDashboardBody = {
       ok: true,
       mode: config.mode,
-      month: {
+      month: rangeDaysParam === null ? {
         label: monthStart.toLocaleDateString("es-MX", {
           month: "long",
           year: "numeric",
         }),
         fromIso: monthStart.toISOString(),
         toIso: monthEnd.toISOString(),
-      },
+      } : undefined,
+      range: rangeField,
+      months,
       revenueTotal,
       paymentsTotal: payments.length,
       uniquePatientsTotal,
@@ -1030,6 +1062,13 @@ function isReferenceKey(value: string): boolean {
     normalized.includes("origen") ||
     normalized.includes("canal")
   );
+}
+
+function parseRangeDays(value: unknown): RangeDays | null {
+  if (value === "7") return 7;
+  if (value === "30") return 30;
+  if (value === "180") return 180;
+  return null;
 }
 
 function readNumber(record: Record<string, unknown>, key: string): number {

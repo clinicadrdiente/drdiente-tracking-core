@@ -1,3 +1,10 @@
+export interface MonthBucket {
+  monthKey: string;
+  label: string;
+  revenue: number;
+  payments: number;
+}
+
 export interface MonthlyDashboard {
   ok: boolean;
   month: {
@@ -5,6 +12,12 @@ export interface MonthlyDashboard {
     fromIso: string;
     toIso: string;
   };
+  range?: {
+    days: number | null;
+    fromIso: string;
+    toIso: string;
+  };
+  months?: MonthBucket[];
   revenueTotal: number;
   paymentsTotal: number;
   uniquePatientsTotal: number;
