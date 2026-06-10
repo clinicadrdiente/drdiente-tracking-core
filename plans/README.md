@@ -8,12 +8,12 @@ Each executor: read the plan fully before starting, honor its STOP conditions, a
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
-| [001](001-tests-ci.md) | Test runner and CI pipeline exist for critical payment logic | P1 | M | — | TODO |
-| [002](002-payment-window-recovery.md) | Rate-limited payments are never permanently lost | P1 | S | — | TODO |
-| [003](003-batch-abort-isolation.md) | A Stape or Elevator failure only skips that payment, not the whole batch | P1 | S | — | TODO |
-| [004](004-state-store-hardening.md) | State store is safe against races and misconfiguration in Vercel | P1 | M | 001 | TODO |
-| [005](005-auth-hardening.md) | Cron endpoint requires CRON_SECRET and secrets use timing-safe comparison | P2 | S | — | TODO |
-| [006](006-cron-heartbeat.md) | Cron failures are visible — heartbeat endpoint and dashboard warning | P2 | M | 004 | TODO |
+| [001](001-tests-ci.md) | Test runner and CI pipeline exist for critical payment logic | P1 | M | — | DONE |
+| [002](002-payment-window-recovery.md) | Rate-limited payments are never permanently lost | P1 | S | — | DONE |
+| [003](003-batch-abort-isolation.md) | A Stape or Elevator failure only skips that payment, not the whole batch | P1 | S | — | DONE |
+| [004](004-state-store-hardening.md) | State store is safe against races and misconfiguration in Vercel | P1 | M | 001 | DONE |
+| [005](005-auth-hardening.md) | Cron endpoint requires CRON_SECRET and secrets use timing-safe comparison | P2 | S | — | DONE |
+| [006](006-cron-heartbeat.md) | Cron failures are visible — heartbeat endpoint and dashboard warning | P2 | M | 004 | DONE |
 
 Status values: `TODO` | `IN PROGRESS` | `DONE` | `BLOCKED (reason)` | `REJECTED (reason)`
 
