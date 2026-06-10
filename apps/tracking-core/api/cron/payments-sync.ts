@@ -1,4 +1,4 @@
-import { trackingHttpHandlers } from "../../src/index.js";
+import { getAppConfig, trackingHttpHandlers } from "../../src/index.js";
 import {
   methodNotAllowed,
   send,
@@ -28,7 +28,10 @@ export default async function handler(
     };
     request.query = {
       ...request.query,
-      since: new Date(Date.now() - 30 * 60 * 60 * 1000).toISOString(),
+      since: new Date(
+        Date.now() -
+          getAppConfig().paymentsSyncLookbackMinutes * 60 * 1000,
+      ).toISOString(),
       maxPayments: "50",
     };
   }
