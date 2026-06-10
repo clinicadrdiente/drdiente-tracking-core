@@ -12,6 +12,10 @@ export interface PaymentsSyncQuery {
 export class TrackingHttpHandlers {
   constructor(private readonly app: TrackingApp) {}
 
+  get stateStore() {
+    return this.app.stateStore;
+  }
+
   async getStatus(request: HttpRequest): Promise<HttpResponse> {
     const authError = requireTrackingSecret(request);
     if (authError) {

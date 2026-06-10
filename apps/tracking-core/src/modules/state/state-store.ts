@@ -14,12 +14,15 @@ export interface StateStore {
   markPaymentProcessed(paymentId: string): Promise<void>;
   /** Atomically marks as processed. Returns true if this call claimed it (first time), false if already existed. */
   claimPaymentProcessed(paymentId: string): Promise<boolean>;
+  writeHeartbeat(key: string, isoTimestamp: string): Promise<void>;
+  readHeartbeat(key: string): Promise<string | null>;
 }
 
 export class InMemoryStateStore implements StateStore {
   private paymentSyncState: PaymentSyncState = {
     processedPaymentIds: [],
   };
+  private heartbeats: Map<string, string> = new Map();
 
   async getPaymentSyncState(): Promise<PaymentSyncState> {
     return {
@@ -51,6 +54,14 @@ export class InMemoryStateStore implements StateStore {
     }
     this.paymentSyncState.processedPaymentIds.push(paymentId);
     return true;
+  }
+
+  async writeHeartbeat(key: string, isoTimestamp: string): Promise<void> {
+    this.heartbeats.set(key, isoTimestamp);
+  }
+
+  async readHeartbeat(key: string): Promise<string | null> {
+    return this.heartbeats.get(key) ?? null;
   }
 }
 
@@ -88,22 +99,47 @@ export class FileStateStore implements StateStore {
     return true;
   }
 
+  async writeHeartbeat(key: string, isoTimestamp: string): Promise<void> {
+    const state = await this.readRawState();
+    (state as Record<string, unknown>).heartbeats = {
+      ...((state as Record<string, unknown>).heartbeats as Record<string, string> | undefined ?? {}),
+      [key]: isoTimestamp,
+    };
+    await this.writeRawState(state as Record<string, unknown>);
+  }
+
+  async readHeartbeat(key: string): Promise<string | null> {
+    const state = await this.readRawState() as Record<string, unknown>;
+    const heartbeats = state.heartbeats as Record<string, string> | undefined;
+    return heartbeats?.[key] ?? null;
+  }
+
   private async readState(): Promise<PaymentSyncState> {
+    const raw = await this.readRawState();
+    const parsed = raw as unknown as PaymentSyncState;
+    return {
+      lastCheckIso: parsed.lastCheckIso,
+      processedPaymentIds: Array.isArray(parsed.processedPaymentIds)
+        ? parsed.processedPaymentIds
+        : [],
+    };
+  }
+
+  private async writeState(state: PaymentSyncState): Promise<void> {
+    const existing = await this.readRawState();
+    await this.writeRawState({ ...existing, ...state });
+  }
+
+  private async readRawState(): Promise<Record<string, unknown>> {
     try {
       const raw = await readFile(this.absolutePath(), "utf8");
-      const parsed = JSON.parse(raw) as PaymentSyncState;
-      return {
-        lastCheckIso: parsed.lastCheckIso,
-        processedPaymentIds: Array.isArray(parsed.processedPaymentIds)
-          ? parsed.processedPaymentIds
-          : [],
-      };
+      return JSON.parse(raw) as Record<string, unknown>;
     } catch {
       return { processedPaymentIds: [] };
     }
   }
 
-  private async writeState(state: PaymentSyncState): Promise<void> {
+  private async writeRawState(state: Record<string, unknown>): Promise<void> {
     const path = this.absolutePath();
     await mkdir(dirname(path), { recursive: true });
     await writeFile(path, JSON.stringify(state, null, 2), "utf8");
@@ -176,6 +212,16 @@ export class RedisStateStore implements StateStore {
   async claimPaymentProcessed(paymentId: string): Promise<boolean> {
     const added = await this.command<number>(["SADD", this.processedSetKey, paymentId]);
     return added === 1;
+  }
+
+  async writeHeartbeat(key: string, isoTimestamp: string): Promise<void> {
+    const fullKey = `${this.stateKey}:heartbeat:${key}`;
+    await this.command(["SET", fullKey, isoTimestamp, "EX", 172800]); // 48h TTL
+  }
+
+  async readHeartbeat(key: string): Promise<string | null> {
+    const fullKey = `${this.stateKey}:heartbeat:${key}`;
+    return await this.command<string | null>(["GET", fullKey]);
   }
 
   private async command<T = unknown>(

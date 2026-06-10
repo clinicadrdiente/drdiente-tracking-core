@@ -3,10 +3,15 @@ import { handleDentalinkAppointment } from "../routes/dentalink-appointment.js";
 import { handleLeadCapture } from "../routes/lead.js";
 import { handlePaymentsSync } from "../routes/payments-sync.js";
 import { getStateStoreConfig } from "../modules/state/config.js";
+import type { StateStore } from "../modules/state/state-store.js";
 import type { AppointmentEvent, LeadInput } from "../types/domain.js";
 
 export class TrackingApp {
   constructor(private readonly services: AppServices) {}
+
+  get stateStore(): StateStore {
+    return this.services.stateStore;
+  }
 
   async getStatus() {
     const state = await this.services.stateStore.getPaymentSyncState();
