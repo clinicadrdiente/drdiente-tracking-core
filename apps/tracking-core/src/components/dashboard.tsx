@@ -7,12 +7,9 @@ import {
   ArrowRightIcon,
   CalendarDaysIcon,
   CheckCircle2Icon,
-  ClockIcon,
-  DatabaseIcon,
   DownloadIcon,
   RefreshCwIcon,
   SendIcon,
-  ShieldCheckIcon,
   StethoscopeIcon,
   TargetIcon,
   UserRoundIcon,
@@ -63,6 +60,7 @@ import type {
   WindsorAccountsResult,
   WindsorTestResult,
 } from "@/types/dashboard";
+import { SystemHealthCard, SystemHealthPanel } from "@/components/dashboard/system-health";
 
 const chartConfig = {
   revenue: {
@@ -787,17 +785,7 @@ function DashboardRoute({
   }
 
   if (route === "help" || route === "status") {
-    return (
-      <IntegrationPanel
-        badge={route === "status" ? "Healthy" : "Interno"}
-        rows={[
-          ["Revenue", formatMoney(data?.revenueTotal ?? 0)],
-          ["Pagos", formatInteger(data?.paymentsTotal ?? 0)],
-          ["Pacientes", formatInteger(data?.uniquePatientsTotal ?? 0)],
-        ]}
-        title={route === "status" ? "Estado del sistema" : "Ayuda interna"}
-      />
-    );
+    return <SystemHealthPanel route={route} data={data} systemStatus={systemStatus} />;
   }
 
   return (
@@ -917,51 +905,7 @@ function ControlRoom({
           </CardFooter>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Estado</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <ReadinessRow
-              icon={<DatabaseIcon aria-hidden="true" />}
-              label="Dentalink"
-              status={modeLabel(systemStatus?.config.dentalinkMode)}
-              tone={systemStatus?.config.dentalinkMode === "api" ? "good" : "warn"}
-            />
-            <ReadinessRow
-              icon={<SendIcon aria-hidden="true" />}
-              label="Elevator"
-              status={modeLabel(systemStatus?.config.elevatorMode)}
-              tone={systemStatus?.config.elevatorMode === "api" ? "good" : "warn"}
-            />
-            <ReadinessRow
-              icon={<WebhookIcon aria-hidden="true" />}
-              label="Stape"
-              status={modeLabel(systemStatus?.config.stapeMode)}
-              tone={systemStatus?.config.stapeMode === "api" ? "good" : "warn"}
-            />
-            <ReadinessRow
-              icon={<ShieldCheckIcon aria-hidden="true" />}
-              label="Persistencia"
-              status={systemStatus?.config.stateStoreMode === "redis" ? "Redis" : "Temporal"}
-              tone={systemStatus?.config.stateStoreMode === "redis" ? "good" : "warn"}
-            />
-            {cronHeartbeatStatus !== null && (
-              <ReadinessRow
-                icon={<ClockIcon aria-hidden="true" />}
-                label="Cron pagos"
-                status={
-                  cronHeartbeatStatus === "ok"
-                    ? "Al dia"
-                    : cronHeartbeatStatus === "stale"
-                      ? "Sin ejecutar (+30h)"
-                      : "Sin registro"
-                }
-                tone={cronHeartbeatStatus === "ok" ? "good" : "warn"}
-              />
-            )}
-          </CardContent>
-        </Card>
+        <SystemHealthCard systemStatus={systemStatus} cronHeartbeatStatus={cronHeartbeatStatus} />
       </section>
 
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-[0.95fr_1.05fr]">
@@ -1016,37 +960,6 @@ function HeroMetric({
   );
 }
 
-function ReadinessRow({
-  icon,
-  label,
-  status,
-  tone,
-}: {
-  icon: ReactNode;
-  label: string;
-  status: string;
-  tone: "good" | "warn";
-}) {
-  return (
-    <div className="flex items-center justify-between gap-3 rounded-xl border bg-background/50 p-3">
-      <div className="flex min-w-0 items-center gap-3">
-        <span
-          className={
-            tone === "good"
-              ? "grid size-9 place-items-center rounded-lg bg-brand/15 text-brand"
-              : "grid size-9 place-items-center rounded-lg bg-warn/15 text-warn"
-          }
-        >
-          {icon}
-        </span>
-        <div className="min-w-0">
-          <p className="font-medium">{label}</p>
-        </div>
-      </div>
-      <Badge variant={tone === "good" ? "default" : "secondary"}>{status}</Badge>
-    </div>
-  );
-}
 
 function GuidedActionsCard({
   data,
