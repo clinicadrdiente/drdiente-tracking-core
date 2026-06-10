@@ -19,6 +19,13 @@ export function getStateStoreConfig(): StateStoreConfig {
         ? "memory"
         : "file";
 
+  if (process.env.VERCEL === "1" && mode === "file") {
+    throw new Error(
+      "STATE_STORE_MODE=file is not safe on Vercel (ephemeral /tmp). " +
+      "Set STATE_STORE_MODE=redis and configure UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN.",
+    );
+  }
+
   return {
     mode,
     filePath: process.env.STATE_STORE_FILE_PATH ?? ".runtime/payment-sync-state.json",
