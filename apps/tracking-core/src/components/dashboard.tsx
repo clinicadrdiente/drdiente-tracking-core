@@ -60,6 +60,7 @@ import type {
 import { SystemHealthCard, SystemHealthPanel } from "@/components/dashboard/system-health";
 import { GuidedActionsCard, OperationsResultCard, SyncMetric, RealFlowResult } from "@/components/dashboard/actions";
 import { WindsorMarketingCard } from "@/components/dashboard/windsor-panel";
+import { ElevatorSyncCard, IntegrationPanel } from "@/components/dashboard/elevator-panel";
 
 const chartConfig = {
   revenue: {
@@ -1315,39 +1316,6 @@ function ReferenceDiagnosticCard({
   );
 }
 
-function IntegrationPanel({
-  title,
-  badge,
-  rows,
-}: {
-  title: string;
-  badge: string;
-  rows: Array<[string, string]>;
-}) {
-  return (
-    <Card>
-      <CardHeader className="flex flex-row items-start justify-between gap-4">
-        <div>
-          <CardTitle>{title}</CardTitle>
-        </div>
-        <Badge variant="secondary">{badge}</Badge>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          {rows.map(([label, value]) => (
-            <div className="rounded-xl border bg-background/50 p-4" key={label}>
-              <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
-                {label}
-              </p>
-              <p className="mt-2 font-semibold text-xl">{value}</p>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
 function StapeTestCard({
   error,
   isTesting,
@@ -1470,139 +1438,6 @@ function FlowStep({
         <p className="font-semibold">{title}</p>
       </div>
     </div>
-  );
-}
-
-function ElevatorSyncCard({
-  isSyncing,
-  onSend,
-  result,
-  syncError,
-}: {
-  isSyncing: boolean;
-  onSend: () => void;
-  result: PaymentsSyncResult | null;
-  syncError: string | null;
-}) {
-  return (
-    <Card className="border-brand/30">
-      <CardHeader className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <div>
-          <CardTitle>Enviar pacientes recientes a Elevator</CardTitle>
-        </div>
-        <Button disabled={isSyncing} onClick={onSend}>
-          <RefreshCwIcon aria-hidden="true" data-icon="inline-start" />
-          {isSyncing ? "Enviando" : "Enviar a Elevator"}
-        </Button>
-      </CardHeader>
-      {(result || syncError) && (
-        <CardContent>
-          {syncError ? (
-            <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-destructive text-sm">
-              {syncError}
-            </div>
-          ) : null}
-          {result ? (
-            <div className="flex flex-col gap-4">
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                <SyncMetric label="Pagos encontrados" value={result.paymentsFound} />
-                <SyncMetric label="Leads creados" value={result.createdLeads} />
-                <SyncMetric label="Ya existian" value={result.existingLeads ?? result.alreadyProcessed} />
-                <SyncMetric label="Sin match/contacto" value={result.unmatchedLeads} />
-                <SyncMetric label="Eventos preparados" value={result.dispatched} />
-                <SyncMetric label="Fallidos" value={result.failed ?? 0} />
-              </div>
-              <ElevatorImportResultsTable results={result.results ?? []} />
-            </div>
-          ) : null}
-        </CardContent>
-      )}
-    </Card>
-  );
-}
-
-function ElevatorImportResultsTable({
-  results,
-}: {
-  results: ElevatorImportResult[];
-}) {
-  if (results.length === 0) {
-    return null;
-  }
-
-  return (
-    <div className="overflow-hidden rounded-xl border">
-      <div className="flex items-center justify-between border-b bg-background/50 px-4 py-3">
-        <div>
-          <p className="font-medium">Detalle de envio a Elevator</p>
-        </div>
-        <Badge variant="secondary">{formatInteger(results.length)} registros</Badge>
-      </div>
-      <div className="max-h-96 overflow-auto">
-        <table className="w-full min-w-[960px] text-sm">
-          <thead className="sticky top-0 bg-card text-muted-foreground">
-            <tr className="border-b">
-              <th className="px-4 py-3 text-left font-medium">Paciente</th>
-              <th className="px-4 py-3 text-left font-medium">Contacto</th>
-              <th className="px-4 py-3 text-left font-medium">Referencia</th>
-              <th className="px-4 py-3 text-left font-medium">Sucursal</th>
-              <th className="px-4 py-3 text-left font-medium">Estado</th>
-              <th className="px-4 py-3 text-left font-medium">Elevator ID</th>
-              <th className="px-4 py-3 text-left font-medium">Listo para Stape</th>
-              <th className="px-4 py-3 text-left font-medium">Motivo</th>
-            </tr>
-          </thead>
-          <tbody>
-            {results.map((result) => (
-              <tr className="border-b last:border-b-0" key={`${result.paymentId}-${result.patientId}-${result.status}`}>
-                <td className="px-4 py-3 font-medium">{result.patientName}</td>
-                <td className="px-4 py-3 text-muted-foreground">{result.contact}</td>
-                <td className="px-4 py-3 text-muted-foreground">{result.reference}</td>
-                <td className="px-4 py-3 text-muted-foreground">{result.branch}</td>
-                <td className="px-4 py-3">
-                  <StatusBadge status={result.status} />
-                </td>
-                <td className="px-4 py-3 text-muted-foreground">
-                  {result.elevatorId ?? "-"}
-                </td>
-                <td className="px-4 py-3">
-                  {result.readyForStape ? (
-                    <Badge className="bg-brand/15 text-brand hover:bg-brand/15">
-                      Preparado
-                    </Badge>
-                  ) : (
-                    <Badge variant="secondary">Pendiente</Badge>
-                  )}
-                </td>
-                <td className="px-4 py-3 text-muted-foreground">{result.reason}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-function StatusBadge({ status }: { status: ElevatorImportResult["status"] }) {
-  const labelByStatus = {
-    created: "Creado",
-    existing: "Ya existia",
-    failed: "Fallo",
-    skipped_missing_contact: "Sin contacto",
-  };
-
-  const classNameByStatus = {
-    created: "bg-brand/15 text-brand hover:bg-brand/15",
-    existing: "bg-brand/15 text-brand hover:bg-brand/15",
-    failed: "bg-danger/15 text-danger hover:bg-danger/15",
-    skipped_missing_contact: "bg-warn/15 text-warn hover:bg-warn/15",
-  };
-
-  return (
-    <Badge className={classNameByStatus[status]}>
-      {labelByStatus[status]}
-    </Badge>
   );
 }
 
