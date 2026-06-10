@@ -60,7 +60,7 @@ describe("markPaymentsProcessed", () => {
     const store = new InMemoryStateStore();
     const payments = [makePayment(1)];
     await markPaymentsProcessed(store, payments);
-    await markPaymentsProcessed(store, payments); // second call must not throw
+    await markPaymentsProcessed(store, payments);
     const result = await filterUnprocessedPayments(store, payments);
     expect(result).toHaveLength(0);
   });
@@ -71,5 +71,23 @@ describe("markPaymentsProcessed", () => {
     const result = await filterUnprocessedPayments(store, [makePayment(2)]);
     expect(result).toHaveLength(1);
     expect(result[0].paymentId).toBe(2);
+  });
+});
+
+describe("claimPaymentProcessed", () => {
+  it("returns true on first call, false on second", async () => {
+    const store = new InMemoryStateStore();
+    const first = await store.claimPaymentProcessed("treatment_42");
+    const second = await store.claimPaymentProcessed("treatment_42");
+    expect(first).toBe(true);
+    expect(second).toBe(false);
+  });
+
+  it("different ids are independent claims", async () => {
+    const store = new InMemoryStateStore();
+    const a = await store.claimPaymentProcessed("treatment_1");
+    const b = await store.claimPaymentProcessed("treatment_2");
+    expect(a).toBe(true);
+    expect(b).toBe(true);
   });
 });

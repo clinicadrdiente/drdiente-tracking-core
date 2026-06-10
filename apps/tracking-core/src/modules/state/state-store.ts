@@ -12,6 +12,8 @@ export interface StateStore {
   savePaymentSyncState(state: PaymentSyncState): Promise<void>;
   hasProcessedPayment(paymentId: string): Promise<boolean>;
   markPaymentProcessed(paymentId: string): Promise<void>;
+  /** Atomically marks as processed. Returns true if this call claimed it (first time), false if already existed. */
+  claimPaymentProcessed(paymentId: string): Promise<boolean>;
 }
 
 export class InMemoryStateStore implements StateStore {
@@ -42,6 +44,14 @@ export class InMemoryStateStore implements StateStore {
       this.paymentSyncState.processedPaymentIds.push(paymentId);
     }
   }
+
+  async claimPaymentProcessed(paymentId: string): Promise<boolean> {
+    if (this.paymentSyncState.processedPaymentIds.includes(paymentId)) {
+      return false;
+    }
+    this.paymentSyncState.processedPaymentIds.push(paymentId);
+    return true;
+  }
 }
 
 export class FileStateStore implements StateStore {
@@ -66,6 +76,16 @@ export class FileStateStore implements StateStore {
       state.processedPaymentIds.push(paymentId);
       await this.writeState(state);
     }
+  }
+
+  async claimPaymentProcessed(paymentId: string): Promise<boolean> {
+    const state = await this.readState();
+    if (state.processedPaymentIds.includes(paymentId)) {
+      return false;
+    }
+    state.processedPaymentIds.push(paymentId);
+    await this.writeState(state);
+    return true;
   }
 
   private async readState(): Promise<PaymentSyncState> {
@@ -151,6 +171,11 @@ export class RedisStateStore implements StateStore {
 
   async markPaymentProcessed(paymentId: string): Promise<void> {
     await this.command(["SADD", this.processedSetKey, paymentId]);
+  }
+
+  async claimPaymentProcessed(paymentId: string): Promise<boolean> {
+    const added = await this.command<number>(["SADD", this.processedSetKey, paymentId]);
+    return added === 1;
   }
 
   private async command<T = unknown>(
