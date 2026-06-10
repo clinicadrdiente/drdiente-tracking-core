@@ -1,3 +1,4 @@
+import { timingSafeEqual, createHash } from "node:crypto";
 import { unauthorized } from "./response.js";
 import type { HttpResponse } from "./types.js";
 
@@ -14,11 +15,19 @@ export function requireTrackingSecret(request: AnyHttpRequest): HttpResponse | n
   }
 
   const receivedSecret = getHeader(request, TRACKING_SECRET_HEADER);
-  if (receivedSecret !== expectedSecret) {
+  if (!timingSafeStringEqual(receivedSecret, expectedSecret)) {
     return unauthorized();
   }
 
   return null;
+}
+
+function timingSafeStringEqual(a: string | undefined, b: string | undefined): boolean {
+  if (!a || !b) return false;
+  // Buffers must be same length for timingSafeEqual; hash both to normalize length.
+  const hashA = createHash("sha256").update(a).digest();
+  const hashB = createHash("sha256").update(b).digest();
+  return timingSafeEqual(hashA, hashB);
 }
 
 function getHeader(

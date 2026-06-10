@@ -1,3 +1,4 @@
+import { timingSafeEqual, createHash } from "node:crypto";
 import { getAppConfig, trackingHttpHandlers } from "../../src/index.js";
 import {
   methodNotAllowed,
@@ -44,11 +45,19 @@ export default async function handler(
 
 function isAuthorizedCronRequest(request: VercelRequest): boolean {
   const expectedSecret = process.env.CRON_SECRET;
-  if (expectedSecret) {
-    return readBearerToken(request) === expectedSecret;
+  if (!expectedSecret) {
+    // Fail closed: cron must be explicitly protected. Set CRON_SECRET in Vercel env.
+    return false;
   }
 
-  return readHeader(request, "user-agent")?.includes("vercel-cron") ?? false;
+  const token = readBearerToken(request);
+  return timingSafeStringEqual(token ?? "", expectedSecret);
+}
+
+function timingSafeStringEqual(a: string, b: string): boolean {
+  const hashA = createHash("sha256").update(a).digest();
+  const hashB = createHash("sha256").update(b).digest();
+  return timingSafeEqual(hashA, hashB);
 }
 
 function readBearerToken(request: VercelRequest): string | null {
