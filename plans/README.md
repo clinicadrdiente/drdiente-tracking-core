@@ -15,9 +15,9 @@ Each executor: read the plan fully before starting, honor its STOP conditions, a
 | [005](005-auth-hardening.md) | Cron endpoint requires CRON_SECRET and secrets use timing-safe comparison | P2 | S | — | DONE |
 | [006](006-cron-heartbeat.md) | Cron failures are visible — heartbeat endpoint and dashboard warning | P2 | M | 004 | DONE |
 | [007](007-dashboard-modularization.md) | dashboard.tsx split into route modules with marked color differentiation | P1 | L | — | DONE |
-| [008](008-report-time-ranges.md) | Reports support 7/30/180-day ranges and month separation | P1 | M | 007 | TODO |
+| [008](008-report-time-ranges.md) | Reports support 7/30/180-day ranges and month separation | P1 | M | 007 | DONE |
 | [009](009-performance-comparatives.md) | Comparatives: current vs previous period, branch vs branch | P2 | M | 008 | TODO |
-| [010](010-daily-branch-report.md) | Daily branch report form with persistent lead-contact data | P1 | L | 007 | TODO |
+| [010](010-daily-branch-report.md) | Daily branch report form with persistent lead-contact data | P1 | L | 007 | DONE |
 | [011](011-efforts-panel.md) | Efforts panel: spend, posts, leads, calls, messages, impressions, reach | P2 | M | 008, 010 | TODO |
 
 Status values: `TODO` | `IN PROGRESS` | `DONE` | `BLOCKED (reason)` | `REJECTED (reason)`
