@@ -82,6 +82,12 @@
   --brand-glow: rgba(24, 88, 251, 0.1);
   --danger: #e11d48;
   --warn: #d97706;
+  /* Module accent colors — light */
+  --module-attribution: oklch(0.55 0.18 250);
+  --module-operations: oklch(0.52 0.15 150);
+  --module-marketing: oklch(0.60 0.16 60);
+  --module-health: oklch(0.52 0.2 25);
+  --module-reports: oklch(0.50 0.17 300);
 }
 
 /* DARK THEME — Elevator branding on dark */
@@ -121,6 +127,12 @@
   --brand-glow: rgba(24, 88, 251, 0.2);
   --danger: #fb7185;
   --warn: #fbbf24;
+  /* Module accent colors — dark */
+  --module-attribution: oklch(0.65 0.18 250);
+  --module-operations: oklch(0.65 0.15 150);
+  --module-marketing: oklch(0.70 0.16 60);
+  --module-health: oklch(0.62 0.2 25);
+  --module-reports: oklch(0.60 0.17 300);
 }
 
 * {
