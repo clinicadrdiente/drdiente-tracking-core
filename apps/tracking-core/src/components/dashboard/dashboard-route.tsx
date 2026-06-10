@@ -37,6 +37,7 @@ import type {
   WindsorTestResult,
 } from "@/types/dashboard";
 import { DailyReport } from "@/components/dashboard/daily-report";
+import { EffortsPanel } from "@/components/dashboard/efforts-panel";
 import { SystemHealthPanel, SystemHealthCard } from "@/components/dashboard/system-health";
 import { GuidedActionsCard, OperationsResultCard, SyncMetric } from "@/components/dashboard/actions";
 import { WindsorMarketingCard } from "@/components/dashboard/windsor-panel";
@@ -495,6 +496,10 @@ export function DashboardRoute({
 
   if (route === "reporte-diario") {
     return <DailyReport secret={secret} />;
+  }
+
+  if (route === "esfuerzos") {
+    return <EffortsPanel secret={secret} rangeDays={rangeDays} />;
   }
 
   return (
