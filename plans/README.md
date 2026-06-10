@@ -14,6 +14,11 @@ Each executor: read the plan fully before starting, honor its STOP conditions, a
 | [004](004-state-store-hardening.md) | State store is safe against races and misconfiguration in Vercel | P1 | M | 001 | DONE |
 | [005](005-auth-hardening.md) | Cron endpoint requires CRON_SECRET and secrets use timing-safe comparison | P2 | S | — | DONE |
 | [006](006-cron-heartbeat.md) | Cron failures are visible — heartbeat endpoint and dashboard warning | P2 | M | 004 | DONE |
+| [007](007-dashboard-modularization.md) | dashboard.tsx split into route modules with marked color differentiation | P1 | L | — | TODO |
+| [008](008-report-time-ranges.md) | Reports support 7/30/180-day ranges and month separation | P1 | M | 007 | TODO |
+| [009](009-performance-comparatives.md) | Comparatives: current vs previous period, branch vs branch | P2 | M | 008 | TODO |
+| [010](010-daily-branch-report.md) | Daily branch report form with persistent lead-contact data | P1 | L | 007 | TODO |
+| [011](011-efforts-panel.md) | Efforts panel: spend, posts, leads, calls, messages, impressions, reach | P2 | M | 008, 010 | TODO |
 
 Status values: `TODO` | `IN PROGRESS` | `DONE` | `BLOCKED (reason)` | `REJECTED (reason)`
 
@@ -22,12 +27,18 @@ Status values: `TODO` | `IN PROGRESS` | `DONE` | `BLOCKED (reason)` | `REJECTED 
 - Plan 004 requires plan 001: plan 004 adds a new method to the `StateStore` interface and all three implementations — plan 001's test suite verifies the implementations are correct and consistent.
 - Plan 006 requires plan 004: plan 006 adds `writeHeartbeat`/`readHeartbeat` to the same `StateStore` interface; easier to do after plan 004's interface expansion is in place.
 - Plans 002, 003, and 005 are independent — they can be executed in any order, including in parallel with 001.
+- Plan 007 blocks all of 008–011: every UI feature lands in the modular layout (`src/components/dashboard/` + `ModuleFrame`); building them inside the 2,725-line monolith would double the work.
+- Plan 008 blocks 009 (comparatives reuse the `rangeDays` plumbing and `trailingRange` helper) and 011 (range selection drives the efforts window).
+- Plan 010 blocks 011: the manual half of the efforts metrics (posts, llamadas, emails, WhatsApp, seguimientos) is sourced from `listDailyReports`.
 
 ## Recommended execution waves
 
-**Wave 1 (parallel)**: 001 + 002 + 003 + 005
-**Wave 2 (after wave 1)**: 004
-**Wave 3 (after 004)**: 006
+**Wave 1 (parallel)**: 001 + 002 + 003 + 005 — DONE
+**Wave 2 (after wave 1)**: 004 — DONE
+**Wave 3 (after 004)**: 006 — DONE
+**Wave 4**: 007 (solo — it restructures the whole component tree; nothing should run in parallel with it)
+**Wave 5 (parallel, after 007)**: 008 + 010
+**Wave 6 (parallel, after wave 5)**: 009 + 011
 
 ## Findings considered and rejected
 
