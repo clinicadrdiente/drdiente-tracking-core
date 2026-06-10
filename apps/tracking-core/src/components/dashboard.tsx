@@ -7,6 +7,7 @@ import {
   ArrowRightIcon,
   CalendarDaysIcon,
   CheckCircle2Icon,
+  ClockIcon,
   DatabaseIcon,
   DownloadIcon,
   RefreshCwIcon,
@@ -334,6 +335,7 @@ export function Dashboard() {
   const [windsorAccountsError, setWindsorAccountsError] = useState<string | null>(
     null,
   );
+  const [cronHeartbeatStatus, setCronHeartbeatStatus] = useState<"ok" | "stale" | "unknown" | null>(null);
 
   async function loadDashboard(
     nextSecret = secret,
@@ -678,6 +680,21 @@ export function Dashboard() {
     };
   }, [secret]);
 
+  useEffect(() => {
+    fetch("/api/health/cron-heartbeat")
+      .then((res) => res.json())
+      .then((body) => {
+        const status = (body as { status?: string }).status;
+        if (status === "ok" || status === "stale" || status === "unknown") {
+          setCronHeartbeatStatus(status);
+        }
+      })
+      .catch(() => {
+        // Non-critical — leave status as null (not shown)
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const chartRows = useMemo(
     () =>
       (data?.days ?? []).map((day) => ({
@@ -738,6 +755,7 @@ export function Dashboard() {
 
       <DashboardRoute
         chartRows={chartRows}
+        cronHeartbeatStatus={cronHeartbeatStatus}
         data={data}
         systemStatus={systemStatus}
         isLoading={isLoading}
@@ -780,6 +798,7 @@ type ChartRow = {
 
 function DashboardRoute({
   route,
+  cronHeartbeatStatus,
   data,
   systemStatus,
   chartRows,
@@ -812,6 +831,7 @@ function DashboardRoute({
   windsorResult,
 }: {
   route: string;
+  cronHeartbeatStatus: "ok" | "stale" | "unknown" | null;
   data: MonthlyDashboard | null;
   systemStatus: SystemStatus | null;
   chartRows: ChartRow[];
@@ -1010,6 +1030,7 @@ function DashboardRoute({
   return (
     <ControlRoom
       chartRows={chartRows}
+      cronHeartbeatStatus={cronHeartbeatStatus}
       data={data}
       isDetectingWindsorAccounts={isDetectingWindsorAccounts}
       isLoading={isLoading}
@@ -1032,6 +1053,7 @@ function DashboardRoute({
 
 function ControlRoom({
   chartRows,
+  cronHeartbeatStatus,
   data,
   isDetectingWindsorAccounts,
   isLoading,
@@ -1050,6 +1072,7 @@ function ControlRoom({
   windsorAccounts,
 }: {
   chartRows: ChartRow[];
+  cronHeartbeatStatus: "ok" | "stale" | "unknown" | null;
   data: MonthlyDashboard | null;
   isDetectingWindsorAccounts: boolean;
   isLoading: boolean;
@@ -1150,6 +1173,20 @@ function ControlRoom({
               status={systemStatus?.config.stateStoreMode === "redis" ? "Redis" : "Temporal"}
               tone={systemStatus?.config.stateStoreMode === "redis" ? "good" : "warn"}
             />
+            {cronHeartbeatStatus !== null && (
+              <ReadinessRow
+                icon={<ClockIcon aria-hidden="true" />}
+                label="Cron pagos"
+                status={
+                  cronHeartbeatStatus === "ok"
+                    ? "Al dia"
+                    : cronHeartbeatStatus === "stale"
+                      ? "Sin ejecutar (+30h)"
+                      : "Sin registro"
+                }
+                tone={cronHeartbeatStatus === "ok" ? "good" : "warn"}
+              />
+            )}
           </CardContent>
         </Card>
       </section>
