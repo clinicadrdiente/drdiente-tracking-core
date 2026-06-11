@@ -11,7 +11,7 @@ export function buildPurchaseEvent(
 ): ConversionEvent {
   return {
     eventId: `payment_${payment.paymentId}`,
-    eventName: payment.isVoided ? "Refund" : "Compra",
+    eventName: payment.isVoided ? "Refund" : "Purchase",
     eventTime: toUnixTime(payment.paidAt),
     actionSource: "physical_store",
     userData: {
