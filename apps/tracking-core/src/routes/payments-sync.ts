@@ -45,7 +45,6 @@ export async function handlePaymentsSync(
       throw error;
     }
 
-    safeToMarkProcessed.push(payment);
     const leads = await elevatorClient.findLeadsByIdentity(
       patient.phone ?? "",
       patient.email,
@@ -56,6 +55,7 @@ export async function handlePaymentsSync(
       const leadInput = buildLeadInputFromDentalink(patient, payment);
       if (!leadInput) {
         unmatchedLeads += 1;
+        safeToMarkProcessed.push(payment);
         continue;
       }
 
@@ -77,13 +77,13 @@ export async function handlePaymentsSync(
         ? `treatment_${payment.treatmentId}`
         : `payment_${payment.paymentId}`;
 
-    const alreadyCounted =
-      !payment.isVoided &&
-      (await stateStore.hasProcessedPayment(purchaseDedupeKey));
-
-    if (alreadyCounted) {
-      skippedDuplicateBudget += 1;
-      continue;
+    if (!payment.isVoided) {
+      const claimed = await stateStore.claimPaymentProcessed(purchaseDedupeKey);
+      if (!claimed) {
+        skippedDuplicateBudget += 1;
+        safeToMarkProcessed.push(payment);
+        continue;
+      }
     }
 
     const tier =
@@ -92,10 +92,8 @@ export async function handlePaymentsSync(
 
     await elevatorClient.updateLeadStage(lead.elevatorId, "anticipo_pagado");
     await stapeClient.dispatch(event);
-    if (!payment.isVoided) {
-      await stateStore.markPaymentProcessed(purchaseDedupeKey);
-    }
     dispatched += 1;
+    safeToMarkProcessed.push(payment);
   }
 
   await markPaymentsProcessed(stateStore, safeToMarkProcessed);

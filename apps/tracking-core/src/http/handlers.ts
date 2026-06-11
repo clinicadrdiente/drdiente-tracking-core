@@ -1,4 +1,5 @@
 import { createTrackingApp, type TrackingApp } from "../app/tracking-app.js";
+import type { AppServices } from "../app/bootstrap.js";
 import { requireTrackingSecret } from "./auth.js";
 import { badRequest, ok, serverError } from "./response.js";
 import type { HttpRequest, HttpResponse } from "./types.js";
@@ -10,7 +11,11 @@ export interface PaymentsSyncQuery {
 }
 
 export class TrackingHttpHandlers {
-  constructor(private readonly app: TrackingApp) {}
+  readonly stateStore: AppServices["stateStore"];
+
+  constructor(private readonly app: TrackingApp) {
+    this.stateStore = app.services.stateStore;
+  }
 
   async getStatus(request: HttpRequest): Promise<HttpResponse> {
     const authError = requireTrackingSecret(request);

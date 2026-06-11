@@ -95,6 +95,29 @@ export interface MatchResult {
   reason: string;
 }
 
+export type LeadContactChannel =
+  | "llamada"
+  | "whatsapp"
+  | "google_maps"
+  | "email"
+  | "visita_directa"
+  | "otro";
+
+export interface DailyBranchReport {
+  reportId: string;          // `${branch}_${date}` — natural key, one report per branch per day
+  branch: string;
+  date: string;              // "YYYY-MM-DD"
+  submittedAt: string;       // ISO
+  contacts: Array<{ channel: LeadContactChannel; count: number }>;
+  leadsReceived: number;
+  leadsContacted: number;
+  followUpsSent: number;
+  promoWhatsappSent: number;
+  emailsSent: number;
+  postsPublished: number;
+  notes?: string | null;
+}
+
 export interface ConversionEvent {
   eventId: string;
   eventName: "Lead" | "Agendamiento" | "Compra" | "Refund";

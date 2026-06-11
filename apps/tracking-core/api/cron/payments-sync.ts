@@ -1,4 +1,5 @@
-import { trackingHttpHandlers } from "../../src/index.js";
+import { timingSafeEqual, createHash } from "node:crypto";
+import { getAppConfig, trackingHttpHandlers } from "../../src/index.js";
 import {
   methodNotAllowed,
   send,
@@ -28,7 +29,10 @@ export default async function handler(
     };
     request.query = {
       ...request.query,
-      since: new Date(Date.now() - 30 * 60 * 60 * 1000).toISOString(),
+      since: new Date(
+        Date.now() -
+          getAppConfig().paymentsSyncLookbackMinutes * 60 * 1000,
+      ).toISOString(),
       maxPayments: "50",
     };
   }
@@ -36,16 +40,37 @@ export default async function handler(
   const result = await trackingHttpHandlers.postPaymentsSync(
     toHttpRequest(request),
   );
+
+  // Write heartbeat so /api/health/cron-heartbeat can report freshness
+  if (result.status >= 200 && result.status < 300) {
+    try {
+      await trackingHttpHandlers.stateStore.writeHeartbeat(
+        "payments-sync-cron",
+        new Date().toISOString(),
+      );
+    } catch {
+      // Heartbeat failure must not fail the cron response
+    }
+  }
+
   send(response, result);
 }
 
 function isAuthorizedCronRequest(request: VercelRequest): boolean {
   const expectedSecret = process.env.CRON_SECRET;
-  if (expectedSecret) {
-    return readBearerToken(request) === expectedSecret;
+  if (!expectedSecret) {
+    // Fail closed: cron must be explicitly protected. Set CRON_SECRET in Vercel env.
+    return false;
   }
 
-  return readHeader(request, "user-agent")?.includes("vercel-cron") ?? false;
+  const token = readBearerToken(request);
+  return timingSafeStringEqual(token ?? "", expectedSecret);
+}
+
+function timingSafeStringEqual(a: string, b: string): boolean {
+  const hashA = createHash("sha256").update(a).digest();
+  const hashB = createHash("sha256").update(b).digest();
+  return timingSafeEqual(hashA, hashB);
 }
 
 function readBearerToken(request: VercelRequest): string | null {

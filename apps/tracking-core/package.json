@@ -6,7 +6,10 @@
   "scripts": {
     "build": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.app.json && vite build",
     "check": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.app.json",
-    "dev": "vite"
+    "dev": "vite",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.18",
@@ -26,6 +29,8 @@
     "@types/node": "^24.0.1",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
-    "typescript": "^5.8.3"
+    "@vitest/ui": "^4.1.8",
+    "typescript": "^5.8.3",
+    "vitest": "^4.1.8"
   }
 }

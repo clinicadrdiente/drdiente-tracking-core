@@ -7,6 +7,7 @@ import {
 } from "../_lib/http.js";
 import { requireTrackingSecret, serverError } from "../../src/index.js";
 import { getDentalinkConfig } from "../../src/modules/dentalink/config.js";
+import { trailingRange, groupByMonth, previousRange, type RangeDays, type MonthBucket } from "../../src/lib/date-ranges.js";
 
 interface MonthlyPaymentBlock {
   paymentId: number;
@@ -53,6 +54,12 @@ interface MonthlyDashboardBody {
     fromIso: string;
     toIso: string;
   };
+  range: {
+    days: number | null;
+    fromIso: string;
+    toIso: string;
+  };
+  months: MonthBucket[];
   revenueTotal: number;
   paymentsTotal: number;
   uniquePatientsTotal: number;
@@ -61,6 +68,15 @@ interface MonthlyDashboardBody {
   patients: MonthlyPaymentBlock[];
   treatmentShare: ReturnType<typeof buildTreatmentShare>;
   branchShare: BranchSummary[];
+  comparison?: {
+    fromIso: string;
+    toIso: string;
+    revenueTotal: number;
+    paymentsTotal: number;
+    uniquePatientsTotal: number;
+    averagePaymentValue: number;
+    branchShare: Array<{ branch: string; revenue: number; payments: number }>;
+  };
   cache: {
     hit: boolean;
     stale: boolean;
@@ -115,10 +131,32 @@ export default async function handler(
   try {
     const config = getDentalinkConfig();
     const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-    const monthEnd = new Date(nextMonthStart.getTime() - 1000);
-    const cacheKey = `${config.mode}:${monthStart.toISOString()}:${monthEnd.toISOString()}`;
+    const rangeDaysParam = parseRangeDays(request.query?.rangeDays);
+
+    let fromDate: Date;
+    let toDate: Date;
+    let rangeField: { days: number | null; fromIso: string; toIso: string };
+
+    if (rangeDaysParam !== null) {
+      const { fromIso, toIso } = trailingRange(rangeDaysParam, now);
+      fromDate = new Date(fromIso);
+      toDate = new Date(toIso);
+      rangeField = { days: rangeDaysParam, fromIso, toIso };
+    } else {
+      // Default: current-month behavior (byte-identical to before)
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      fromDate = monthStart;
+      toDate = new Date(nextMonthStart.getTime() - 1000);
+      rangeField = { days: null, fromIso: fromDate.toISOString(), toIso: toDate.toISOString() };
+    }
+
+    const monthStart = fromDate;
+    const monthEnd = toDate;
+    const compareParam = parseCompareParam(request.query?.compare);
+    const rangeSuffix = rangeDaysParam !== null ? `:range${rangeDaysParam}` : "";
+    const compareSuffix = compareParam === "previous" ? ":compare" : "";
+    const cacheKey = `${config.mode}:${monthStart.toISOString()}:${monthEnd.toISOString()}${rangeSuffix}${compareSuffix}`;
     const cached = readMonthlyDashboardCache(cacheKey);
 
     if (cached && !isForceRefresh(request)) {
@@ -136,6 +174,8 @@ export default async function handler(
       const body: MonthlyDashboardBody = {
         ok: true,
         mode: config.mode,
+        range: rangeField,
+        months: [],
         revenueTotal: 0,
         paymentsTotal: 0,
         uniquePatientsTotal: 0,
@@ -232,17 +272,108 @@ export default async function handler(
     const uniquePatientsTotal = new Set(
       payments.map((payment) => payment.patientId).filter((id) => id > 0),
     ).size;
+    const months = groupByMonth(days);
+
+    // Comparison window (optional — only when compare=previous and rangeDays is valid)
+    let comparison: MonthlyDashboardBody["comparison"];
+    if (compareParam === "previous" && rangeDaysParam !== null) {
+      const prevRange = previousRange(rangeField);
+      const prevFromDate = new Date(prevRange.fromIso);
+      const prevToDate = new Date(prevRange.toIso);
+      const prevPaymentRecords = await fetchMonthlyPaymentRecords(
+        config.baseUrl,
+        config.apiAuthScheme,
+        config.apiToken,
+        config.paymentsPath,
+        config.paymentDateField,
+        prevFromDate,
+        prevToDate,
+      );
+      const prevPaymentCache = new Map<number, PatientDetail>();
+      const prevTreatmentCache = new Map<number, TreatmentDetail>();
+      const prevPayments: MonthlyPaymentBlock[] = [];
+      for (const record of prevPaymentRecords) {
+        const patientId = readNumber(record, config.paymentPatientIdField);
+        const treatmentId = readNumber(record, config.paymentTreatmentIdField);
+        const patient = await getCachedPatient(
+          prevPaymentCache,
+          config.baseUrl,
+          config.apiAuthScheme,
+          config.apiToken,
+          config.patientsPathTemplate,
+          patientId,
+          {
+            emailField: config.patientEmailField,
+            phoneField: config.patientPhoneField,
+            firstNameField: config.patientFirstNameField,
+            lastNameField: config.patientLastNameField,
+            referenceField: config.patientReferenceField,
+            referenceCatalog,
+          },
+        );
+        const treatment = await getCachedTreatment(
+          prevTreatmentCache,
+          config.baseUrl,
+          config.apiAuthScheme,
+          config.apiToken,
+          config.treatmentsPathTemplate,
+          treatmentId,
+          {
+            nameField: config.treatmentNameField,
+            budgetTotalField: config.treatmentBudgetTotalField,
+          },
+        );
+        prevPayments.push({
+          paymentId: readNumber(record, config.paymentIdField),
+          patientId,
+          patientName:
+            readString(record, config.paymentPatientNameField) ??
+            patient.fullName,
+          patientEmail: patient.email,
+          patientPhone: patient.phone,
+          patientReference: patient.reference,
+          treatmentId,
+          treatmentName: treatment.name,
+          treatmentBudgetTotal: treatment.budgetTotal,
+          branch: readString(record, config.paymentBranchField),
+          paymentMethod: readString(record, config.paymentMethodField),
+          folio: readString(record, config.paymentFolioField),
+          reference: readString(record, config.paymentReferenceField),
+          amount: readNumber(record, config.paymentAmountField),
+          createdAt: readString(record, config.paymentDateField),
+        });
+      }
+      const prevRevenue = prevPayments.reduce((sum, p) => sum + p.amount, 0);
+      const prevUnique = new Set(prevPayments.map((p) => p.patientId).filter((id) => id > 0)).size;
+      const prevBranchShare = buildBranchShare(prevPayments).map((b) => ({
+        branch: b.branch,
+        revenue: b.revenue,
+        payments: b.payments,
+      }));
+      comparison = {
+        fromIso: prevRange.fromIso,
+        toIso: prevRange.toIso,
+        revenueTotal: prevRevenue,
+        paymentsTotal: prevPayments.length,
+        uniquePatientsTotal: prevUnique,
+        averagePaymentValue: prevPayments.length > 0 ? prevRevenue / prevPayments.length : 0,
+        branchShare: prevBranchShare,
+      };
+    }
+
     const body: MonthlyDashboardBody = {
       ok: true,
       mode: config.mode,
-      month: {
+      month: rangeDaysParam === null ? {
         label: monthStart.toLocaleDateString("es-MX", {
           month: "long",
           year: "numeric",
         }),
         fromIso: monthStart.toISOString(),
         toIso: monthEnd.toISOString(),
-      },
+      } : undefined,
+      range: rangeField,
+      months,
       revenueTotal,
       paymentsTotal: payments.length,
       uniquePatientsTotal,
@@ -251,6 +382,7 @@ export default async function handler(
       patients: payments,
       treatmentShare: buildTreatmentShare(payments),
       branchShare: buildBranchShare(payments),
+      comparison,
       cache: buildCacheMetadata(Date.now(), { hit: false, stale: false }),
     };
 
@@ -1030,6 +1162,18 @@ function isReferenceKey(value: string): boolean {
     normalized.includes("origen") ||
     normalized.includes("canal")
   );
+}
+
+function parseCompareParam(value: unknown): "previous" | null {
+  if (value === "previous") return "previous";
+  return null;
+}
+
+function parseRangeDays(value: unknown): RangeDays | null {
+  if (value === "7") return 7;
+  if (value === "30") return 30;
+  if (value === "180") return 180;
+  return null;
 }
 
 function readNumber(record: Record<string, unknown>, key: string): number {
