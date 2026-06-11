@@ -17,35 +17,44 @@ function asOptionalString(value: unknown): string | null | undefined {
 }
 
 export function parseLeadInput(body: unknown): LeadInput | null {
-  if (!isRecord(body) || !isRecord(body.attribution)) {
+  if (!isRecord(body)) {
     return null;
   }
 
-  if (
-    typeof body.firstName !== "string" ||
-    typeof body.phone !== "string" ||
-    typeof body.branch !== "string"
-  ) {
+  // Accept both nested { attribution: {...} } and flat webhook format from landing page
+  const flat = body;
+  const nested = isRecord(body.attribution) ? body.attribution : null;
+
+  const firstName = body.firstName ?? body.first_name;
+  const phone = body.phone;
+  const branch = body.branch ?? body.sucursal_interes ?? "unknown";
+
+  if (typeof firstName !== "string" || typeof phone !== "string") {
     return null;
   }
+
+  const rawUtmSource = asOptionalString(nested?.utmSource ?? flat.utm_source);
+  const firstTouchSource = asOptionalString(nested?.firstTouchSource ?? flat.first_touch_source);
 
   const attribution: AttributionData = {
-    fbclid: asOptionalString(body.attribution.fbclid),
-    gclid: asOptionalString(body.attribution.gclid),
-    ttclid: asOptionalString(body.attribution.ttclid),
-    utmSource: asOptionalString(body.attribution.utmSource),
-    utmMedium: asOptionalString(body.attribution.utmMedium),
-    utmCampaign: asOptionalString(body.attribution.utmCampaign),
-    campaignId: asOptionalString(body.attribution.campaignId),
-    landingUrl: asOptionalString(body.attribution.landingUrl),
+    fbclid: asOptionalString(nested?.fbclid ?? flat.fbclid),
+    gclid: asOptionalString(nested?.gclid ?? flat.gclid),
+    ttclid: asOptionalString(nested?.ttclid ?? flat.ttclid),
+    // Use first_touch_source as fallback when utm_source is absent
+    utmSource: rawUtmSource || firstTouchSource || null,
+    utmMedium: asOptionalString(nested?.utmMedium ?? flat.utm_medium),
+    utmCampaign: asOptionalString(nested?.utmCampaign ?? flat.utm_campaign),
+    campaignId: asOptionalString(nested?.campaignId ?? flat.campaign_id),
+    landingUrl: asOptionalString(nested?.landingUrl ?? flat.landing_page_url),
+    firstTouchSource,
   };
 
   return {
-    firstName: body.firstName,
-    lastName: asOptionalString(body.lastName),
-    phone: body.phone,
+    firstName,
+    lastName: asOptionalString(body.lastName ?? body.last_name),
+    phone,
     email: asOptionalString(body.email),
-    branch: body.branch,
+    branch: typeof branch === "string" ? branch : "unknown",
     attribution,
   };
 }
