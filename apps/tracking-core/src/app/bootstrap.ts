@@ -1,5 +1,6 @@
 import { createDentalinkClient, type DentalinkClient } from "../modules/dentalink/client.js";
 import { createElevatorClient, type ElevatorClient } from "../modules/elevator/client.js";
+import { createElevatorEventsDispatcher, type ElevatorEventsDispatcher } from "../modules/elevator/events.js";
 import { ConsoleLogger, type Logger } from "../modules/observability/logger.js";
 import { createStapeClient, type StapeClient } from "../modules/stape/client.js";
 import {
@@ -15,6 +16,7 @@ export interface AppServices {
   config: AppConfig;
   logger: Logger;
   elevatorClient: ElevatorClient;
+  elevatorEvents: ElevatorEventsDispatcher;
   dentalinkClient: DentalinkClient;
   stapeClient: StapeClient;
   stateStore: StateStore;
@@ -27,6 +29,7 @@ export function bootstrapApp(): AppServices {
     config: getAppConfig(),
     logger: new ConsoleLogger(),
     elevatorClient: createElevatorClient(),
+    elevatorEvents: createElevatorEventsDispatcher(),
     dentalinkClient: createDentalinkClient(),
     stapeClient: createStapeClient(),
     stateStore: createStateStore(stateStoreConfig),

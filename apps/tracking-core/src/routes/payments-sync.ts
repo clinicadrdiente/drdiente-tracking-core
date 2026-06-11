@@ -1,6 +1,7 @@
 import type { DentalinkClient } from "../modules/dentalink/client.js";
 import { DentalinkRequestError } from "../modules/dentalink/client.js";
 import type { ElevatorClient } from "../modules/elevator/client.js";
+import type { ElevatorEventsDispatcher } from "../modules/elevator/events.js";
 import type { StapeClient } from "../modules/stape/client.js";
 import { buildPurchaseEvent } from "../modules/payments/build-purchase-event.js";
 import {
@@ -18,6 +19,7 @@ export async function handlePaymentsSync(
   sinceIso: string,
   highTicketThreshold: number,
   maxPayments?: number,
+  elevatorEvents?: ElevatorEventsDispatcher,
 ) {
   const payments = await dentalinkClient.listRecentPayments(sinceIso, maxPayments);
   const unprocessedPayments = await filterUnprocessedPayments(
@@ -30,6 +32,8 @@ export async function handlePaymentsSync(
   let rateLimitedPatients = 0;
   let dispatched = 0;
   let skippedDuplicateBudget = 0;
+  let elevatorEventsFailed = 0;
+  let stapeEventsFailed = 0;
   const safeToMarkProcessed = [];
 
   for (const payment of unprocessedPayments) {
@@ -91,7 +95,26 @@ export async function handlePaymentsSync(
     const event = buildPurchaseEvent(lead, payment, tier);
 
     await elevatorClient.updateLeadStage(lead.elevatorId, "anticipo_pagado");
-    await stapeClient.dispatch(event);
+
+    // Dispatch to both Stape and Elevator webhook in parallel.
+    // Policy: if at least one succeeds → mark processed (avoids infinite retries).
+    // If both fail → do NOT mark processed so the next sync retries.
+    const [stapeResult, elevatorResult] = await Promise.allSettled([
+      stapeClient.dispatch(event),
+      elevatorEvents ? elevatorEvents.dispatch(event) : Promise.resolve(),
+    ]);
+
+    const stapeOk = stapeResult.status === "fulfilled";
+    const elevatorOk = elevatorResult.status === "fulfilled";
+
+    if (!stapeOk) stapeEventsFailed += 1;
+    if (!elevatorOk && elevatorEvents) elevatorEventsFailed += 1;
+
+    if (!stapeOk && (!elevatorEvents || !elevatorOk)) {
+      // Both failed — do not mark processed; retry on next sync
+      continue;
+    }
+
     dispatched += 1;
     safeToMarkProcessed.push(payment);
   }
@@ -118,6 +141,8 @@ export async function handlePaymentsSync(
     rateLimitedPatients,
     dispatched,
     skippedDuplicateBudget,
+    elevatorEventsFailed,
+    stapeEventsFailed,
   };
 }
 

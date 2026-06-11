@@ -84,6 +84,7 @@ function buildStapePayload(event: ConversionEvent, config: StapeConfig) {
     source_system: "drdiente-tracking-core",
     stape_container_id: config.containerId || null,
     stape_container_identifier: config.containerIdentifier || null,
+    target_platforms: config.targetPlatforms.length > 0 ? config.targetPlatforms : undefined,
   };
 }
 
