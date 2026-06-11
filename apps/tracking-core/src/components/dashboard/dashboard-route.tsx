@@ -12,9 +12,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  ItemGroup,
-} from "@/components/ui/item";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -41,10 +38,12 @@ import type {
 import { DailyReport } from "@/components/dashboard/daily-report";
 import { EffortsPanel } from "@/components/dashboard/efforts-panel";
 import { SystemHealthPanel, SystemHealthCard } from "@/components/dashboard/system-health";
-import { GuidedActionsCard, OperationsResultCard, SyncMetric } from "@/components/dashboard/actions";
+import { GuidedActionsCard, OperationsResultCard } from "@/components/dashboard/actions";
 import { WindsorMarketingCard } from "@/components/dashboard/windsor-panel";
 import { ElevatorSyncCard, IntegrationPanel } from "@/components/dashboard/elevator-panel";
-import { ReferenceDiagnosticCard, StapeTestCard } from "@/components/dashboard/diagnostics-panel";
+import { StapeTestCard, DiagnosticsPanel } from "@/components/dashboard/diagnostics-panel";
+import { PatientsPanel } from "@/components/dashboard/patients-panel";
+import { SettingsPanel } from "@/components/dashboard/settings-panel";
 import {
   HeroMetric,
   StatsGrid,
@@ -53,8 +52,6 @@ import {
   TreatmentListCard,
   BranchRevenueCard,
   DayBlocksCard,
-  PatientItem,
-  EmptyState,
   type ChartRow,
 } from "@/components/dashboard/attribution-panel";
 
@@ -73,43 +70,29 @@ function formatInteger(value: number) {
 }
 
 export function ControlRoom({
-  chartRows,
   cronHeartbeatStatus,
   data,
-  isDetectingWindsorAccounts,
   isLoading,
   isSyncingToElevator,
-  isTestingRealFlow,
-  onDetectWindsorAccounts,
   onRefresh,
   onSendToElevator,
-  onTestRealFlow,
   realFlowError,
   realFlowResult,
   syncError,
   syncResult,
   systemStatus,
-  topPayments,
-  windsorAccounts,
 }: {
-  chartRows: ChartRow[];
   cronHeartbeatStatus: "ok" | "stale" | "unknown" | null;
   data: MonthlyDashboard | null;
-  isDetectingWindsorAccounts: boolean;
   isLoading: boolean;
   isSyncingToElevator: boolean;
-  isTestingRealFlow: boolean;
-  onDetectWindsorAccounts: () => void;
   onRefresh: () => void;
   onSendToElevator: () => void;
-  onTestRealFlow: () => void;
   realFlowError: string | null;
   realFlowResult: PaymentsSyncResult | null;
   syncError: string | null;
   syncResult: PaymentsSyncResult | null;
   systemStatus: SystemStatus | null;
-  topPayments: PaymentBlock[];
-  windsorAccounts: WindsorAccountsResult | null;
 }) {
   return (
     <>
@@ -168,23 +151,14 @@ export function ControlRoom({
         <SystemHealthCard systemStatus={systemStatus} cronHeartbeatStatus={cronHeartbeatStatus} />
       </section>
 
-      <section className="grid grid-cols-1 gap-4 xl:grid-cols-[0.95fr_1.05fr]">
-        <GuidedActionsCard
-          data={data}
-          isDetectingWindsorAccounts={isDetectingWindsorAccounts}
-          isLoading={isLoading}
-          isSyncingToElevator={isSyncingToElevator}
-          isTestingRealFlow={isTestingRealFlow}
-          onDetectWindsorAccounts={onDetectWindsorAccounts}
-          onRefresh={onRefresh}
-          onSendToElevator={onSendToElevator}
-          onTestRealFlow={onTestRealFlow}
-          realFlowResult={realFlowResult}
-          syncResult={syncResult}
-          windsorAccounts={windsorAccounts}
-        />
-        <RecentPatientsCard payments={topPayments} />
-      </section>
+      <GuidedActionsCard
+        data={data}
+        isLoading={isLoading}
+        isSyncingToElevator={isSyncingToElevator}
+        onRefresh={onRefresh}
+        onSendToElevator={onSendToElevator}
+        syncResult={syncResult}
+      />
 
       {(syncError || realFlowError || syncResult || realFlowResult) ? (
         <OperationsResultCard
@@ -194,11 +168,97 @@ export function ControlRoom({
           syncResult={syncResult}
         />
       ) : null}
+    </>
+  );
+}
 
-      <section className="grid grid-cols-1 gap-4 xl:grid-cols-[1.25fr_0.75fr]">
-        <RevenueChart chartRows={chartRows} data={data} />
-        <BranchRevenueCard data={data} />
+function RevenuePage({
+  data,
+  chartRows,
+  rangeDays,
+  onRangeChange,
+}: {
+  data: MonthlyDashboard | null;
+  chartRows: ChartRow[];
+  rangeDays: 7 | 30 | 180 | null;
+  onRangeChange: (days: 7 | 30 | 180 | null) => void;
+}) {
+  const [compareEnabled, setCompareEnabled] = useState(false);
+  const monthBuckets: MonthBucket[] = data?.months ?? [];
+  const comparison = compareEnabled ? data?.comparison : undefined;
+
+  return (
+    <>
+      <div className="flex items-center justify-between gap-4">
+        <p className="text-muted-foreground text-sm">
+          {rangeDays ? `Últimos ${rangeDays} días` : (data?.month?.label ?? "Mes actual")}
+        </p>
+        <div className="flex items-center gap-2">
+          {rangeDays !== null && (
+            <Button
+              onClick={() => setCompareEnabled((v) => !v)}
+              size="sm"
+              variant={compareEnabled ? "default" : "outline"}
+            >
+              {compareEnabled ? "Comparando" : "Comparar con periodo anterior"}
+            </Button>
+          )}
+          <Select
+            value={rangeDays !== null ? String(rangeDays) : "month"}
+            onValueChange={(val) => {
+              const next = val === "month" ? null : (Number(val) as 7 | 30 | 180);
+              setCompareEnabled(false);
+              onRangeChange(next);
+            }}
+          >
+            <SelectTrigger className="w-44">
+              <SelectValue placeholder="Rango" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="month">Mes actual</SelectItem>
+              <SelectItem value="7">Últimos 7 días</SelectItem>
+              <SelectItem value="30">Últimos 30 días</SelectItem>
+              <SelectItem value="180">Últimos 180 días</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <StatsGrid comparison={comparison} data={data} />
+      <RevenueChart chartRows={chartRows} data={data} />
+      {monthBuckets.length > 1 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Por mes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col gap-3">
+              {monthBuckets.map((bucket) => (
+                <div
+                  className="flex items-center justify-between gap-3 rounded-xl border bg-background/50 p-4"
+                  key={bucket.monthKey}
+                >
+                  <div>
+                    <p className="font-medium capitalize">{bucket.label}</p>
+                    <p className="text-muted-foreground text-sm">{bucket.payments} pagos</p>
+                  </div>
+                  <p className="font-semibold text-brand">
+                    {new Intl.NumberFormat("es-MX", {
+                      style: "currency",
+                      currency: "MXN",
+                      maximumFractionDigits: 0,
+                    }).format(bucket.revenue)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+      <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <BranchRevenueCard comparison={comparison} data={data} />
+        <TreatmentListCard data={data} />
       </section>
+      <DayBlocksCard data={data} />
     </>
   );
 }
@@ -226,6 +286,8 @@ export function DashboardRoute({
   onTestWindsor,
   rangeDays,
   onRangeChange,
+  onSecretChange,
+  onSaveSecret,
   secret,
   referenceDiagnostic,
   referenceDiagnosticError,
@@ -262,6 +324,8 @@ export function DashboardRoute({
   onTestWindsor: () => void;
   rangeDays: 7 | 30 | 180 | null;
   onRangeChange: (days: 7 | 30 | 180 | null) => void;
+  onSecretChange: (value: string) => void;
+  onSaveSecret: () => void;
   secret: string;
   referenceDiagnostic: ReferenceDiagnostic | null;
   referenceDiagnosticError: string | null;
@@ -293,118 +357,23 @@ export function DashboardRoute({
   }
 
   if (route === "revenue") {
-    const monthBuckets: MonthBucket[] = data?.months ?? [];
-    const [compareEnabled, setCompareEnabled] = useState(false);
-    const comparison = compareEnabled ? data?.comparison : undefined;
     return (
-      <>
-        <div className="flex items-center justify-between gap-4">
-          <p className="text-muted-foreground text-sm">
-            {rangeDays ? `Últimos ${rangeDays} días` : (data?.month?.label ?? "Mes actual")}
-          </p>
-          <div className="flex items-center gap-2">
-            {rangeDays !== null && (
-              <Button
-                onClick={() => setCompareEnabled((v) => !v)}
-                size="sm"
-                variant={compareEnabled ? "default" : "outline"}
-              >
-                {compareEnabled ? "Comparando" : "Comparar con periodo anterior"}
-              </Button>
-            )}
-            <Select
-              value={rangeDays !== null ? String(rangeDays) : "month"}
-              onValueChange={(val) => {
-                const next = val === "month" ? null : (Number(val) as 7 | 30 | 180);
-                setCompareEnabled(false);
-                onRangeChange(next);
-              }}
-            >
-              <SelectTrigger className="w-44">
-                <SelectValue placeholder="Rango" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="month">Mes actual</SelectItem>
-                <SelectItem value="7">Últimos 7 días</SelectItem>
-                <SelectItem value="30">Últimos 30 días</SelectItem>
-                <SelectItem value="180">Últimos 180 días</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <StatsGrid comparison={comparison} data={data} />
-        <RevenueChart chartRows={chartRows} data={data} />
-        {monthBuckets.length > 1 ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>Por mes</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col gap-3">
-                {monthBuckets.map((bucket) => (
-                  <div
-                    className="flex items-center justify-between gap-3 rounded-xl border bg-background/50 p-4"
-                    key={bucket.monthKey}
-                  >
-                    <div>
-                      <p className="font-medium capitalize">{bucket.label}</p>
-                      <p className="text-muted-foreground text-sm">{bucket.payments} pagos</p>
-                    </div>
-                    <p className="font-semibold text-brand">
-                      {new Intl.NumberFormat("es-MX", {
-                        style: "currency",
-                        currency: "MXN",
-                        maximumFractionDigits: 0,
-                      }).format(bucket.revenue)}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        ) : null}
-        <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <BranchRevenueCard comparison={comparison} data={data} />
-          <TreatmentListCard data={data} />
-        </section>
-        <section className="grid grid-cols-1 gap-4">
-          <DayBlocksCard data={data} />
-        </section>
-      </>
+      <RevenuePage
+        chartRows={chartRows}
+        data={data}
+        onRangeChange={onRangeChange}
+        rangeDays={rangeDays}
+      />
     );
   }
 
   if (route === "patients" || route === "dentalink/patients") {
     return (
-      <>
-        <ElevatorSyncCard
-          isSyncing={isSyncingToElevator}
-          onSend={onSendToElevator}
-          result={syncResult}
-          syncError={syncError}
-        />
-        <Card>
-          <CardHeader>
-            <CardTitle>Pacientes del mes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ItemGroup className="gap-2">
-              {(data?.patients ?? []).length > 0 ? (
-                data?.patients.map((payment) => (
-                  <PatientItem key={payment.paymentId} payment={payment} />
-                ))
-              ) : (
-                <EmptyState
-                  cta="Actualizar Dentalink"
-                  isLoading={isLoading}
-                  message="No hay pacientes cargados todavia."
-                  onClick={onRefresh}
-                />
-              )}
-            </ItemGroup>
-          </CardContent>
-        </Card>
-      </>
+      <PatientsPanel
+        data={data}
+        isLoading={isLoading}
+        onRefresh={onRefresh}
+      />
     );
   }
 
@@ -412,12 +381,6 @@ export function DashboardRoute({
     return (
       <>
         <StatsGrid data={data} />
-        <ReferenceDiagnosticCard
-          diagnostic={referenceDiagnostic}
-          error={referenceDiagnosticError}
-          isLoading={isDiagnosingReferences}
-          onDiagnose={onDiagnoseReferences}
-        />
         <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <RecentPatientsCard payments={topPayments} />
           <BranchRevenueCard data={data} />
@@ -487,21 +450,34 @@ export function DashboardRoute({
 
   if (route === "settings" || route.startsWith("settings/")) {
     return (
-      <IntegrationPanel
-        badge="Sistema"
-        rows={[
-          ["Dentalink", "api"],
-          ["Elevator", "api"],
-          ["Stape", "stub"],
-          ["Secret local", window.localStorage.getItem("trackingSecret") ? "configurado" : "pendiente"],
-        ]}
-        title="Configuracion"
+      <SettingsPanel
+        onSave={onSaveSecret}
+        onSecretChange={onSecretChange}
+        secret={secret}
       />
     );
   }
 
   if (route === "help" || route === "status") {
-    return <SystemHealthPanel route={route} data={data} systemStatus={systemStatus} cronHeartbeatStatus={cronHeartbeatStatus} />;
+    return (
+      <>
+        <SystemHealthPanel route={route} data={data} systemStatus={systemStatus} cronHeartbeatStatus={cronHeartbeatStatus} />
+        <DiagnosticsPanel
+          diagnostic={referenceDiagnostic}
+          diagnosticError={referenceDiagnosticError}
+          isDiagnosing={isDiagnosingReferences}
+          isTesting={isTestingStape}
+          isTestingRealFlow={isTestingRealFlow}
+          onDiagnose={onDiagnoseReferences}
+          onTest={onTestStape}
+          onTestRealFlow={onTestRealFlow}
+          realFlowError={realFlowError}
+          realFlowResult={realFlowResult}
+          stapeTestError={stapeTestError}
+          stapeTestResult={stapeTestResult}
+        />
+      </>
+    );
   }
 
   if (route === "reporte-diario") {
@@ -514,24 +490,17 @@ export function DashboardRoute({
 
   return (
     <ControlRoom
-      chartRows={chartRows}
       cronHeartbeatStatus={cronHeartbeatStatus}
       data={data}
-      isDetectingWindsorAccounts={isDetectingWindsorAccounts}
       isLoading={isLoading}
       isSyncingToElevator={isSyncingToElevator}
-      isTestingRealFlow={isTestingRealFlow}
-      onDetectWindsorAccounts={onDetectWindsorAccounts}
       onRefresh={onRefresh}
       onSendToElevator={onSendToElevator}
-      onTestRealFlow={onTestRealFlow}
       realFlowError={realFlowError}
       realFlowResult={realFlowResult}
       syncError={syncError}
       syncResult={syncResult}
       systemStatus={systemStatus}
-      topPayments={topPayments}
-      windsorAccounts={windsorAccounts}
     />
   );
 }

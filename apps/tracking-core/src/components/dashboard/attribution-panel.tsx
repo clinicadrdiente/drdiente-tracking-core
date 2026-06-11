@@ -258,18 +258,27 @@ export function RevenueChart({
 }
 
 export function PatientItem({ payment }: { payment: PaymentBlock }) {
+  const meta = [
+    payment.patientEmail,
+    payment.patientPhone,
+    payment.patientReference,
+    payment.treatmentName,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
   return (
     <Item size="sm">
       <ItemMedia variant="icon">
         <UserRoundIcon aria-hidden="true" />
       </ItemMedia>
       <ItemContent>
-        <ItemTitle>{payment.patientName ?? "Paciente sin nombre"}</ItemTitle>
-        <ItemDescription className="line-clamp-2">
-          {payment.patientEmail ?? "Sin email"} · {payment.patientPhone ?? "Sin telefono"} ·{" "}
-          {payment.patientReference ?? "Sin referencia"} ·{" "}
-          {payment.treatmentName ?? `Tratamiento #${payment.treatmentId || "-"}`}
-        </ItemDescription>
+        <ItemTitle className="capitalize">
+          {(payment.patientName ?? "Paciente sin nombre").toLowerCase()}
+        </ItemTitle>
+        {meta ? (
+          <ItemDescription className="line-clamp-2">{meta}</ItemDescription>
+        ) : null}
       </ItemContent>
       <ItemActions className="flex-col items-end gap-1">
         <span className="font-semibold text-brand">
@@ -308,6 +317,14 @@ export function RecentPatientsCard({ payments }: { payments: PaymentBlock[] }) {
 
 export function TreatmentListCard({ data }: { data: MonthlyDashboard | null }) {
   const treatments = data?.treatmentShare ?? [];
+  const allUnclassified =
+    treatments.length > 0 &&
+    treatments.every(
+      (t) =>
+        !t.category ||
+        t.category.startsWith("#") ||
+        /tratamiento\s*#/i.test(t.category),
+    );
 
   return (
     <Card>
@@ -315,36 +332,42 @@ export function TreatmentListCard({ data }: { data: MonthlyDashboard | null }) {
         <CardTitle>Tratamientos y revenue</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="flex flex-col gap-3">
-          {treatments.length > 0 ? (
-            treatments.map((treatment) => (
-              <div
-                className="rounded-xl border bg-background/50 p-4"
-                key={treatment.category}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <span className="truncate font-medium">{treatment.category}</span>
-                  <span className="font-semibold text-brand">
-                    {formatMoney(treatment.revenue)}
-                  </span>
+        {allUnclassified ? (
+          <p className="py-8 text-center text-muted-foreground text-sm">
+            Aún no hay clasificación de tratamientos.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {treatments.length > 0 ? (
+              treatments.map((treatment) => (
+                <div
+                  className="rounded-xl border bg-background/50 p-4"
+                  key={treatment.category}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="truncate font-medium">{treatment.category}</span>
+                    <span className="font-semibold text-brand">
+                      {formatMoney(treatment.revenue)}
+                    </span>
+                  </div>
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-brand"
+                      style={{ width: `${Math.max(3, treatment.share)}%` }}
+                    />
+                  </div>
+                  <p className="mt-2 text-muted-foreground text-xs">
+                    {formatInteger(treatment.share)}% del revenue clasificado
+                  </p>
                 </div>
-                <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full bg-brand"
-                    style={{ width: `${Math.max(3, treatment.share)}%` }}
-                  />
-                </div>
-                <p className="mt-2 text-muted-foreground text-xs">
-                  {formatInteger(treatment.share)}% del revenue clasificado
-                </p>
-              </div>
-            ))
-          ) : (
-            <p className="py-8 text-center text-muted-foreground text-sm">
-              Sin tratamientos cargados todavia.
-            </p>
-          )}
-        </div>
+              ))
+            ) : (
+              <p className="py-8 text-center text-muted-foreground text-sm">
+                Sin tratamientos cargados todavía.
+              </p>
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -425,11 +448,11 @@ export function BranchRevenueCard({
                       className="flex items-center justify-between gap-3 rounded-lg bg-muted/30 px-3 py-2 text-sm"
                       key={`${branch.branch}-${payment.paymentId}`}
                     >
-                      <span className="truncate">
-                        {payment.patientName ?? "Paciente"} ·{" "}
-                        <span className="text-muted-foreground">
-                          {payment.patientReference ?? "Sin referencia"}
-                        </span>
+                      <span className="truncate capitalize">
+                        {(payment.patientName ?? "Paciente").toLowerCase()}
+                        {payment.patientReference ? (
+                          <span className="text-muted-foreground"> · {payment.patientReference}</span>
+                        ) : null}
                       </span>
                       <span className="shrink-0 font-medium">
                         {formatMoney(payment.amount)}
@@ -479,10 +502,17 @@ export function DayRevenueBlock({ day }: { day: DayBlock }) {
                   {formatMoney(patient.amount)}
                 </span>
               </div>
-              <p className="mt-1 truncate text-muted-foreground text-xs">
-                {patient.patientEmail ?? patient.patientPhone ?? "Sin contacto"} ·{" "}
-                {patient.treatmentName ?? "Tratamiento"}
-              </p>
+              {(() => {
+                const meta = [
+                  patient.patientEmail ?? patient.patientPhone,
+                  patient.treatmentName,
+                ]
+                  .filter(Boolean)
+                  .join(" · ");
+                return meta ? (
+                  <p className="mt-1 truncate text-muted-foreground text-xs">{meta}</p>
+                ) : null;
+              })()}
             </div>
           ))
         ) : (
@@ -497,17 +527,37 @@ export function DayRevenueBlock({ day }: { day: DayBlock }) {
 }
 
 export function DayBlocksCard({ data }: { data: MonthlyDashboard | null }) {
+  const allDays = data?.days ?? [];
+  const activeDays = allDays
+    .filter((d) => d.payments > 0)
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const skippedCount = allDays.length - activeDays.length;
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Bloques del mes</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {(data?.days ?? []).map((day) => (
-            <DayRevenueBlock key={day.date} day={day} />
-          ))}
-        </div>
+        {activeDays.length > 0 ? (
+          <>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {activeDays.map((day) => (
+                <DayRevenueBlock key={day.date} day={day} />
+              ))}
+            </div>
+            {skippedCount > 0 && (
+              <p className="mt-3 text-center text-muted-foreground text-xs">
+                {skippedCount}{" "}
+                {skippedCount === 1 ? "día sin pagos omitido" : "días sin pagos omitidos"}
+              </p>
+            )}
+          </>
+        ) : (
+          <p className="py-8 text-center text-muted-foreground text-sm">
+            Sin pagos registrados en el mes.
+          </p>
+        )}
       </CardContent>
     </Card>
   );
