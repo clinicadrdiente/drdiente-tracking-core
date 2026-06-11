@@ -12,6 +12,7 @@ export * from "./http/vercel-adapters.js";
 export * from "./entrypoints/http.js";
 export * from "./modules/elevator/client.js";
 export * from "./modules/elevator/config.js";
+export * from "./modules/elevator/events.js";
 export * from "./modules/elevator/payloads.js";
 export * from "./modules/dentalink/client.js";
 export * from "./modules/dentalink/config.js";

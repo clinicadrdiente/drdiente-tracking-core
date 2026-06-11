@@ -8,6 +8,7 @@ export interface StapeConfig {
   containerIdentifier: string;
   apiKey: string;
   apiKeyHeader: string;
+  targetPlatforms: string[];
 }
 
 function getEnv(name: string, fallback = ""): string {
@@ -25,5 +26,9 @@ export function getStapeConfig(): StapeConfig {
     containerIdentifier: getEnv("STAPE_CONTAINER_IDENTIFIER"),
     apiKey: getEnv("STAPE_API_KEY"),
     apiKeyHeader: getEnv("STAPE_API_KEY_HEADER", "x-stape-api-key"),
+    targetPlatforms: getEnv("STAPE_TARGET_PLATFORMS")
+      .split(",")
+      .map((p) => p.trim())
+      .filter(Boolean),
   };
 }

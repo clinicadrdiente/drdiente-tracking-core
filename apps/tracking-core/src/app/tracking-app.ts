@@ -81,6 +81,7 @@ export class TrackingApp {
       resolvedSinceIso,
       this.services.config.highTicketThreshold,
       maxPayments,
+      this.services.elevatorEvents,
     );
   }
 }
