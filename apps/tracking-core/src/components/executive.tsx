@@ -46,6 +46,12 @@ interface BranchShare {
   }>;
 }
 
+interface MarketingBucket {
+  patients: number;
+  revenue: number;
+  share: number;
+}
+
 interface ExecutiveBaseline {
   revenueTotal: number;
   paymentsTotal: number;
@@ -53,6 +59,7 @@ interface ExecutiveBaseline {
   averagePaymentValue: number;
   month?: { label: string };
   branchShare?: BranchShare[];
+  marketingAttribution?: { marketing: MarketingBucket };
 }
 
 interface WindsorSource {
@@ -259,6 +266,7 @@ export function Executive({ data }: { data: ExecutiveBaseline | null }) {
           inputs={inputs}
           globalGoal={globalGoal}
           globalRevenue={globalRevenue}
+          marketing={data?.marketingAttribution?.marketing ?? null}
           onGoBranch={setScope}
           onSpendMonthChange={setSpendMonth}
           patch={patch}
@@ -319,6 +327,7 @@ function GlobalView({
   globalGoal,
   globalRevenue,
   inputs,
+  marketing,
   onGoBranch,
   onSpendMonthChange,
   patch,
@@ -332,6 +341,7 @@ function GlobalView({
   globalGoal: number;
   globalRevenue: number;
   inputs: ExecutiveInputs;
+  marketing: MarketingBucket | null;
   onGoBranch: (scope: Scope) => void;
   onSpendMonthChange: (month: string) => void;
   patch: (partial: Partial<ExecutiveInputs>) => void;
@@ -485,6 +495,7 @@ function GlobalView({
       {/* Retorno (ROAS/ROI) */}
       <ReturnCard
         inputs={inputs}
+        marketing={marketing}
         onSpendMonthChange={onSpendMonthChange}
         patch={patch}
         revenue={globalRevenue}
@@ -672,6 +683,7 @@ function BranchMiniCard({
 
 function ReturnCard({
   inputs,
+  marketing,
   onSpendMonthChange,
   patch,
   revenue,
@@ -680,6 +692,7 @@ function ReturnCard({
   windsorState,
 }: {
   inputs: ExecutiveInputs;
+  marketing: MarketingBucket | null;
   onSpendMonthChange: (month: string) => void;
   patch: (partial: Partial<ExecutiveInputs>) => void;
   revenue: number;
@@ -691,6 +704,8 @@ function ReturnCard({
   const totalCosts = adSpend + inputs.operatingCosts;
   const profit = revenue - totalCosts;
   const roas = adSpend > 0 ? revenue / adSpend : 0;
+  const roasMarketing =
+    marketing !== null && adSpend > 0 ? marketing.revenue / adSpend : null;
   const roiComputed = totalCosts > 0 ? (profit / totalCosts) * 100 : 0;
   const roi = inputs.roiManualEnabled ? inputs.roiManual : roiComputed;
   const usingWindsor = inputs.adSpendOverride === null && windsorSpend !== null;
@@ -721,12 +736,22 @@ function ReturnCard({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <MetricTile
             hint="Por cada $1 invertido"
-            label="ROAS"
+            label="ROAS general"
             tone={roas >= 1 ? "good" : "bad"}
             value={`${formatRoas(roas)}`}
+          />
+          <MetricTile
+            hint={
+              marketing !== null
+                ? `${formatMoney(marketing.revenue)} de pacientes con origen digital`
+                : "Actualiza Dentalink para calcularlo"
+            }
+            label="ROAS marketing"
+            tone={roasMarketing !== null && roasMarketing >= 1 ? "good" : "bad"}
+            value={roasMarketing !== null ? formatRoas(roasMarketing) : "—"}
           />
           <MetricTile label="ROI" tone={roi >= 0 ? "good" : "bad"} value={formatPercent(roi)} />
           <MetricTile
@@ -791,8 +816,10 @@ function ReturnCard({
         </div>
         <p className="flex items-start gap-1.5 text-muted-foreground text-xs">
           <InfoIcon aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
-          ROAS general = todo el revenue / toda la inversion. El detalle por
-          campana exacto es la siguiente capa de backend.
+          ROAS general = todo el revenue / toda la inversion. ROAS marketing =
+          solo el revenue de pacientes cuyo campo "Referencia" en Dentalink
+          indica origen digital (Google, redes, internet). El detalle esta en
+          Esfuerzos.
         </p>
       </CardContent>
     </Card>

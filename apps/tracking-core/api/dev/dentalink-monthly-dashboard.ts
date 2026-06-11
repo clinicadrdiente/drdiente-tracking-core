@@ -7,6 +7,10 @@ import {
 } from "../_lib/http.js";
 import { requireTrackingSecret, serverError } from "../../src/index.js";
 import { getDentalinkConfig } from "../../src/modules/dentalink/config.js";
+import {
+  buildMarketingAttribution,
+  type MarketingAttributionSummary,
+} from "../../src/modules/dentalink/reference-attribution.js";
 import { trailingRange, groupByMonth, previousRange, type RangeDays, type MonthBucket } from "../../src/lib/date-ranges.js";
 
 interface MonthlyPaymentBlock {
@@ -68,6 +72,7 @@ interface MonthlyDashboardBody {
   patients: MonthlyPaymentBlock[];
   treatmentShare: ReturnType<typeof buildTreatmentShare>;
   branchShare: BranchSummary[];
+  marketingAttribution: MarketingAttributionSummary;
   comparison?: {
     fromIso: string;
     toIso: string;
@@ -76,6 +81,7 @@ interface MonthlyDashboardBody {
     uniquePatientsTotal: number;
     averagePaymentValue: number;
     branchShare: Array<{ branch: string; revenue: number; payments: number }>;
+    marketingAttribution: MarketingAttributionSummary;
   };
   cache: {
     hit: boolean;
@@ -184,6 +190,7 @@ export default async function handler(
         patients: [],
         treatmentShare: [],
         branchShare: [],
+        marketingAttribution: buildMarketingAttribution([]),
         cache: buildCacheMetadata(Date.now(), { hit: false, stale: false }),
       };
       send(response, {
@@ -358,6 +365,7 @@ export default async function handler(
         uniquePatientsTotal: prevUnique,
         averagePaymentValue: prevPayments.length > 0 ? prevRevenue / prevPayments.length : 0,
         branchShare: prevBranchShare,
+        marketingAttribution: buildMarketingAttribution(prevPayments),
       };
     }
 
@@ -382,6 +390,7 @@ export default async function handler(
       patients: payments,
       treatmentShare: buildTreatmentShare(payments),
       branchShare: buildBranchShare(payments),
+      marketingAttribution: buildMarketingAttribution(payments),
       comparison,
       cache: buildCacheMetadata(Date.now(), { hit: false, stale: false }),
     };
