@@ -44,6 +44,7 @@ import { ElevatorSyncCard, IntegrationPanel } from "@/components/dashboard/eleva
 import { StapeTestCard, DiagnosticsPanel } from "@/components/dashboard/diagnostics-panel";
 import { PatientsPanel } from "@/components/dashboard/patients-panel";
 import { SettingsPanel } from "@/components/dashboard/settings-panel";
+import { UnmatchedPanel } from "@/components/dashboard/unmatched-panel";
 import {
   HeroMetric,
   StatsGrid,
@@ -409,6 +410,10 @@ export function DashboardRoute({
         </section>
       </>
     );
+  }
+
+  if (route === "dentalink/sin-match") {
+    return <UnmatchedPanel data={data} secret={secret} />;
   }
 
   if (route === "elevator" || route.startsWith("elevator/")) {

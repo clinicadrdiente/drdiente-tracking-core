@@ -5,7 +5,7 @@ import {
   type VercelRequest,
   type VercelResponse,
 } from "../_lib/http.js";
-import { requireTrackingSecret, serverError } from "../../src/index.js";
+import { requireTrackingSecret, serverError, trackingHttpHandlers } from "../../src/index.js";
 import { getDentalinkConfig } from "../../src/modules/dentalink/config.js";
 import {
   buildMarketingAttribution,
@@ -29,6 +29,7 @@ interface MonthlyPaymentBlock {
   reference: string | null;
   amount: number;
   createdAt: string | null;
+  digitalSource?: string | null;
 }
 
 interface DayBlock {
@@ -365,9 +366,11 @@ export default async function handler(
         uniquePatientsTotal: prevUnique,
         averagePaymentValue: prevPayments.length > 0 ? prevRevenue / prevPayments.length : 0,
         branchShare: prevBranchShare,
-        marketingAttribution: buildMarketingAttribution(prevPayments),
+        marketingAttribution: buildMarketingAttribution(await enrichWithDigitalSources(prevPayments)),
       };
     }
+
+    const enrichedPayments = await enrichWithDigitalSources(payments);
 
     const body: MonthlyDashboardBody = {
       ok: true,
@@ -390,7 +393,7 @@ export default async function handler(
       patients: payments,
       treatmentShare: buildTreatmentShare(payments),
       branchShare: buildBranchShare(payments),
-      marketingAttribution: buildMarketingAttribution(payments),
+      marketingAttribution: buildMarketingAttribution(enrichedPayments),
       comparison,
       cache: buildCacheMetadata(Date.now(), { hit: false, stale: false }),
     };
@@ -1161,6 +1164,32 @@ function readReferenceLabel(record: Record<string, unknown>): string | null {
     "texto",
     "label",
   ]);
+}
+
+async function enrichWithDigitalSources(
+  payments: MonthlyPaymentBlock[],
+): Promise<MonthlyPaymentBlock[]> {
+  try {
+    const contacts = new Set<string>();
+    for (const p of payments) {
+      if (p.patientEmail) contacts.add(p.patientEmail);
+      if (p.patientPhone) contacts.add(p.patientPhone);
+    }
+    if (contacts.size === 0) return payments;
+    const sourceMap = await trackingHttpHandlers.stateStore.batchGetContactLeadSources(
+      Array.from(contacts),
+    );
+    if (sourceMap.size === 0) return payments;
+    return payments.map((p) => ({
+      ...p,
+      digitalSource:
+        (p.patientEmail && sourceMap.get(p.patientEmail)) ||
+        (p.patientPhone && sourceMap.get(p.patientPhone)) ||
+        null,
+    }));
+  } catch {
+    return payments;
+  }
 }
 
 function isReferenceKey(value: string): boolean {

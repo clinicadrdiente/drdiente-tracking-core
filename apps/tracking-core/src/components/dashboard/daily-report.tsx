@@ -77,6 +77,7 @@ export function DailyReport({ secret }: { secret: string }) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [reports, setReports] = useState<DailyBranchReport[]>([]);
   const [isLoadingReports, setIsLoadingReports] = useState(false);
+  const [isAutofilling, setIsAutofilling] = useState(false);
 
   useEffect(() => {
     void loadReports();
@@ -110,6 +111,42 @@ export function DailyReport({ secret }: { secret: string }) {
       ...prev,
       channelCounts: { ...prev.channelCounts, [channel]: value },
     }));
+  }
+
+  async function handleAutofill() {
+    if (!secret.trim() || !form.date) return;
+    setIsAutofilling(true);
+    try {
+      const res = await fetch(`/api/dev/dentalink-day-summary?date=${form.date}`, {
+        headers: { "x-tracking-secret": secret.trim() },
+      });
+      const body = (await res.json()) as {
+        ok: boolean;
+        revenueTotal?: number;
+        paymentsCount?: number;
+        uniquePatients?: number;
+        branches?: Array<{ branch: string; revenue: number; payments: number }>;
+      };
+      if (!res.ok || !body.ok) return;
+
+      const fmt = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 });
+      const branches = body.branches ?? [];
+      const primaryBranch = branches[0]?.branch ?? "";
+      const noteLines: string[] = [
+        `Dentalink ${form.date}: ${fmt.format(body.revenueTotal ?? 0)} en ${body.paymentsCount ?? 0} pagos, ${body.uniquePatients ?? 0} pacientes`,
+        ...branches.map((b) => `  ${b.branch}: ${fmt.format(b.revenue)} (${b.payments} pagos)`),
+      ];
+
+      setForm((prev) => ({
+        ...prev,
+        branch: prev.branch || primaryBranch,
+        notes: noteLines.join("\n") + (prev.notes ? "\n" + prev.notes : ""),
+      }));
+    } catch {
+      // non-critical
+    } finally {
+      setIsAutofilling(false);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -194,6 +231,18 @@ export function DailyReport({ secret }: { secret: string }) {
               required
             />
           </div>
+        </div>
+
+        <div className="flex">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={isAutofilling || !secret.trim() || !form.date}
+            onClick={() => void handleAutofill()}
+          >
+            {isAutofilling ? "Cargando Dentalink..." : "Autocompletar desde Dentalink"}
+          </Button>
         </div>
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
