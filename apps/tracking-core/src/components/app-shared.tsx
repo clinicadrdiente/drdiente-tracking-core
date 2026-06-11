@@ -2,12 +2,14 @@ import type { ReactNode } from "react";
 import {
   ActivityIcon,
   BarChart3Icon,
+  BookOpenIcon,
   CalendarDaysIcon,
   ClipboardListIcon,
   GaugeIcon,
   HelpCircleIcon,
   LayoutGridIcon,
   MegaphoneIcon,
+  Scale3dIcon,
   SendIcon,
   SettingsIcon,
   TrendingUpIcon,
@@ -52,6 +54,16 @@ export const navGroups: SidebarNavGroup[] = [
         title: "Proyeccion",
         path: "#/proyeccion",
         icon: <TrendingUpIcon />,
+      },
+      {
+        title: "Comparativas",
+        path: "#/comparativas",
+        icon: <Scale3dIcon />,
+      },
+      {
+        title: "Contenido",
+        path: "#/contenido",
+        icon: <BookOpenIcon />,
       },
       {
         title: "Pacientes",

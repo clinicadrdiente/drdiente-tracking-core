@@ -48,9 +48,40 @@ export interface WindsorAccountSummary {
   videoTrueviewViews: number;
 }
 
+export interface WindsorDateOptions {
+  datePreset?: string;
+  /** YYYY-MM-DD — when both dateFrom and dateTo are set they win over datePreset. */
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export interface WindsorSearchConsoleRow {
+  page: string | null;
+  query: string | null;
+  clicks: number;
+  impressions: number;
+  position: number | null;
+}
+
+export interface WindsorSearchConsoleReport {
+  connector: string;
+  dimension: "page" | "query";
+  dateFrom: string | null;
+  dateTo: string | null;
+  datePreset: string | null;
+  rowCount: number;
+  rows: WindsorSearchConsoleRow[];
+  totals: {
+    clicks: number;
+    impressions: number;
+  };
+}
+
 export interface WindsorMarketingSummary {
   connector: string;
   datePreset: string;
+  dateFrom?: string | null;
+  dateTo?: string | null;
   filters: {
     includeText: string[];
     excludeText: string[];
@@ -94,13 +125,16 @@ export class WindsorClient {
     return this.request(url);
   }
 
-  async getMarketingSummary(datePreset?: string): Promise<WindsorMarketingSummary> {
+  async getMarketingSummary(
+    options?: string | WindsorDateOptions,
+  ): Promise<WindsorMarketingSummary> {
+    const dateOptions = normalizeDateOptions(options);
     const connector = this.config.defaultConnector;
-    const resolvedDatePreset = datePreset ?? this.config.defaultDatePreset;
+    const resolvedDatePreset = dateOptions.datePreset ?? this.config.defaultDatePreset;
     const url = new URL(connector, normalizeBaseUrl(this.config.baseUrl));
     url.searchParams.set("api_key", this.config.apiKey);
     url.searchParams.set("fields", this.config.defaultFields.join(","));
-    url.searchParams.set("date_preset", resolvedDatePreset);
+    applyDateParams(url, dateOptions, resolvedDatePreset);
     url.searchParams.set("_max_rows", "500");
 
     const body = await this.request(url);
@@ -110,6 +144,8 @@ export class WindsorClient {
     return {
       connector,
       datePreset: resolvedDatePreset,
+      dateFrom: dateOptions.dateFrom ?? null,
+      dateTo: dateOptions.dateTo ?? null,
       filters: {
         includeText: this.config.includeTextFilters,
         excludeText: this.config.excludeTextFilters,
@@ -156,6 +192,43 @@ export class WindsorClient {
     };
   }
 
+  /**
+   * Organic search data from the Windsor `searchconsole` connector,
+   * aggregated by page or by query over the requested range.
+   */
+  async getSearchConsoleReport(
+    options: WindsorDateOptions & { dimension: "page" | "query" },
+  ): Promise<WindsorSearchConsoleReport> {
+    const connector = "searchconsole";
+    const dateOptions = normalizeDateOptions(options);
+    const resolvedDatePreset = dateOptions.datePreset ?? this.config.defaultDatePreset;
+    const url = new URL(connector, normalizeBaseUrl(this.config.baseUrl));
+    url.searchParams.set("api_key", this.config.apiKey);
+    url.searchParams.set(
+      "fields",
+      `${options.dimension},clicks,impressions,position`,
+    );
+    applyDateParams(url, dateOptions, resolvedDatePreset);
+    url.searchParams.set("_max_rows", "3000");
+
+    const body = await this.request(url);
+    const rows = aggregateSearchConsoleRows(readRows(body), options.dimension);
+
+    return {
+      connector,
+      dimension: options.dimension,
+      dateFrom: dateOptions.dateFrom ?? null,
+      dateTo: dateOptions.dateTo ?? null,
+      datePreset: dateOptions.dateFrom && dateOptions.dateTo ? null : resolvedDatePreset,
+      rowCount: rows.length,
+      rows,
+      totals: {
+        clicks: rows.reduce((sum, row) => sum + row.clicks, 0),
+        impressions: rows.reduce((sum, row) => sum + row.impressions, 0),
+      },
+    };
+  }
+
   private async request(url: URL): Promise<unknown> {
     const response = await fetch(url, {
       method: "GET",
@@ -187,6 +260,80 @@ export function createWindsorClient(): WindsorClient {
 
 function normalizeBaseUrl(baseUrl: string): string {
   return baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
+}
+
+function normalizeDateOptions(
+  options?: string | WindsorDateOptions,
+): WindsorDateOptions {
+  if (typeof options === "string") {
+    return { datePreset: options };
+  }
+
+  return options ?? {};
+}
+
+const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+function applyDateParams(
+  url: URL,
+  options: WindsorDateOptions,
+  fallbackPreset: string,
+): void {
+  const hasRange =
+    options.dateFrom !== undefined &&
+    options.dateTo !== undefined &&
+    ISO_DATE_PATTERN.test(options.dateFrom) &&
+    ISO_DATE_PATTERN.test(options.dateTo);
+
+  if (hasRange) {
+    url.searchParams.set("date_from", options.dateFrom as string);
+    url.searchParams.set("date_to", options.dateTo as string);
+    return;
+  }
+
+  url.searchParams.set("date_preset", options.datePreset ?? fallbackPreset);
+}
+
+function aggregateSearchConsoleRows(
+  rawRows: Record<string, unknown>[],
+  dimension: "page" | "query",
+): WindsorSearchConsoleRow[] {
+  const groups = new Map<
+    string,
+    { clicks: number; impressions: number; positionSum: number; positionCount: number }
+  >();
+
+  for (const raw of rawRows) {
+    const key = readString(raw, dimension) ?? "";
+    if (!key) continue;
+    const group = groups.get(key) ?? {
+      clicks: 0,
+      impressions: 0,
+      positionSum: 0,
+      positionCount: 0,
+    };
+    group.clicks += readNumber(raw, "clicks");
+    group.impressions += readNumber(raw, "impressions");
+    const position = readNumber(raw, "position");
+    if (position > 0) {
+      group.positionSum += position;
+      group.positionCount += 1;
+    }
+    groups.set(key, group);
+  }
+
+  return [...groups.entries()]
+    .map(([key, group]) => ({
+      page: dimension === "page" ? key : null,
+      query: dimension === "query" ? key : null,
+      clicks: group.clicks,
+      impressions: group.impressions,
+      position:
+        group.positionCount > 0
+          ? Math.round((group.positionSum / group.positionCount) * 10) / 10
+          : null,
+    }))
+    .sort((a, b) => b.clicks - a.clicks || b.impressions - a.impressions);
 }
 
 function readRows(body: unknown): Record<string, unknown>[] {

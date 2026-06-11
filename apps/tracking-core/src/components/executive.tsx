@@ -150,6 +150,7 @@ interface BranchComputed {
 export function Executive({ data }: { data: ExecutiveBaseline | null }) {
   const [inputs, setInputs] = useState<ExecutiveInputs>(() => loadInputs());
   const [scope, setScope] = useState<Scope>("global");
+  const [spendMonth, setSpendMonth] = useState<string>(() => currentMonthKey());
   const [windsorSpend, setWindsorSpend] = useState<number | null>(null);
   const [windsorSources, setWindsorSources] = useState<WindsorSource[]>([]);
   const [windsorState, setWindsorState] = useState<
@@ -167,7 +168,8 @@ export function Executive({ data }: { data: ExecutiveBaseline | null }) {
     }
     let cancelled = false;
     setWindsorState("loading");
-    fetch("/api/dev/windsor-marketing-summary", {
+    const { from, to } = monthDateRange(spendMonth);
+    fetch(`/api/dev/windsor-marketing-summary?from=${from}&to=${to}`, {
       headers: { "x-tracking-secret": secret },
     })
       .then((response) => response.json() as Promise<WindsorSummaryResponse>)
@@ -191,7 +193,7 @@ export function Executive({ data }: { data: ExecutiveBaseline | null }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [spendMonth]);
 
   function patch(partial: Partial<ExecutiveInputs>) {
     setInputs((prev) => ({ ...prev, ...partial }));
@@ -258,7 +260,9 @@ export function Executive({ data }: { data: ExecutiveBaseline | null }) {
           globalGoal={globalGoal}
           globalRevenue={globalRevenue}
           onGoBranch={setScope}
+          onSpendMonthChange={setSpendMonth}
           patch={patch}
+          spendMonth={spendMonth}
           windsorSources={windsorSources}
           windsorSpend={windsorSpend}
           windsorState={windsorState}
@@ -316,7 +320,9 @@ function GlobalView({
   globalRevenue,
   inputs,
   onGoBranch,
+  onSpendMonthChange,
   patch,
+  spendMonth,
   windsorSources,
   windsorSpend,
   windsorState,
@@ -327,7 +333,9 @@ function GlobalView({
   globalRevenue: number;
   inputs: ExecutiveInputs;
   onGoBranch: (scope: Scope) => void;
+  onSpendMonthChange: (month: string) => void;
   patch: (partial: Partial<ExecutiveInputs>) => void;
+  spendMonth: string;
   windsorSources: WindsorSource[];
   windsorSpend: number | null;
   windsorState: "idle" | "loading" | "ready" | "unconfigured" | "error";
@@ -477,15 +485,19 @@ function GlobalView({
       {/* Retorno (ROAS/ROI) */}
       <ReturnCard
         inputs={inputs}
+        onSpendMonthChange={onSpendMonthChange}
         patch={patch}
         revenue={globalRevenue}
+        spendMonth={spendMonth}
         windsorSpend={windsorSpend}
+        windsorState={windsorState}
       />
 
       {/* Gasto por canal + Embudo */}
       <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <ChannelCard
           sources={windsorSources}
+          spendMonth={spendMonth}
           state={windsorState}
           totalSpend={windsorSpend}
         />
@@ -660,14 +672,20 @@ function BranchMiniCard({
 
 function ReturnCard({
   inputs,
+  onSpendMonthChange,
   patch,
   revenue,
+  spendMonth,
   windsorSpend,
+  windsorState,
 }: {
   inputs: ExecutiveInputs;
+  onSpendMonthChange: (month: string) => void;
   patch: (partial: Partial<ExecutiveInputs>) => void;
   revenue: number;
+  spendMonth: string;
   windsorSpend: number | null;
+  windsorState: "idle" | "loading" | "ready" | "unconfigured" | "error";
 }) {
   const adSpend = inputs.adSpendOverride ?? windsorSpend ?? 0;
   const totalCosts = adSpend + inputs.operatingCosts;
@@ -676,15 +694,31 @@ function ReturnCard({
   const roiComputed = totalCosts > 0 ? (profit / totalCosts) * 100 : 0;
   const roi = inputs.roiManualEnabled ? inputs.roiManual : roiComputed;
   const usingWindsor = inputs.adSpendOverride === null && windsorSpend !== null;
+  const isCurrentMonth = spendMonth === currentMonthKey();
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
         <CardTitle className="flex items-center gap-2">
           <GaugeIcon aria-hidden="true" className="size-5" />
           Cuanto gano la inversion
           <Badge variant="secondary">ROI estimado</Badge>
         </CardTitle>
+        <div className="flex items-center gap-2">
+          <Input
+            aria-label="Mes de la inversion"
+            className="h-8 w-40"
+            max={currentMonthKey()}
+            onChange={(event) => {
+              if (event.target.value) onSpendMonthChange(event.target.value);
+            }}
+            type="month"
+            value={spendMonth}
+          />
+          {windsorState === "loading" ? (
+            <span className="text-muted-foreground text-xs">Cargando...</span>
+          ) : null}
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -716,8 +750,14 @@ function ReturnCard({
                 onClick={() => patch({ adSpendOverride: null })}
                 type="button"
               >
-                Usando Windsor ({formatMoney(windsorSpend ?? 0)})
+                Usando Windsor · {monthLabel(spendMonth)} ({formatMoney(windsorSpend ?? 0)})
               </button>
+            ) : null}
+            {!isCurrentMonth ? (
+              <p className="mt-1 text-warn text-xs">
+                Gasto de {monthLabel(spendMonth)} vs revenue del mes actual: el
+                ROAS/ROI de arriba es solo referencial.
+              </p>
             ) : null}
           </Field>
           <Field
@@ -761,20 +801,25 @@ function ReturnCard({
 
 function ChannelCard({
   sources,
+  spendMonth,
   state,
   totalSpend,
 }: {
   sources: WindsorSource[];
+  spendMonth: string;
   state: "idle" | "loading" | "ready" | "unconfigured" | "error";
   totalSpend: number | null;
 }) {
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between gap-2">
         <CardTitle className="flex items-center gap-2">
           <MegaphoneIcon aria-hidden="true" className="size-5" />
           Gasto por canal
         </CardTitle>
+        <Badge className="capitalize" variant="secondary">
+          {monthLabel(spendMonth)}
+        </Badge>
       </CardHeader>
       <CardContent>
         {state === "ready" && sources.length > 0 ? (
@@ -1130,6 +1175,33 @@ function monthParts(): { dayOfMonth: number; daysInMonth: number } {
     dayOfMonth: now.getDate(),
     daysInMonth: new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate(),
   };
+}
+
+function currentMonthKey(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+/** "YYYY-MM" → { from: first day, to: last day (or today for current month) }. */
+function monthDateRange(monthKey: string): { from: string; to: string } {
+  const [yearStr, monthStr] = monthKey.split("-");
+  const year = Number(yearStr);
+  const month = Number(monthStr);
+  const from = `${monthKey}-01`;
+  const lastDay = new Date(year, month, 0).getDate();
+  const now = new Date();
+  const isCurrent = monthKey === currentMonthKey();
+  const toDay = isCurrent ? now.getDate() : lastDay;
+  return { from, to: `${monthKey}-${String(toDay).padStart(2, "0")}` };
+}
+
+function monthLabel(monthKey: string): string {
+  const [yearStr, monthStr] = monthKey.split("-");
+  const date = new Date(Number(yearStr), Number(monthStr) - 1, 1);
+  return new Intl.DateTimeFormat("es-MX", {
+    month: "long",
+    year: "numeric",
+  }).format(date);
 }
 
 function parseNumber(raw: string): number {
