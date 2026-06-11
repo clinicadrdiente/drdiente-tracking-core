@@ -5,11 +5,8 @@ import { RefreshCwIcon } from "lucide-react";
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import type {
   MonthlyDashboard,
@@ -441,29 +438,32 @@ export function Dashboard() {
 
   return (
     <div className="flex flex-col gap-4">
-      <section className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
-          <h1 className="text-balance font-semibold text-4xl tracking-tight md:text-5xl">
-            Dr Diente Core
-          </h1>
-        </div>
-        <div className="flex w-full gap-2 md:w-auto">
-          <Input
-            className="min-w-0 md:w-80"
-            onChange={(event) => setSecret(event.target.value)}
-            placeholder="TRACKING_API_SECRET"
-            type="password"
-            value={secret}
-          />
-          <Button
-            disabled={isLoading}
-            onClick={() => void loadDashboard(secret, { skipBrowserCache: true })}
-          >
-            <RefreshCwIcon aria-hidden="true" data-icon="inline-start" />
-            {isLoading ? "Cargando" : "Actualizar"}
-          </Button>
-        </div>
+      <section className="flex items-center justify-between gap-4">
+        <h1 className="text-balance font-semibold text-4xl tracking-tight md:text-5xl">
+          Dr Diente Core
+        </h1>
+        <Button
+          disabled={isLoading}
+          onClick={() => void loadDashboard(secret, { skipBrowserCache: true })}
+          variant={secret ? "default" : "outline"}
+        >
+          <RefreshCwIcon aria-hidden="true" data-icon="inline-start" />
+          {isLoading ? "Cargando" : "Actualizar"}
+        </Button>
       </section>
+
+      {!secret && (
+        <Card className="border-muted">
+          <CardContent className="py-4 text-muted-foreground text-sm">
+            Configura el{" "}
+            <code className="font-mono text-xs">TRACKING_API_SECRET</code> en{" "}
+            <a className="text-brand underline-offset-4 hover:underline" href="#/settings">
+              Configuración
+            </a>{" "}
+            para cargar datos.
+          </CardContent>
+        </Card>
+      )}
 
       {data?.cache ? (
         <div className="flex">
@@ -506,6 +506,8 @@ export function Dashboard() {
           setRangeDays(days);
           void loadDashboard(secret, { skipBrowserCache: true, rangeDaysOverride: days });
         }}
+        onSaveSecret={() => void loadDashboard(secret, { skipBrowserCache: true })}
+        onSecretChange={(value) => setSecret(value)}
         onSendToElevator={() => void sendMonthToElevator()}
         onTestRealFlow={() => void testRealConversionFlow()}
         onTestStape={() => void testStape()}

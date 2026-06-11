@@ -3,14 +3,12 @@ import {
   CheckCircle2Icon,
   RefreshCwIcon,
   SendIcon,
-  TargetIcon,
-  WebhookIcon,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ModuleFrame } from "./module-frame";
-import type { MonthlyDashboard, PaymentsSyncResult, WindsorAccountsResult } from "@/types/dashboard";
+import type { MonthlyDashboard, PaymentsSyncResult } from "@/types/dashboard";
 
 function formatInteger(value: number) {
   return new Intl.NumberFormat("es-MX", {
@@ -125,30 +123,18 @@ function GuidedAction({
 
 export function GuidedActionsCard({
   data,
-  isDetectingWindsorAccounts,
   isLoading,
   isSyncingToElevator,
-  isTestingRealFlow,
-  onDetectWindsorAccounts,
   onRefresh,
   onSendToElevator,
-  onTestRealFlow,
-  realFlowResult,
   syncResult,
-  windsorAccounts,
 }: {
   data: MonthlyDashboard | null;
-  isDetectingWindsorAccounts: boolean;
   isLoading: boolean;
   isSyncingToElevator: boolean;
-  isTestingRealFlow: boolean;
-  onDetectWindsorAccounts: () => void;
   onRefresh: () => void;
   onSendToElevator: () => void;
-  onTestRealFlow: () => void;
-  realFlowResult: PaymentsSyncResult | null;
   syncResult: PaymentsSyncResult | null;
-  windsorAccounts: WindsorAccountsResult | null;
 }) {
   return (
     <Card>
@@ -185,34 +171,6 @@ export function GuidedActionsCard({
           step="2"
           title="Sincronizar pacientes con Elevator"
           tone={syncResult ? "done" : data ? "next" : "idle"}
-        />
-        <GuidedAction
-          actionLabel={isTestingRealFlow ? "Probando" : "Probar"}
-          disabled={isTestingRealFlow}
-          icon={<WebhookIcon aria-hidden="true" />}
-          onClick={onTestRealFlow}
-          status={
-            realFlowResult
-              ? `${formatInteger(realFlowResult.dispatched)} conversiones enviadas`
-              : "prueba server-side"
-          }
-          step="3"
-          title="Probar conversiones reales"
-          tone={realFlowResult?.dispatched ? "done" : "next"}
-        />
-        <GuidedAction
-          actionLabel={isDetectingWindsorAccounts ? "Detectando" : "Detectar"}
-          disabled={isDetectingWindsorAccounts}
-          icon={<TargetIcon aria-hidden="true" />}
-          onClick={onDetectWindsorAccounts}
-          status={
-            windsorAccounts
-              ? `${formatInteger(windsorAccounts.accounts?.length ?? 0)} fuentes detectadas`
-              : "opcional marketing"
-          }
-          step="4"
-          title="Revisar cuentas Windsor"
-          tone={windsorAccounts ? "done" : "idle"}
         />
       </CardContent>
     </Card>
@@ -257,50 +215,34 @@ export function OperationsResultCard({
 
 export function ActionsPanel({
   data,
-  isDetectingWindsorAccounts,
   isLoading,
   isSyncingToElevator,
-  isTestingRealFlow,
-  onDetectWindsorAccounts,
   onRefresh,
   onSendToElevator,
-  onTestRealFlow,
   realFlowError,
   realFlowResult,
   syncError,
   syncResult,
-  windsorAccounts,
 }: {
   data: MonthlyDashboard | null;
-  isDetectingWindsorAccounts: boolean;
   isLoading: boolean;
   isSyncingToElevator: boolean;
-  isTestingRealFlow: boolean;
-  onDetectWindsorAccounts: () => void;
   onRefresh: () => void;
   onSendToElevator: () => void;
-  onTestRealFlow: () => void;
   realFlowError: string | null;
   realFlowResult: PaymentsSyncResult | null;
   syncError: string | null;
   syncResult: PaymentsSyncResult | null;
-  windsorAccounts: WindsorAccountsResult | null;
 }) {
   return (
     <ModuleFrame accent="operations" title="Acciones">
       <GuidedActionsCard
         data={data}
-        isDetectingWindsorAccounts={isDetectingWindsorAccounts}
         isLoading={isLoading}
         isSyncingToElevator={isSyncingToElevator}
-        isTestingRealFlow={isTestingRealFlow}
-        onDetectWindsorAccounts={onDetectWindsorAccounts}
         onRefresh={onRefresh}
         onSendToElevator={onSendToElevator}
-        onTestRealFlow={onTestRealFlow}
-        realFlowResult={realFlowResult}
         syncResult={syncResult}
-        windsorAccounts={windsorAccounts}
       />
       {(syncError || realFlowError || syncResult || realFlowResult) ? (
         <OperationsResultCard
