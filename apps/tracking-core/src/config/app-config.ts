@@ -16,7 +16,7 @@ function getNumberEnv(name: string, fallback: number): number {
 
 export function getAppConfig(): AppConfig {
   return {
-    highTicketThreshold: getNumberEnv("HIGH_TICKET_THRESHOLD", 50000),
+    highTicketThreshold: getNumberEnv("HIGH_TICKET_THRESHOLD", 4000),
     paymentsSyncLookbackMinutes: getNumberEnv(
       "PAYMENTS_SYNC_LOOKBACK_MINUTES",
       10_080,
