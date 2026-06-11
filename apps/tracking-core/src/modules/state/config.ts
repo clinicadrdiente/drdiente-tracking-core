@@ -24,16 +24,19 @@ export function getStateStoreConfig(): StateStoreConfig {
         ? "memory"
         : "file";
 
-  if (process.env.VERCEL === "1" && mode === "file") {
-    throw new Error(
-      "STATE_STORE_MODE=file is not safe on Vercel (ephemeral /tmp). " +
-      "Set STATE_STORE_MODE=redis and configure UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN " +
-      "(or connect an Upstash Redis database via the Vercel Storage tab).",
+  // On Vercel, file mode is unsafe (ephemeral /tmp). Fall back to memory so the
+  // dashboard stays functional; payment dedup and daily reports won't persist
+  // across cold starts until Redis is properly configured.
+  const resolvedMode = process.env.VERCEL === "1" && mode === "file" ? "memory" : mode;
+  if (resolvedMode === "memory" && mode === "file") {
+    console.warn(
+      "[state-store] Running on Vercel without Redis — falling back to memory mode. " +
+      "Configure UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN for persistence.",
     );
   }
 
   return {
-    mode,
+    mode: resolvedMode,
     filePath: process.env.STATE_STORE_FILE_PATH ?? ".runtime/payment-sync-state.json",
     redisRestUrl,
     redisRestToken,
