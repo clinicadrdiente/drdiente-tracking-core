@@ -5,6 +5,25 @@ export interface MonthBucket {
   payments: number;
 }
 
+export interface AttributionBucket {
+  patients: number;
+  payments: number;
+  revenue: number;
+  share: number;
+}
+
+export interface MarketingAttribution {
+  marketing: AttributionBucket;
+  organico: AttributionBucket;
+  desconocido: AttributionBucket;
+  topMarketingReferences: Array<{
+    reference: string;
+    patients: number;
+    payments: number;
+    revenue: number;
+  }>;
+}
+
 export interface MonthlyDashboard {
   ok: boolean;
   month: {
@@ -30,6 +49,8 @@ export interface MonthlyDashboard {
     share: number;
   }>;
   branchShare: BranchSummary[];
+  // Optional: cached responses generated before this field existed won't have it.
+  marketingAttribution?: MarketingAttribution;
   comparison?: {
     fromIso: string;
     toIso: string;
@@ -38,6 +59,7 @@ export interface MonthlyDashboard {
     uniquePatientsTotal: number;
     averagePaymentValue: number;
     branchShare: Array<{ branch: string; revenue: number; payments: number }>;
+    marketingAttribution?: MarketingAttribution;
   };
   cache?: {
     hit: boolean;

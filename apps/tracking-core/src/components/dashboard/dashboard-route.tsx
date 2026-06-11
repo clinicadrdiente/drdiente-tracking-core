@@ -485,7 +485,7 @@ export function DashboardRoute({
   }
 
   if (route === "esfuerzos") {
-    return <EffortsPanel secret={secret} rangeDays={rangeDays} />;
+    return <EffortsPanel secret={secret} rangeDays={rangeDays} dashboardData={data} />;
   }
 
   return (
