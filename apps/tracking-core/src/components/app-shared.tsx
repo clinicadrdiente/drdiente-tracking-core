@@ -13,6 +13,7 @@ import {
   SendIcon,
   SettingsIcon,
   TrendingUpIcon,
+  UserXIcon,
   UsersIcon,
   WebhookIcon,
 } from "lucide-react";
@@ -84,6 +85,10 @@ export const navGroups: SidebarNavGroup[] = [
         title: "Dentalink",
         path: "#/dentalink",
         icon: <CalendarDaysIcon />,
+        subItems: [
+          { title: "Pagos", path: "#/dentalink" },
+          { title: "Sin match", path: "#/dentalink/sin-match", icon: <UserXIcon /> },
+        ],
       },
       {
         title: "Elevator",

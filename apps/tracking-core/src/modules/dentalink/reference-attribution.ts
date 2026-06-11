@@ -140,6 +140,8 @@ export interface AttributablePayment {
   patientId: number;
   patientReference: string | null;
   amount: number;
+  /** Verified digital source from GHL lead UTM (overrides reference field classification). */
+  digitalSource?: string | null;
 }
 
 export interface AttributionBucket {
@@ -180,7 +182,10 @@ export function buildMarketingAttribution(
   >();
 
   for (const payment of payments) {
-    const { channel } = classifyReference(payment.patientReference);
+    // digitalSource (GHL UTM) has max precedence over the free-text Referencia field
+    const channel: ReferenceChannel = payment.digitalSource
+      ? "marketing"
+      : classifyReference(payment.patientReference).channel;
     const bucket = buckets[channel];
     bucket.payments += 1;
     bucket.revenue += payment.amount;
@@ -189,7 +194,7 @@ export function buildMarketingAttribution(
     }
 
     if (channel === "marketing") {
-      const key = payment.patientReference?.trim() ?? "";
+      const key = payment.digitalSource ?? payment.patientReference?.trim() ?? "";
       const entry = marketingRefs.get(key) ?? {
         patientIds: new Set<number>(),
         payments: 0,

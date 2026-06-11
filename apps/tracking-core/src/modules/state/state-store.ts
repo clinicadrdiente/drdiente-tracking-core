@@ -21,6 +21,10 @@ export interface StateStore {
   saveDailyReport(report: DailyBranchReport): Promise<void>;
   /** Reports with date in [fromDate, toDate] (inclusive, "YYYY-MM-DD"), newest first. */
   listDailyReports(fromDate: string, toDate: string): Promise<DailyBranchReport[]>;
+  /** Store the digital marketing source for a contact (phone or email). TTL: 90 days. */
+  setContactLeadSource(contact: string, source: string): Promise<void>;
+  getContactLeadSource(contact: string): Promise<string | null>;
+  batchGetContactLeadSources(contacts: string[]): Promise<Map<string, string>>;
 }
 
 export class InMemoryStateStore implements StateStore {
@@ -29,6 +33,7 @@ export class InMemoryStateStore implements StateStore {
   };
   private heartbeats: Map<string, string> = new Map();
   private dailyReports: Map<string, DailyBranchReport> = new Map();
+  private contactLeadSources: Map<string, string> = new Map();
 
   async getPaymentSyncState(): Promise<PaymentSyncState> {
     return {
@@ -78,6 +83,23 @@ export class InMemoryStateStore implements StateStore {
     return Array.from(this.dailyReports.values())
       .filter((r) => r.date >= fromDate && r.date <= toDate)
       .sort((a, b) => b.date.localeCompare(a.date));
+  }
+
+  async setContactLeadSource(contact: string, source: string): Promise<void> {
+    this.contactLeadSources.set(contact, source);
+  }
+
+  async getContactLeadSource(contact: string): Promise<string | null> {
+    return this.contactLeadSources.get(contact) ?? null;
+  }
+
+  async batchGetContactLeadSources(contacts: string[]): Promise<Map<string, string>> {
+    const result = new Map<string, string>();
+    for (const contact of contacts) {
+      const source = this.contactLeadSources.get(contact);
+      if (source) result.set(contact, source);
+    }
+    return result;
   }
 }
 
@@ -146,6 +168,30 @@ export class FileStateStore implements StateStore {
     return reports
       .filter((r) => r.date >= fromDate && r.date <= toDate)
       .sort((a, b) => b.date.localeCompare(a.date));
+  }
+
+  async setContactLeadSource(contact: string, source: string): Promise<void> {
+    const state = await this.readRawState();
+    const existing = (state.contactLeadSources as Record<string, string> | undefined) ?? {};
+    existing[contact] = source;
+    state.contactLeadSources = existing;
+    await this.writeRawState(state);
+  }
+
+  async getContactLeadSource(contact: string): Promise<string | null> {
+    const state = await this.readRawState() as Record<string, unknown>;
+    const map = state.contactLeadSources as Record<string, string> | undefined;
+    return map?.[contact] ?? null;
+  }
+
+  async batchGetContactLeadSources(contacts: string[]): Promise<Map<string, string>> {
+    const state = await this.readRawState() as Record<string, unknown>;
+    const map = state.contactLeadSources as Record<string, string> | undefined ?? {};
+    const result = new Map<string, string>();
+    for (const contact of contacts) {
+      if (map[contact]) result.set(contact, map[contact]);
+    }
+    return result;
   }
 
   private async readState(): Promise<PaymentSyncState> {
@@ -273,6 +319,30 @@ export class RedisStateStore implements StateStore {
     return reports
       .filter((r) => r.date >= fromDate && r.date <= toDate)
       .sort((a, b) => b.date.localeCompare(a.date));
+  }
+
+  async setContactLeadSource(contact: string, source: string): Promise<void> {
+    const key = `${this.stateKey}:contact-source:${contact}`;
+    await this.command(["SET", key, source, "EX", 7776000]); // 90 days
+  }
+
+  async getContactLeadSource(contact: string): Promise<string | null> {
+    const key = `${this.stateKey}:contact-source:${contact}`;
+    return await this.command<string | null>(["GET", key]);
+  }
+
+  async batchGetContactLeadSources(contacts: string[]): Promise<Map<string, string>> {
+    if (contacts.length === 0) return new Map();
+    const keys = contacts.map((c) => `${this.stateKey}:contact-source:${c}`);
+    const values = await this.command<(string | null)[]>(["MGET", ...keys]);
+    const result = new Map<string, string>();
+    if (Array.isArray(values)) {
+      for (let i = 0; i < contacts.length; i++) {
+        const v = values[i];
+        if (v) result.set(contacts[i], v);
+      }
+    }
+    return result;
   }
 
   private async command<T = unknown>(
