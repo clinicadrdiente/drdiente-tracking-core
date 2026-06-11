@@ -88,10 +88,6 @@ function buildStapePayload(event: ConversionEvent, config: StapeConfig) {
 }
 
 function mapEventName(eventName: ConversionEvent["eventName"]): string {
-  if (eventName === "Compra") {
-    return "Purchase";
-  }
-
   if (eventName === "Agendamiento") {
     return "Schedule";
   }

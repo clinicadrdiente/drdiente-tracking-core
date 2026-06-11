@@ -22,6 +22,9 @@ export interface AttributionData {
   // which is editable and breaks the match silently.
   campaignId?: string | null;
   landingUrl?: string | null;
+  // First-touch attribution fallback for organic/referral traffic where UTMs are absent.
+  // Sourced from the landing page's first_touch_source field.
+  firstTouchSource?: string | null;
 }
 
 export interface LeadInput {
@@ -120,7 +123,7 @@ export interface DailyBranchReport {
 
 export interface ConversionEvent {
   eventId: string;
-  eventName: "Lead" | "Agendamiento" | "Compra" | "Refund";
+  eventName: "Lead" | "Agendamiento" | "Purchase" | "Refund";
   eventTime: number;
   actionSource: "website" | "physical_store";
   userData: {

@@ -41,9 +41,9 @@ describe("buildPurchaseEvent", () => {
     expect(event.eventId).toBe("payment_42");
   });
 
-  it("sets eventName to Compra for a normal payment", () => {
+  it("sets eventName to Purchase for a normal payment", () => {
     const event = buildPurchaseEvent(makeLead(), makePayment({ isVoided: false }), "standard");
-    expect(event.eventName).toBe("Compra");
+    expect(event.eventName).toBe("Purchase");
   });
 
   it("sets eventName to Refund for a voided payment", () => {
