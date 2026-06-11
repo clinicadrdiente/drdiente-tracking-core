@@ -43,6 +43,7 @@ import { WindsorMarketingCard } from "@/components/dashboard/windsor-panel";
 import { ElevatorSyncCard, IntegrationPanel } from "@/components/dashboard/elevator-panel";
 import { StapeTestCard, DiagnosticsPanel } from "@/components/dashboard/diagnostics-panel";
 import { PatientsPanel } from "@/components/dashboard/patients-panel";
+import { RecurringPatients } from "@/components/recurring-patients";
 import { SettingsPanel } from "@/components/dashboard/settings-panel";
 import { UnmatchedPanel } from "@/components/dashboard/unmatched-panel";
 import {
@@ -376,6 +377,10 @@ export function DashboardRoute({
         onRefresh={onRefresh}
       />
     );
+  }
+
+  if (route === "pacientes-recurrentes") {
+    return <RecurringPatients secret={secret} />;
   }
 
   if (route === "dentalink" || route === "dentalink/payments") {

@@ -9,6 +9,7 @@ import {
   HelpCircleIcon,
   LayoutGridIcon,
   MegaphoneIcon,
+  RepeatIcon,
   Scale3dIcon,
   SendIcon,
   SettingsIcon,
@@ -70,6 +71,10 @@ export const navGroups: SidebarNavGroup[] = [
         title: "Pacientes",
         path: "#/patients",
         icon: <UsersIcon />,
+        subItems: [
+          { title: "Todos", path: "#/patients" },
+          { title: "Recurrentes", path: "#/pacientes-recurrentes", icon: <RepeatIcon /> },
+        ],
       },
       {
         title: "Reporte diario",
