@@ -25,6 +25,8 @@ import {
 } from "@/components/ui/select";
 import { Projection } from "@/components/projection";
 import { Executive } from "@/components/executive";
+import { Comparativas } from "@/components/comparativas";
+import { Contenido } from "@/components/contenido";
 import type {
   MonthBucket,
   MonthlyDashboard,
@@ -280,6 +282,14 @@ export function DashboardRoute({
 
   if (route === "proyeccion" || route === "projection") {
     return <Projection data={data} />;
+  }
+
+  if (route === "comparativas") {
+    return <Comparativas secret={secret} />;
+  }
+
+  if (route === "contenido" || route === "blogs") {
+    return <Contenido secret={secret} />;
   }
 
   if (route === "revenue") {

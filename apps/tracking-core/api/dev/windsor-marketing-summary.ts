@@ -28,6 +28,8 @@ export default async function handler(
 
   const client = createWindsorClient();
   const datePreset = readQueryString(request.query?.datePreset);
+  const dateFrom = readQueryString(request.query?.from);
+  const dateTo = readQueryString(request.query?.to);
 
   if (!client.isConfigured()) {
     send(response, {
@@ -42,7 +44,11 @@ export default async function handler(
   }
 
   try {
-    const summary = await client.getMarketingSummary(datePreset ?? undefined);
+    const summary = await client.getMarketingSummary({
+      datePreset: datePreset ?? undefined,
+      dateFrom: dateFrom ?? undefined,
+      dateTo: dateTo ?? undefined,
+    });
     send(response, {
       status: 200,
       body: {
