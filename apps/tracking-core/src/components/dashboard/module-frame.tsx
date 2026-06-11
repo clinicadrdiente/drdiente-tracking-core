@@ -21,11 +21,7 @@ export function ModuleFrame({
   return (
     <section
       data-module={accent}
-      className="rounded-xl border-2 p-4 md:p-6 space-y-4"
-      style={{
-        borderColor: `var(--module-${accent})`,
-        background: `color-mix(in oklab, var(--module-${accent}) 6%, var(--background))`,
-      }}
+      className="rounded-xl border p-4 md:p-6 space-y-4"
     >
       <header className="flex items-center gap-2">
         <span
