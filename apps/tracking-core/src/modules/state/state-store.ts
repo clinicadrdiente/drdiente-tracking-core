@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, resolve } from "node:path";
-import type { DailyBranchReport } from "../../types/domain.js";
+import type { DailyBranchReport, PatientTreatmentRecord, PatientTreatmentSummary } from "../../types/domain.js";
 
 export interface PaymentSyncState {
   lastCheckIso?: string;
@@ -25,6 +25,10 @@ export interface StateStore {
   setContactLeadSource(contact: string, source: string): Promise<void>;
   getContactLeadSource(contact: string): Promise<string | null>;
   batchGetContactLeadSources(contacts: string[]): Promise<Map<string, string>>;
+  /** Upsert a treatment for a patient. Dedupes by treatmentId; updates lastPaymentAt on subsequent calls. */
+  recordPatientTreatment(record: PatientTreatmentRecord): Promise<void>;
+  /** Patients sorted by treatmentCount desc. minTreatments defaults to 1 (all). */
+  listRecurringPatients(minTreatments?: number): Promise<PatientTreatmentSummary[]>;
 }
 
 export class InMemoryStateStore implements StateStore {
@@ -34,6 +38,7 @@ export class InMemoryStateStore implements StateStore {
   private heartbeats: Map<string, string> = new Map();
   private dailyReports: Map<string, DailyBranchReport> = new Map();
   private contactLeadSources: Map<string, string> = new Map();
+  private patientTreatments: Map<number, Map<number, PatientTreatmentRecord>> = new Map();
 
   async getPaymentSyncState(): Promise<PaymentSyncState> {
     return {
@@ -100,6 +105,24 @@ export class InMemoryStateStore implements StateStore {
       if (source) result.set(contact, source);
     }
     return result;
+  }
+
+  async recordPatientTreatment(record: PatientTreatmentRecord): Promise<void> {
+    let byTreatment = this.patientTreatments.get(record.patientId);
+    if (!byTreatment) {
+      byTreatment = new Map();
+      this.patientTreatments.set(record.patientId, byTreatment);
+    }
+    const existing = byTreatment.get(record.treatmentId);
+    byTreatment.set(record.treatmentId, {
+      ...record,
+      firstPaymentAt: existing ? existing.firstPaymentAt : record.firstPaymentAt,
+      lastPaymentAt: record.lastPaymentAt > (existing?.lastPaymentAt ?? "") ? record.lastPaymentAt : (existing?.lastPaymentAt ?? record.lastPaymentAt),
+    });
+  }
+
+  async listRecurringPatients(minTreatments = 1): Promise<PatientTreatmentSummary[]> {
+    return buildSummaries(this.patientTreatments, minTreatments);
   }
 }
 
@@ -194,6 +217,36 @@ export class FileStateStore implements StateStore {
     return result;
   }
 
+  async recordPatientTreatment(record: PatientTreatmentRecord): Promise<void> {
+    const state = await this.readRawState();
+    const all = (state.patientTreatments as Record<string, Record<string, PatientTreatmentRecord>> | undefined) ?? {};
+    const pid = String(record.patientId);
+    const tid = String(record.treatmentId);
+    const existing = all[pid]?.[tid];
+    all[pid] = all[pid] ?? {};
+    all[pid][tid] = {
+      ...record,
+      firstPaymentAt: existing ? existing.firstPaymentAt : record.firstPaymentAt,
+      lastPaymentAt: record.lastPaymentAt > (existing?.lastPaymentAt ?? "") ? record.lastPaymentAt : (existing?.lastPaymentAt ?? record.lastPaymentAt),
+    };
+    state.patientTreatments = all;
+    await this.writeRawState(state);
+  }
+
+  async listRecurringPatients(minTreatments = 1): Promise<PatientTreatmentSummary[]> {
+    const state = await this.readRawState();
+    const all = (state.patientTreatments as Record<string, Record<string, PatientTreatmentRecord>> | undefined) ?? {};
+    const asMap = new Map<number, Map<number, PatientTreatmentRecord>>();
+    for (const [pid, treatments] of Object.entries(all)) {
+      const inner = new Map<number, PatientTreatmentRecord>();
+      for (const [tid, rec] of Object.entries(treatments)) {
+        inner.set(Number(tid), rec);
+      }
+      asMap.set(Number(pid), inner);
+    }
+    return buildSummaries(asMap, minTreatments);
+  }
+
   private async readState(): Promise<PaymentSyncState> {
     const raw = await this.readRawState();
     const parsed = raw as unknown as PaymentSyncState;
@@ -238,6 +291,7 @@ export class RedisStateStore implements StateStore {
   private readonly stateKey: string;
   private readonly processedSetKey: string;
   private readonly dailyReportsKey: string;
+  private readonly patientTreatmentsIndexKey: string;
 
   constructor(
     private readonly restUrl: string,
@@ -248,6 +302,7 @@ export class RedisStateStore implements StateStore {
     this.stateKey = `${keyPrefix}:payment-sync:state`;
     this.processedSetKey = `${keyPrefix}:payment-sync:processed`;
     this.dailyReportsKey = `${keyPrefix}:daily-reports`;
+    this.patientTreatmentsIndexKey = `${keyPrefix}:patient-treatments:_index`;
   }
 
   async getPaymentSyncState(): Promise<PaymentSyncState> {
@@ -345,6 +400,42 @@ export class RedisStateStore implements StateStore {
     return result;
   }
 
+  async recordPatientTreatment(record: PatientTreatmentRecord): Promise<void> {
+    const hashKey = `${this.stateKey}:patient-treatments:${record.patientId}`;
+    const existing = await this.command<string | null>(["HGET", hashKey, String(record.treatmentId)]);
+    const prev = existing ? (JSON.parse(existing) as PatientTreatmentRecord) : null;
+    const toStore: PatientTreatmentRecord = {
+      ...record,
+      firstPaymentAt: prev ? prev.firstPaymentAt : record.firstPaymentAt,
+      lastPaymentAt: record.lastPaymentAt > (prev?.lastPaymentAt ?? "") ? record.lastPaymentAt : (prev?.lastPaymentAt ?? record.lastPaymentAt),
+    };
+    await Promise.all([
+      this.command(["HSET", hashKey, String(record.treatmentId), JSON.stringify(toStore)]),
+      this.command(["SADD", this.patientTreatmentsIndexKey, String(record.patientId)]),
+    ]);
+  }
+
+  async listRecurringPatients(minTreatments = 1): Promise<PatientTreatmentSummary[]> {
+    const patientIds = await this.command<string[]>(["SMEMBERS", this.patientTreatmentsIndexKey]);
+    if (!Array.isArray(patientIds) || patientIds.length === 0) return [];
+
+    const asMap = new Map<number, Map<number, PatientTreatmentRecord>>();
+    await Promise.all(
+      patientIds.map(async (pid) => {
+        const hashKey = `${this.stateKey}:patient-treatments:${pid}`;
+        const raw = await this.command<Record<string, string> | null>(["HGETALL", hashKey]);
+        if (!raw || typeof raw !== "object") return;
+        const inner = new Map<number, PatientTreatmentRecord>();
+        for (const [tid, json] of Object.entries(raw)) {
+          inner.set(Number(tid), JSON.parse(json) as PatientTreatmentRecord);
+        }
+        asMap.set(Number(pid), inner);
+      }),
+    );
+
+    return buildSummaries(asMap, minTreatments);
+  }
+
   private async command<T = unknown>(
     command: Array<string | number>,
   ): Promise<T> {
@@ -372,6 +463,29 @@ export class RedisStateStore implements StateStore {
 
     return body.result as T;
   }
+}
+
+function buildSummaries(
+  map: Map<number, Map<number, PatientTreatmentRecord>>,
+  minTreatments: number,
+): PatientTreatmentSummary[] {
+  const summaries: PatientTreatmentSummary[] = [];
+  for (const [patientId, byTreatment] of map.entries()) {
+    const treatments = Array.from(byTreatment.values());
+    if (treatments.length < minTreatments) continue;
+    const sorted = [...treatments].sort((a, b) => a.firstPaymentAt.localeCompare(b.firstPaymentAt));
+    summaries.push({
+      patientId,
+      patientName: treatments[0].patientName,
+      branch: treatments[0].branch,
+      treatments: sorted,
+      treatmentCount: treatments.length,
+      totalBudget: treatments.reduce((sum, t) => sum + t.budgetTotal, 0),
+      firstPaymentAt: sorted[0].firstPaymentAt,
+      lastPaymentAt: treatments.reduce((max, t) => t.lastPaymentAt > max ? t.lastPaymentAt : max, ""),
+    });
+  }
+  return summaries.sort((a, b) => b.treatmentCount - a.treatmentCount || b.totalBudget - a.totalBudget);
 }
 
 function parsePaymentSyncState(value: string | null): Pick<PaymentSyncState, "lastCheckIso"> {

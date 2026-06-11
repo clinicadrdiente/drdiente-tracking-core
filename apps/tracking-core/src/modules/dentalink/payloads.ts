@@ -88,6 +88,11 @@ export function mapPaymentRecord(
   };
 }
 
+export function buildTreatmentsByPatientQuery(patientIdField: string, patientId: number): string {
+  const filter = JSON.stringify({ [patientIdField]: { value: patientId } });
+  return `q=${encodeURIComponent(filter)}`;
+}
+
 export function buildPaymentsQuery(dateField: string, sinceIso: string): string {
   const filter = JSON.stringify({
     [dateField]: { gte: toDentalinkDateTime(sinceIso) },

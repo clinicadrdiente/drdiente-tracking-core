@@ -69,6 +69,20 @@ export async function handlePaymentsSync(
 
     matchedLeads += 1;
 
+    if (payment.treatmentId > 0) {
+      await stateStore.recordPatientTreatment({
+        treatmentId: payment.treatmentId,
+        treatmentName: payment.treatmentName ?? null,
+        budgetTotal: payment.budgetTotal,
+        currency: payment.currency,
+        firstPaymentAt: payment.paidAt,
+        lastPaymentAt: payment.paidAt,
+        patientId: payment.patientId,
+        patientName: [patient.firstName, patient.lastName].filter(Boolean).join(" ") || payment.patientName || null,
+        branch: payment.branch ?? patient.branch ?? null,
+      });
+    }
+
     // Revenue is the FULL budget total, counted once per treatment/budget.
     // A budget paid in several installments produces several payment rows, all
     // carrying the same budgetTotal — emitting a "Compra" per payment would

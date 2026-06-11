@@ -121,6 +121,29 @@ export interface DailyBranchReport {
   notes?: string | null;
 }
 
+export interface PatientTreatmentRecord {
+  treatmentId: number;
+  treatmentName: string | null;
+  budgetTotal: number;
+  currency: string;
+  firstPaymentAt: string;
+  lastPaymentAt: string;
+  patientId: number;
+  patientName: string | null;
+  branch: string | null;
+}
+
+export interface PatientTreatmentSummary {
+  patientId: number;
+  patientName: string | null;
+  branch: string | null;
+  treatments: PatientTreatmentRecord[];
+  treatmentCount: number;
+  totalBudget: number;
+  firstPaymentAt: string;
+  lastPaymentAt: string;
+}
+
 export interface ConversionEvent {
   eventId: string;
   eventName: "Lead" | "Agendamiento" | "Purchase" | "Refund";

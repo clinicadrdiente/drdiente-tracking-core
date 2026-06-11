@@ -8,6 +8,7 @@ import { getDentalinkConfig, type DentalinkConfig } from "./config.js";
 import {
   buildPatientElevatorIdPayload,
   buildPaymentsQuery,
+  buildTreatmentsByPatientQuery,
   mapPatientRecord,
   mapPaymentRecord,
   mapTreatmentRecord,
@@ -17,6 +18,7 @@ export interface DentalinkClient {
   getPatient(patientId: number): Promise<DentalinkPatient>;
   setPatientElevatorId(patientId: number, elevatorId: string): Promise<void>;
   listRecentPayments(sinceIso: string, limit?: number): Promise<PaymentEvent[]>;
+  getPatientTreatments(patientId: number): Promise<DentalinkTreatment[]>;
 }
 
 export class StubDentalinkClient implements DentalinkClient {
@@ -55,6 +57,13 @@ export class StubDentalinkClient implements DentalinkClient {
         paidAt: new Date().toISOString(),
       },
     ].slice(0, limit);
+  }
+
+  async getPatientTreatments(patientId: number): Promise<DentalinkTreatment[]> {
+    return [
+      { treatmentId: 77, patientId, name: "Diseno de Sonrisa", budgetTotal: 150000, currency: "MXN" },
+      { treatmentId: 55, patientId, name: "Ortodoncia", budgetTotal: 45000, currency: "MXN" },
+    ];
   }
 }
 
@@ -104,6 +113,16 @@ export class ApiDentalinkClient implements DentalinkClient {
     }
 
     return payments;
+  }
+
+  async getPatientTreatments(patientId: number): Promise<DentalinkTreatment[]> {
+    const query = buildTreatmentsByPatientQuery(this.config.treatmentPatientIdField, patientId);
+    const path = `${this.config.treatmentsListPath}?${query}`;
+    const response = await this.request("GET", path);
+    return unwrapCollection(response).map((r) => ({
+      ...mapTreatmentRecord(this.config, r),
+      patientId,
+    }));
   }
 
   private async getTreatmentIfAvailable(

@@ -8,6 +8,8 @@ export interface DentalinkConfig {
   patientsPathTemplate: string;
   paymentsPath: string;
   treatmentsPathTemplate: string;
+  treatmentsListPath: string;
+  treatmentPatientIdField: string;
   patientUpdatePathTemplate: string;
   patientIdField: string;
   patientFirstNameField: string;
@@ -53,6 +55,8 @@ export function getDentalinkConfig(): DentalinkConfig {
       "DENTALINK_TREATMENTS_PATH_TEMPLATE",
       "/tratamientos/{id}",
     ),
+    treatmentsListPath: getEnv("DENTALINK_TREATMENTS_LIST_PATH", "/tratamientos/"),
+    treatmentPatientIdField: getEnv("DENTALINK_TREATMENT_PATIENT_ID_FIELD", "id_paciente"),
     patientUpdatePathTemplate: getEnv(
       "DENTALINK_PATIENT_UPDATE_PATH_TEMPLATE",
       "/pacientes/{id}",
