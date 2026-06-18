@@ -45,6 +45,7 @@ import { StapeTestCard, DiagnosticsPanel } from "@/components/dashboard/diagnost
 import { PatientsPanel } from "@/components/dashboard/patients-panel";
 import { RecurringPatients } from "@/components/recurring-patients";
 import { RoasPanel } from "@/components/dashboard/roas-panel";
+import { OwnerResumen } from "@/components/dashboard/owner-resumen";
 import { SettingsPanel } from "@/components/dashboard/settings-panel";
 import { UnmatchedPanel } from "@/components/dashboard/unmatched-panel";
 import {
@@ -386,6 +387,10 @@ export function DashboardRoute({
 
   if (route === "roas" || route === "roas-canal") {
     return <RoasPanel secret={secret} />;
+  }
+
+  if (route === "duenos" || route === "finanzas") {
+    return <OwnerResumen secret={secret} />;
   }
 
   if (route === "dentalink" || route === "dentalink/payments") {

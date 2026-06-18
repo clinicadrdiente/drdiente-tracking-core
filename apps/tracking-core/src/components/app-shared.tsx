@@ -3,6 +3,7 @@ import {
   ActivityIcon,
   BarChart3Icon,
   BookOpenIcon,
+  BriefcaseIcon,
   CalendarDaysIcon,
   ClipboardListIcon,
   CoinsIcon,
@@ -76,6 +77,11 @@ export const navGroups: SidebarNavGroup[] = [
           { title: "Todos", path: "#/patients" },
           { title: "Recurrentes", path: "#/pacientes-recurrentes", icon: <RepeatIcon /> },
         ],
+      },
+      {
+        title: "Dueños",
+        path: "#/duenos",
+        icon: <BriefcaseIcon />,
       },
       {
         title: "ROAS por canal",

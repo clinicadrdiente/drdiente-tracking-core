@@ -12,42 +12,56 @@
 export type MarketingChannel =
   | "meta"
   | "tiktok"
+  | "ai_search"
   | "google"
   | "google_maps"
   | "other_digital"
   | "referral_organic"
+  | "walk_in"
   | "unknown";
 
 export const MARKETING_CHANNELS: readonly MarketingChannel[] = [
   "google",
   "meta",
   "tiktok",
+  "ai_search",
   "google_maps",
   "other_digital",
   "referral_organic",
+  "walk_in",
   "unknown",
 ] as const;
 
 export const CHANNEL_LABELS: Record<MarketingChannel, string> = {
   meta: "Meta (IG/FB)",
   tiktok: "TikTok",
+  ai_search: "IA / buscadores de IA",
   google: "Google (Ads + búsqueda)",
   google_maps: "Google Maps (local/orgánico)",
   other_digital: "Otro digital",
-  referral_organic: "Recomendación / Orgánico",
+  referral_organic: "Recomendación",
+  walk_in: "Pasando por la calle",
   unknown: "Desconocido",
 };
 
-// Canales que SÍ corresponden a esfuerzos pagados/digitales y para los que
-// Windsor puede reportar gasto. `referral_organic` y `unknown` quedan fuera del
-// ROAS porque no tienen inversión asociada.
+// Canales que SÍ corresponden a esfuerzos digitales/marketing y para los que
+// puede haber inversión. `referral_organic`, `walk_in` y `unknown` quedan fuera
+// del ROAS porque no tienen inversión asociada.
 export const DIGITAL_CHANNELS: ReadonlySet<MarketingChannel> = new Set<MarketingChannel>([
   "google",
   "meta",
   "tiktok",
+  "ai_search",
   "google_maps",
   "other_digital",
 ]);
+
+// Canales que cuentan como "marketing" para la atribución de la inversión.
+export const MARKETING_ORIGIN_CHANNELS: ReadonlySet<MarketingChannel> = DIGITAL_CHANNELS;
+
+export function isMarketingChannel(channel: MarketingChannel): boolean {
+  return MARKETING_ORIGIN_CHANNELS.has(channel);
+}
 
 export function isDigitalChannel(channel: MarketingChannel): boolean {
   return DIGITAL_CHANNELS.has(channel);
@@ -79,6 +93,35 @@ const META_TOKENS = new Set([
 
 const TIKTOK_TOKENS = new Set(["TIKTOK"]);
 
+// Motores / agentes de IA. "IA" y "AI" se matchean por token EXACTO (no
+// substring), por eso no chocan con "FAMILIA", "MARIA", etc. La señal es real:
+// recepción ya captura "CHAT GPT" e "IA".
+const AI_SEARCH_TOKENS = new Set([
+  "CHATGPT",
+  "GPT",
+  "OPENAI",
+  "PERPLEXITY",
+  "GEMINI",
+  "COPILOT",
+  "BARD",
+  "CLAUDE",
+  "IA",
+  "AI",
+]);
+
+const WALK_IN_TOKENS = new Set([
+  "PASO",
+  "PASABA",
+  "PASANDO",
+  "PASAND",
+  "CAMINANDO",
+  "LETRERO",
+  "ESPECTACULAR",
+  "FACHADA",
+  "UBICACION",
+  "CERCA",
+]);
+
 const OTHER_DIGITAL_TOKENS = new Set([
   "INTERNET",
   "WEB",
@@ -89,6 +132,8 @@ const OTHER_DIGITAL_TOKENS = new Set([
   "YOUTUBE",
   "WHATSAPP",
   "WAZE",
+  "ELEVATOR",
+  "ELEVADOR",
   "ADS",
   "ANUNCIO",
   "ANUNCIOS",
@@ -131,15 +176,6 @@ const ORGANIC_TOKENS = new Set([
   "EMPRESA",
   "CONVENIO",
   "SEGURO",
-  "PASO",
-  "PASABA",
-  "PASANDO",
-  "CAMINANDO",
-  "LETRERO",
-  "ESPECTACULAR",
-  "FACHADA",
-  "UBICACION",
-  "CERCA",
   "DOCTOR",
   "DOCTORA",
   "DENTISTA",
@@ -180,6 +216,9 @@ export function referenceToChannel(
   if (hasAny(TIKTOK_TOKENS) || padded.includes(" TIK TOK ")) {
     return "tiktok";
   }
+  if (hasAny(AI_SEARCH_TOKENS) || padded.includes(" CHAT GPT ")) {
+    return "ai_search";
+  }
   if (tokens.has("MAPS")) {
     return "google_maps";
   }
@@ -188,6 +227,11 @@ export function referenceToChannel(
   }
   if (hasAny(OTHER_DIGITAL_TOKENS)) {
     return "other_digital";
+  }
+  // walk_in antes que organic: "PASANDO POR CLINICA VECINO" es walk_in aunque
+  // mencione un referido.
+  if (hasAny(WALK_IN_TOKENS)) {
+    return "walk_in";
   }
   if (hasAny(ORGANIC_TOKENS)) {
     return "referral_organic";
