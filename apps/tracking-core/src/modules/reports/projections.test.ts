@@ -60,5 +60,25 @@ describe("project", () => {
     expect(r.projectedRevenue).toBe(1_200_000);
     expect(r.projectedSpend).toBeCloseTo(200_000, 5); // 1.2M / 6
     expect(r.projectedPatients).toBeCloseTo(100, 5); // 1.2M / 12k
+    expect(r.low).toBeLessThanOrEqual(r.high);
+  });
+
+  it("recortar gasto NO produce eficiencia >1 ni gasto negativo", () => {
+    const r = project({ ...base, mode: "scale", scalePct: -200 });
+    expect(r.projectedSpend).toBe(0); // clamp a -100% máximo
+    expect(r.projectedRevenue).toBeGreaterThanOrEqual(0);
+    expect(r.low).toBeLessThanOrEqual(r.high);
+  });
+
+  it("meta sin ROAS base no afirma '$0 de inversión'", () => {
+    const r = project({ ...base, mode: "goal", spend: 0, marketingRevenue: 0, goalRevenue: 500_000 });
+    expect(Number.isFinite(r.projectedSpend)).toBe(false); // indefinido, no 0
+    expect(r.projectedRoas).toBeNull();
+    expect(r.assumptions).toMatch(/ROAS base/i);
+  });
+
+  it("run-rate nunca proyecta menos que lo ya acumulado", () => {
+    const r = project({ ...base, mode: "runrate", periodDays: 30, elapsedDays: 45 });
+    expect(r.projectedRevenue).toBeGreaterThanOrEqual(base.marketingRevenue);
   });
 });

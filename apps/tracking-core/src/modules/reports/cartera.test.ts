@@ -24,10 +24,21 @@ describe("parseSaldos + buildCartera", () => {
     expect(c.pacientesConSaldo).toBe(2);
   });
 
-  it("separa saldo con cita agendada vs sin cita", () => {
-    const c = buildCartera(parseSaldos(rows));
-    expect(c.saldoConCitaAgendada).toBe(25000); // el plan con fecha de cita
+  it("separa saldo con cita FUTURA vs sin cita", () => {
+    const c = buildCartera(parseSaldos(rows), "2026-06-18");
+    expect(c.saldoConCitaAgendada).toBe(25000); // cita 2026-06-25 >= hoy
     expect(c.saldoSinCita).toBe(50000);
+    // reconcilia con el total pendiente (solo positivos)
+    expect(c.saldoConCitaAgendada + c.saldoSinCita).toBe(c.saldoPendiente);
+  });
+
+  it("una cita PASADA no cuenta como agendada", () => {
+    const past = [
+      { "# Paciente": 5, "# Tratamiento": 50, "Total Tratamiento": 40000, "Total Realizado": 0, "Total Abonado": 0, "Saldo Global": 40000, "Próxima Cita": "2020-01-01 09:00" },
+    ];
+    const c = buildCartera(parseSaldos(past), "2026-06-18");
+    expect(c.saldoConCitaAgendada).toBe(0);
+    expect(c.saldoSinCita).toBe(40000);
   });
 });
 

@@ -75,7 +75,8 @@ export interface SaldoRecord {
   abonado: number;
   saldoGlobal: number;
   proximaCita: string | null;
-  agendada: boolean;
+  /** Fecha de la próxima cita en YYYY-MM-DD, si la hay. */
+  proximaCitaDate: string | null;
 }
 
 export function parseSaldos(rows: Record<string, unknown>[]): SaldoRecord[] {
@@ -96,6 +97,7 @@ export function parseSaldos(rows: Record<string, unknown>[]): SaldoRecord[] {
 
   return rows.map((row): SaldoRecord => {
     const proximaCita = col.proximaCita ? readString(row[col.proximaCita]) : null;
+    const match = proximaCita ? proximaCita.match(/\d{4}-\d{2}-\d{2}/) : null;
     return {
       patientId: col.patientId ? readId(row[col.patientId]) : 0,
       treatmentId: col.treatmentId ? String(readString(row[col.treatmentId]) ?? "") : "",
@@ -104,7 +106,7 @@ export function parseSaldos(rows: Record<string, unknown>[]): SaldoRecord[] {
       abonado: col.abonado ? toNumber(row[col.abonado]) : 0,
       saldoGlobal: col.saldoGlobal ? toNumber(row[col.saldoGlobal]) : 0,
       proximaCita,
-      agendada: Boolean(proximaCita && /\d{4}-\d{2}-\d{2}/.test(proximaCita)),
+      proximaCitaDate: match ? match[0] : null,
     };
   });
 }
@@ -124,7 +126,12 @@ export interface CarteraSummary {
   saldoSinCita: number;
 }
 
-export function buildCartera(saldos: SaldoRecord[]): CarteraSummary {
+/**
+ * @param today fecha de referencia YYYY-MM-DD; una próxima cita sólo cuenta como
+ * "agendada" (recuperable pronto) si es hoy o futura. El llamador la inyecta
+ * para mantener la función pura/testeable.
+ */
+export function buildCartera(saldos: SaldoRecord[], today?: string): CarteraSummary {
   let totalPresupuestado = 0;
   let totalAbonado = 0;
   let totalRealizado = 0;
@@ -138,11 +145,16 @@ export function buildCartera(saldos: SaldoRecord[]): CarteraSummary {
     totalPresupuestado += s.total;
     totalAbonado += s.abonado;
     totalRealizado += s.realizado;
-    saldoPendiente += s.saldoGlobal;
+    // El saldo pendiente sólo cuenta positivos (los negativos son sobrepagos),
+    // así reconcilia con el desglose agendada/sin-cita.
     if (s.saldoGlobal > 0) {
+      saldoPendiente += s.saldoGlobal;
       planesConSaldo += 1;
       if (s.patientId > 0) pacientesConSaldo.add(s.patientId);
-      if (s.agendada) saldoConCitaAgendada += s.saldoGlobal;
+      const citaFutura = Boolean(
+        s.proximaCitaDate && (!today || s.proximaCitaDate >= today),
+      );
+      if (citaFutura) saldoConCitaAgendada += s.saldoGlobal;
       else saldoSinCita += s.saldoGlobal;
     }
   }

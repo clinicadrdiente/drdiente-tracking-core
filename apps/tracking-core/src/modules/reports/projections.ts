@@ -93,16 +93,19 @@ export function project(input: ProjectionInputs): ProjectionResult {
   const band = input.bandPct ?? 0.15;
   const roas = ratio(input.marketingRevenue, input.spend) ?? 0;
   const cac = ratio(input.spend, input.payingPatients);
-  const withBand = (value: number) => ({
-    low: value * (1 - band),
-    high: value * (1 + band),
-  });
+  const withBand = (value: number) => {
+    const a = value * (1 - band);
+    const b = value * (1 + band);
+    return { low: Math.min(a, b), high: Math.max(a, b) };
+  };
 
   if (input.mode === "scale") {
-    const scalePct = input.scalePct ?? 0;
+    // No se puede recortar más del 100% del gasto; recortar gasto no mejora la
+    // eficiencia por peso (eficiencia acotada a [0.4, 1]).
+    const scalePct = Math.max(-100, input.scalePct ?? 0);
     const decay = input.decayPer50 ?? 0.15;
-    const efficiency = Math.max(0.4, 1 - decay * (scalePct / 50));
-    const projectedSpend = input.spend * (1 + scalePct / 100);
+    const efficiency = Math.min(1, Math.max(0.4, 1 - decay * (scalePct / 50)));
+    const projectedSpend = Math.max(0, input.spend * (1 + scalePct / 100));
     const projectedRevenue = projectedSpend * roas * efficiency;
     const projectedPatients =
       cac && cac > 0 ? (projectedSpend / cac) * efficiency : 0;
@@ -121,25 +124,30 @@ export function project(input: ProjectionInputs): ProjectionResult {
 
   if (input.mode === "goal") {
     const goal = input.goalRevenue ?? 0;
-    const projectedSpend = roas > 0 ? goal / roas : 0;
+    const hasRoas = roas > 0;
+    // Sin un ROAS base la inversión necesaria es indefinida (no $0).
+    const projectedSpend = hasRoas ? goal / roas : Number.NaN;
     const projectedPatients = input.avgTicket > 0 ? goal / input.avgTicket : 0;
-    const { low, high } = withBand(projectedSpend);
+    const { low, high } = withBand(hasRoas ? projectedSpend : 0);
     return {
       mode: "goal",
       projectedSpend,
       projectedRevenue: goal,
       projectedPatients,
-      projectedRoas: ratio(goal, projectedSpend),
+      projectedRoas: hasRoas ? ratio(goal, projectedSpend) : null,
       low,
       high,
-      assumptions: `Para ${formatGoal(goal)} de ingreso marketing a ROAS ${roas.toFixed(1)}x se necesitan ~${formatGoal(projectedSpend)} de inversión (asume ROAS estable).`,
+      assumptions: hasRoas
+        ? `Para ${formatGoal(goal)} de ingreso marketing a ROAS ${roas.toFixed(1)}x se necesitan ~${formatGoal(projectedSpend)} de inversión (asume ROAS estable).`
+        : "Falta un ROAS base: carga el gasto de Windsor del periodo para estimar la inversión necesaria.",
     };
   }
 
   // run-rate: proyecta el próximo periodo de igual longitud sin cambiar nada.
   const periodDays = input.periodDays ?? 0;
   const elapsedDays = input.elapsedDays ?? periodDays;
-  const factor = elapsedDays > 0 && periodDays > 0 ? periodDays / elapsedDays : 1;
+  // Nunca proyectar por debajo de lo ya acumulado (factor >= 1).
+  const factor = elapsedDays > 0 && periodDays > 0 ? Math.max(1, periodDays / elapsedDays) : 1;
   const projectedRevenue = input.marketingRevenue * factor;
   const projectedSpend = input.spend * factor;
   const projectedPatients = input.payingPatients * factor;

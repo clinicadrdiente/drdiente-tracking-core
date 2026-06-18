@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { RefreshCwIcon, UploadIcon, BriefcaseIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -39,11 +39,13 @@ interface WindsorSummary {
 }
 
 function money(value: number): string {
+  if (!Number.isFinite(value)) return "—";
   if (Math.abs(value) >= 1_000_000) return `$${(value / 1_000_000).toFixed(2)}M`;
-  if (Math.abs(value) >= 1_000) return `$${Math.round(value / 1_000)}k`;
+  if (Math.abs(value) >= 1_000) return `$${(value / 1_000).toFixed(1)}k`;
   return `$${Math.round(value)}`;
 }
 function moneyFull(value: number): string {
+  if (!Number.isFinite(value)) return "—";
   return new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(value);
 }
 function pct(value: number): string {
@@ -82,8 +84,15 @@ async function parseFile(file: File): Promise<Record<string, unknown>[]> {
   if (name.endsWith(".csv")) return parseDelimited(await file.text(), ",");
   // Dentalink a veces exporta ".xls" como TSV UTF-16 (no es un xls binario real).
   if (name.endsWith(".xls")) {
-    const text = new TextDecoder("utf-16le").decode(await file.arrayBuffer()).replace(/^﻿/, "");
-    return parseDelimited(text, "\t");
+    const buf = await file.arrayBuffer();
+    const head = new Uint8Array(buf.slice(0, 2));
+    const enc = head[0] === 0xfe && head[1] === 0xff ? "utf-16be" : "utf-16le";
+    const text = new TextDecoder(enc).decode(buf).replace(/^﻿/, "");
+    const rows = parseDelimited(text, "\t");
+    if (rows.length === 0) {
+      throw new Error("Este .xls no parece TSV de Dentalink. Expórtalo de nuevo, o súbelo como .xlsx o .csv.");
+    }
+    return rows;
   }
   if (!name.endsWith(".xlsx")) {
     throw new Error("Formato no soportado. Sube el reporte en .xlsx, .xls o .csv.");
@@ -193,7 +202,8 @@ export function OwnerResumen({ secret }: { secret: string }) {
     return [...spendByChannel.entries()].filter(([ch, s]) => s > 0 && !shown.has(ch));
   }, [summary, spendByChannel]);
 
-  const cartera = useMemo(() => (saldos ? buildCartera(saldos) : null), [saldos]);
+  const today = new Date().toISOString().slice(0, 10);
+  const cartera = useMemo(() => (saldos ? buildCartera(saldos, today) : null), [saldos, today]);
   const pipeline = useMemo(() => (presupuestos ? buildPipeline(presupuestos, range) : null), [presupuestos, range]);
 
   // Periodo inmediatamente anterior, misma longitud → "de dónde vengo".
@@ -214,12 +224,18 @@ export function OwnerResumen({ secret }: { secret: string }) {
   const mktPaying = summary ? summary.byChannel.filter((c) => c.isMarketing).reduce((s, c) => s + c.payingPatients, 0) : 0;
   const avgTicket = summary && mktPaying > 0 ? summary.marketing.revenue / mktPaying : 0;
 
-  // Prefill del margen con el real de "acciones" cuando está disponible.
+  // Prefill del margen con el real de "acciones" SOLO la primera vez (no pisa
+  // ediciones manuales del usuario al cambiar el rango).
+  const marginTouched = useRef(false);
   useEffect(() => {
-    if (totalMargin !== null && marginRevenue > 0) {
+    if (!marginTouched.current && totalMargin !== null && marginRevenue > 0) {
       setMarginInput(Math.round((totalMargin / marginRevenue) * 100));
     }
   }, [totalMargin, marginRevenue]);
+  const handleMarginChange = (v: number) => {
+    marginTouched.current = true;
+    setMarginInput(v);
+  };
 
   const kpis = useMemo(
     () =>
@@ -471,7 +487,7 @@ export function OwnerResumen({ secret }: { secret: string }) {
               windsorState={windsorState}
               hasRealMargin={totalMargin !== null}
               marginInput={marginInput}
-              setMarginInput={setMarginInput}
+              setMarginInput={handleMarginChange}
               repurchase={repurchase}
               setRepurchase={setRepurchase}
               projMode={projMode}
@@ -606,16 +622,18 @@ function Calculadora(props: {
           </div>
         </div>
 
-        {props.priorMarketingRevenue !== null && (
-          <div>
-            <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">De dónde vengo (vs periodo anterior)</p>
-            <div className="flex items-baseline gap-3 text-sm">
-              <span>Revenue marketing: <span className="font-medium">{money(props.marketingRevenue)}</span></span>
+        <div>
+          <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">De dónde vengo (vs periodo anterior)</p>
+          {props.priorMarketingRevenue !== null ? (
+            <div className="flex items-baseline gap-3 text-sm flex-wrap">
+              <span>Revenue marketing: <span className="font-medium">{moneyFull(props.marketingRevenue)}</span></span>
               <Delta cur={props.marketingRevenue} prev={props.priorMarketingRevenue} />
-              <span className="text-muted-foreground">(antes {money(props.priorMarketingRevenue)})</span>
+              <span className="text-muted-foreground">(antes {moneyFull(props.priorMarketingRevenue)})</span>
             </div>
-          </div>
-        )}
+          ) : (
+            <p className="text-muted-foreground text-sm">Elige un rango de 30d, 90d o personalizado para comparar contra el periodo anterior.</p>
+          )}
+        </div>
 
         <div>
           <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Hacia dónde voy</p>
@@ -650,12 +668,12 @@ function Calculadora(props: {
         <div className="border-t pt-3 grid grid-cols-2 gap-3 sm:grid-cols-2">
           <div className="flex items-center gap-2">
             <label className="text-sm text-muted-foreground" htmlFor="margin">Margen %</label>
-            <Input id="margin" type="number" className="h-8 w-20" value={props.marginInput} onChange={(e) => props.setMarginInput(Number(e.target.value) || 0)} />
+            <Input id="margin" type="number" min={0} max={100} step={1} className="h-8 w-20" value={props.marginInput} onChange={(e) => props.setMarginInput(Math.min(100, Math.max(0, Number(e.target.value) || 0)))} />
             <span className="text-xs text-muted-foreground">{props.hasRealMargin ? "real (acciones)" : "estimado"}</span>
           </div>
           <div className="flex items-center gap-2">
             <label className="text-sm text-muted-foreground" htmlFor="recompra">Recompra (LTV)</label>
-            <Input id="recompra" type="number" step={0.1} className="h-8 w-20" value={props.repurchase} onChange={(e) => props.setRepurchase(Number(e.target.value) || 1)} />
+            <Input id="recompra" type="number" min={1} max={10} step={0.1} className="h-8 w-20" value={props.repurchase} onChange={(e) => props.setRepurchase(Math.min(10, Math.max(1, Number(e.target.value) || 1)))} />
           </div>
         </div>
       </CardContent>
