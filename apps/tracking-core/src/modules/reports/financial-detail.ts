@@ -79,7 +79,7 @@ function resolveColumn(
 // negativos con signo o contables "(500)". Detecta el separador decimal por el
 // último que aparece; un único separador con exactamente 3 dígitos detrás se
 // trata como miles (ej. "1,234" / "2.000" → 1234 / 2000).
-function toNumber(value: unknown): number {
+export function toNumber(value: unknown): number {
   if (typeof value === "number") return Number.isFinite(value) ? value : 0;
   if (typeof value !== "string") return 0;
 
@@ -139,7 +139,7 @@ function toPatientId(value: unknown): number {
   return 0;
 }
 
-function toIsoDate(value: unknown): string | null {
+export function toIsoDate(value: unknown): string | null {
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
     return value.toISOString().slice(0, 10);
   }
@@ -155,7 +155,7 @@ function toIsoDate(value: unknown): string | null {
   return match ? match[0] : null;
 }
 
-function normalizeRange(range: DateRange): DateRange {
+export function normalizeRange(range: DateRange): DateRange {
   return {
     from: range.from ? range.from.slice(0, 10) : range.from,
     to: range.to ? range.to.slice(0, 10) : range.to,
@@ -164,7 +164,7 @@ function normalizeRange(range: DateRange): DateRange {
 
 // Filas sin fecha sólo cuentan cuando NO hay ventana acotada: así no se filtran
 // hacia todos los periodos consultados (evita inflar revenue por fecha nula).
-function inRange(date: string | null, range: DateRange): boolean {
+export function inRange(date: string | null, range: DateRange): boolean {
   const bounded = Boolean(range.from || range.to);
   if (!date) return !bounded;
   if (range.from && date < range.from) return false;

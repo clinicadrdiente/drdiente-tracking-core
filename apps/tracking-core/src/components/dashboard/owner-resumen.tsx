@@ -15,6 +15,17 @@ import {
   type PagoDetalleRecord,
 } from "@/modules/reports/financial-detail";
 import { CHANNEL_LABELS, windsorSourceToChannel, type MarketingChannel } from "@/modules/reports/marketing-channels";
+import {
+  buildCartera,
+  buildPipeline,
+  parsePresupuestos,
+  parseSaldos,
+  type CarteraSummary,
+  type PipelineSummary,
+  type PresupuestoRecord,
+  type SaldoRecord,
+} from "@/modules/reports/cartera";
+import { computeKpis, project, type Kpis, type ProjectionMode, type ProjectionResult } from "@/modules/reports/projections";
 
 interface WindsorSource {
   source: string;
@@ -39,7 +50,7 @@ function pct(value: number): string {
   return `${Math.round(value)}%`;
 }
 
-function parseCsv(text: string): Record<string, unknown>[] {
+function parseDelimited(text: string, delimiter: string): Record<string, unknown>[] {
   const rows: string[][] = [];
   let field = "", row: string[] = [], inQuotes = false;
   for (let i = 0; i < text.length; i += 1) {
@@ -48,7 +59,7 @@ function parseCsv(text: string): Record<string, unknown>[] {
       if (c === '"') { if (text[i + 1] === '"') { field += '"'; i += 1; } else inQuotes = false; }
       else field += c;
     } else if (c === '"') inQuotes = true;
-    else if (c === ",") { row.push(field); field = ""; }
+    else if (c === delimiter) { row.push(field); field = ""; }
     else if (c === "\n" || c === "\r") {
       if (c === "\r" && text[i + 1] === "\n") i += 1;
       row.push(field); field = "";
@@ -68,9 +79,14 @@ function parseCsv(text: string): Record<string, unknown>[] {
 
 async function parseFile(file: File): Promise<Record<string, unknown>[]> {
   const name = file.name.toLowerCase();
-  if (name.endsWith(".csv")) return parseCsv(await file.text());
+  if (name.endsWith(".csv")) return parseDelimited(await file.text(), ",");
+  // Dentalink a veces exporta ".xls" como TSV UTF-16 (no es un xls binario real).
+  if (name.endsWith(".xls")) {
+    const text = new TextDecoder("utf-16le").decode(await file.arrayBuffer()).replace(/^﻿/, "");
+    return parseDelimited(text, "\t");
+  }
   if (!name.endsWith(".xlsx")) {
-    throw new Error("Formato no soportado. Sube el reporte en .xlsx o .csv.");
+    throw new Error("Formato no soportado. Sube el reporte en .xlsx, .xls o .csv.");
   }
   let XLSX: {
     read: (data: ArrayBuffer, opts: Record<string, unknown>) => { SheetNames: string[]; Sheets: Record<string, unknown> };
@@ -92,8 +108,15 @@ type Preset = "all" | "30" | "90" | "custom";
 export function OwnerResumen({ secret }: { secret: string }) {
   const [pagos, setPagos] = useState<PagoDetalleRecord[] | null>(null);
   const [acciones, setAcciones] = useState<AccionRecord[] | null>(null);
-  const [names, setNames] = useState<{ pagos?: string; acciones?: string }>({});
+  const [saldos, setSaldos] = useState<SaldoRecord[] | null>(null);
+  const [presupuestos, setPresupuestos] = useState<PresupuestoRecord[] | null>(null);
+  const [names, setNames] = useState<{ pagos?: string; acciones?: string; saldos?: string; presupuestos?: string }>({});
   const [bounds, setBounds] = useState<{ min: string; max: string } | null>(null);
+  const [marginInput, setMarginInput] = useState<number>(60);
+  const [repurchase, setRepurchase] = useState<number>(1.3);
+  const [projMode, setProjMode] = useState<ProjectionMode>("scale");
+  const [scalePct, setScalePct] = useState<number>(50);
+  const [goalRevenue, setGoalRevenue] = useState<number>(0);
   const [preset, setPreset] = useState<Preset>("all");
   const [from, setFrom] = useState<string>("");
   const [to, setTo] = useState<string>("");
@@ -170,7 +193,69 @@ export function OwnerResumen({ secret }: { secret: string }) {
     return [...spendByChannel.entries()].filter(([ch, s]) => s > 0 && !shown.has(ch));
   }, [summary, spendByChannel]);
 
-  async function handleFile(file: File, kind: "pagos" | "acciones") {
+  const cartera = useMemo(() => (saldos ? buildCartera(saldos) : null), [saldos]);
+  const pipeline = useMemo(() => (presupuestos ? buildPipeline(presupuestos, range) : null), [presupuestos, range]);
+
+  // Periodo inmediatamente anterior, misma longitud → "de dónde vengo".
+  const priorRange = useMemo(() => {
+    if (!range.from || !range.to) return null;
+    const fromMs = new Date(`${range.from}T00:00:00`).getTime();
+    const toMs = new Date(`${range.to}T00:00:00`).getTime();
+    const lenDays = Math.round((toMs - fromMs) / 86400000) + 1;
+    const pTo = new Date(fromMs - 86400000);
+    const pFrom = new Date(pTo.getTime() - (lenDays - 1) * 86400000);
+    return { from: pFrom.toISOString().slice(0, 10), to: pTo.toISOString().slice(0, 10) };
+  }, [range]);
+  const priorSummary = useMemo(
+    () => (pagos && priorRange ? buildFinancialSummary(pagos, priorRange) : null),
+    [pagos, priorRange],
+  );
+
+  const mktPaying = summary ? summary.byChannel.filter((c) => c.isMarketing).reduce((s, c) => s + c.payingPatients, 0) : 0;
+  const avgTicket = summary && mktPaying > 0 ? summary.marketing.revenue / mktPaying : 0;
+
+  // Prefill del margen con el real de "acciones" cuando está disponible.
+  useEffect(() => {
+    if (totalMargin !== null && marginRevenue > 0) {
+      setMarginInput(Math.round((totalMargin / marginRevenue) * 100));
+    }
+  }, [totalMargin, marginRevenue]);
+
+  const kpis = useMemo(
+    () =>
+      summary
+        ? computeKpis({
+            marketingRevenue: summary.marketing.revenue,
+            spend: totalSpend,
+            payingPatients: mktPaying,
+            avgTicket,
+            marginPct: marginInput,
+            repurchase,
+          })
+        : null,
+    [summary, totalSpend, mktPaying, avgTicket, marginInput, repurchase],
+  );
+
+  const projection = useMemo(
+    () =>
+      summary
+        ? project({
+            mode: projMode,
+            marketingRevenue: summary.marketing.revenue,
+            spend: totalSpend,
+            payingPatients: mktPaying,
+            avgTicket,
+            marginPct: marginInput,
+            periodDays: 30,
+            elapsedDays: 30,
+            scalePct,
+            goalRevenue,
+          })
+        : null,
+    [summary, totalSpend, mktPaying, avgTicket, marginInput, projMode, scalePct, goalRevenue],
+  );
+
+  async function handleFile(file: File, kind: "pagos" | "acciones" | "saldos" | "presupuestos") {
     setLoading(true);
     setError(null);
     try {
@@ -182,9 +267,15 @@ export function OwnerResumen({ secret }: { secret: string }) {
         setPagos(parsed);
         setNames((n) => ({ ...n, pagos: file.name }));
         if (dates.length) setBounds({ min: dates[0], max: dates[dates.length - 1] });
-      } else {
+      } else if (kind === "acciones") {
         setAcciones(parseAccionesRealizadas(rows));
         setNames((n) => ({ ...n, acciones: file.name }));
+      } else if (kind === "saldos") {
+        setSaldos(parseSaldos(rows));
+        setNames((n) => ({ ...n, saldos: file.name }));
+      } else {
+        setPresupuestos(parsePresupuestos(rows));
+        setNames((n) => ({ ...n, presupuestos: file.name }));
       }
       window.localStorage.setItem("trackingSecret", secret.trim());
     } catch (e) {
@@ -207,9 +298,11 @@ export function OwnerResumen({ secret }: { secret: string }) {
             canales, los tratamientos y el margen se calculan al instante y filtran por fecha.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
           <UploadButton label={names.pagos ? "Pagos ✓" : "Subir pagos"} onFile={(f) => handleFile(f, "pagos")} loading={loading} primary />
-          <UploadButton label={names.acciones ? "Acciones ✓" : "Subir acciones"} onFile={(f) => handleFile(f, "acciones")} loading={loading} />
+          <UploadButton label={names.acciones ? "Acciones ✓" : "Acciones (margen)"} onFile={(f) => handleFile(f, "acciones")} loading={loading} />
+          <UploadButton label={names.saldos ? "Saldos ✓" : "Saldos (cartera)"} onFile={(f) => handleFile(f, "saldos")} loading={loading} />
+          <UploadButton label={names.presupuestos ? "Presupuestos ✓" : "Presupuestos"} onFile={(f) => handleFile(f, "presupuestos")} loading={loading} />
         </div>
       </div>
 
@@ -359,6 +452,36 @@ export function OwnerResumen({ secret }: { secret: string }) {
               </CardContent>
             </Card>
           </section>
+
+          {(cartera || pipeline) && (
+            <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              {cartera && <CarteraCard cartera={cartera} />}
+              {pipeline && <PipelineCard pipeline={pipeline} />}
+            </section>
+          )}
+
+          {kpis && projection && summary && (
+            <Calculadora
+              kpis={kpis}
+              projection={projection}
+              marketingRevenue={summary.marketing.revenue}
+              priorMarketingRevenue={priorSummary ? priorSummary.marketing.revenue : null}
+              payingPatients={mktPaying}
+              avgTicket={avgTicket}
+              windsorState={windsorState}
+              hasRealMargin={totalMargin !== null}
+              marginInput={marginInput}
+              setMarginInput={setMarginInput}
+              repurchase={repurchase}
+              setRepurchase={setRepurchase}
+              projMode={projMode}
+              setProjMode={setProjMode}
+              scalePct={scalePct}
+              setScalePct={setScalePct}
+              goalRevenue={goalRevenue}
+              setGoalRevenue={setGoalRevenue}
+            />
+          )}
         </>
       )}
     </div>
@@ -366,10 +489,10 @@ export function OwnerResumen({ secret }: { secret: string }) {
 }
 
 function UploadButton({ label, onFile, loading, primary }: { label: string; onFile: (f: File) => void; loading: boolean; primary?: boolean }) {
-  const id = `up-${label.replace(/\s+/g, "")}`;
+  const id = `up-${label.replace(/[^a-zA-Z0-9]/g, "")}`;
   return (
     <label htmlFor={id}>
-      <input id={id} type="file" accept=".xlsx,.csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ""; }} />
+      <input id={id} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ""; }} />
       <Button asChild variant={primary ? "default" : "outline"} disabled={loading} size="sm">
         <span className="cursor-pointer">{loading ? <RefreshCwIcon className="animate-spin" aria-hidden="true" /> : <UploadIcon aria-hidden="true" />}{label}</span>
       </Button>
@@ -384,5 +507,158 @@ function Metric({ label, value, hint, accent }: { label: string; value: string; 
       <p className={`text-xl font-semibold mt-1 ${accent ? "text-primary" : ""}`}>{value}</p>
       {hint ? <p className="text-xs text-muted-foreground mt-0.5">{hint}</p> : null}
     </div>
+  );
+}
+
+function roasText(v: number | null): string {
+  return v === null ? "—" : `${v.toFixed(1)}x`;
+}
+
+function CarteraCard({ cartera }: { cartera: CarteraSummary }) {
+  return (
+    <Card>
+      <CardHeader className="pb-2"><CardTitle className="text-base">Cartera (revenue ya vendido, pendiente de cobro)</CardTitle></CardHeader>
+      <CardContent className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <Metric label="Saldo pendiente" value={moneyFull(cartera.saldoPendiente)} accent />
+          <Metric label="Cobrado" value={pct(cartera.cobradoPct)} hint={`${moneyFull(cartera.totalAbonado)} de ${moneyFull(cartera.totalPresupuestado)}`} />
+        </div>
+        <div className="text-sm text-muted-foreground space-y-1">
+          <div className="flex justify-between"><span>Planes con saldo</span><span className="tabular-nums text-foreground">{cartera.planesConSaldo} · {cartera.pacientesConSaldo} pacientes</span></div>
+          <div className="flex justify-between"><span>Con próxima cita agendada</span><span className="tabular-nums text-foreground">{moneyFull(cartera.saldoConCitaAgendada)}</span></div>
+          <div className="flex justify-between"><span>Sin cita (a reactivar)</span><span className="tabular-nums text-warn">{moneyFull(cartera.saldoSinCita)}</span></div>
+        </div>
+        <p className="text-muted-foreground text-xs">Foto actual de todos los planes (no filtra por fecha). El saldo sin cita es la oportunidad de recuperación.</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function PipelineCard({ pipeline }: { pipeline: PipelineSummary }) {
+  return (
+    <Card>
+      <CardHeader className="pb-2"><CardTitle className="text-base">Pipeline — presupuestos creados</CardTitle></CardHeader>
+      <CardContent className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <Metric label="Presupuestado" value={moneyFull(pipeline.montoPresupuestado)} hint={`${pipeline.count} presupuestos`} />
+          <Metric label="Tasa de inicio" value={pct(pipeline.tasaInicio)} hint={`${pipeline.iniciados} arrancaron · cobro ${pct(pipeline.tasaCobro)}`} accent />
+        </div>
+        <div className="space-y-1.5">
+          {pipeline.byChannel.filter((c) => c.isMarketing).slice(0, 5).map((c) => (
+            <div key={c.channel} className="flex justify-between text-sm">
+              <span className="truncate">{c.label} · {c.presupuestos}</span>
+              <span className="font-medium tabular-nums">{money(c.montoPresupuestado)}</span>
+            </div>
+          ))}
+        </div>
+        <p className="text-muted-foreground text-xs">Presupuestos capturados en el rango (por fecha de captura). "Tasa de inicio" = cuántos arrancaron tratamiento.</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function Delta({ cur, prev }: { cur: number; prev: number | null }) {
+  if (prev === null || prev === 0) return null;
+  const d = ((cur - prev) / prev) * 100;
+  const up = d >= 0;
+  return <span className={up ? "text-success" : "text-destructive"}>{up ? "▲" : "▼"} {pct(Math.abs(d))}</span>;
+}
+
+function Calculadora(props: {
+  kpis: Kpis;
+  projection: ProjectionResult;
+  marketingRevenue: number;
+  priorMarketingRevenue: number | null;
+  payingPatients: number;
+  avgTicket: number;
+  windsorState: "idle" | "loading" | "ready" | "error";
+  hasRealMargin: boolean;
+  marginInput: number;
+  setMarginInput: (v: number) => void;
+  repurchase: number;
+  setRepurchase: (v: number) => void;
+  projMode: ProjectionMode;
+  setProjMode: (m: ProjectionMode) => void;
+  scalePct: number;
+  setScalePct: (v: number) => void;
+  goalRevenue: number;
+  setGoalRevenue: (v: number) => void;
+}) {
+  const { kpis, projection } = props;
+  const noSpend = props.windsorState !== "ready";
+  return (
+    <Card>
+      <CardHeader className="pb-2"><CardTitle className="text-base">Calculadora — dónde estoy, de dónde vengo, hacia dónde voy</CardTitle></CardHeader>
+      <CardContent className="space-y-5">
+        {noSpend && (
+          <p className="text-warn text-xs">Sin gasto de Windsor cargado en este rango, el ROAS/ROI/CAC no se pueden calcular. Revisa el secret o el periodo.</p>
+        )}
+
+        <div>
+          <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Dónde estoy</p>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <Metric label="ROAS marketing" value={roasText(kpis.roas)} accent />
+            <Metric label="ROI (con margen)" value={kpis.roiPct === null ? "—" : pct(kpis.roiPct)} />
+            <Metric label="CAC" value={kpis.cac === null ? "—" : moneyFull(kpis.cac)} hint={`${props.payingPatients} pagaron`} />
+            <Metric label="Ticket promedio" value={moneyFull(props.avgTicket)} />
+            <Metric label="LTV" value={moneyFull(kpis.ltv)} hint="ticket × recompra × margen" />
+            <Metric label="LTV / CAC" value={kpis.ltvCac === null ? "—" : `${kpis.ltvCac.toFixed(1)}x`} hint=">3x es sano" />
+          </div>
+        </div>
+
+        {props.priorMarketingRevenue !== null && (
+          <div>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">De dónde vengo (vs periodo anterior)</p>
+            <div className="flex items-baseline gap-3 text-sm">
+              <span>Revenue marketing: <span className="font-medium">{money(props.marketingRevenue)}</span></span>
+              <Delta cur={props.marketingRevenue} prev={props.priorMarketingRevenue} />
+              <span className="text-muted-foreground">(antes {money(props.priorMarketingRevenue)})</span>
+            </div>
+          </div>
+        )}
+
+        <div>
+          <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Hacia dónde voy</p>
+          <div className="flex items-center gap-2 flex-wrap mb-3">
+            {([["runrate", "Si no cambio nada"], ["scale", "Escalar gasto"], ["goal", "Meta de ingreso"]] as Array<[ProjectionMode, string]>).map(([m, lbl]) => (
+              <Button key={m} size="sm" variant={props.projMode === m ? "default" : "outline"} aria-pressed={props.projMode === m} onClick={() => props.setProjMode(m)}>{lbl}</Button>
+            ))}
+          </div>
+
+          {props.projMode === "scale" && (
+            <div className="flex items-center gap-3 mb-3">
+              <label className="text-sm text-muted-foreground" htmlFor="scale">Cambio de gasto</label>
+              <input id="scale" type="range" min={-50} max={200} step={10} value={props.scalePct} onChange={(e) => props.setScalePct(Number(e.target.value))} className="flex-1" />
+              <span className="text-sm font-medium w-12 text-right">{props.scalePct >= 0 ? "+" : ""}{props.scalePct}%</span>
+            </div>
+          )}
+          {props.projMode === "goal" && (
+            <div className="flex items-center gap-2 mb-3">
+              <label className="text-sm text-muted-foreground" htmlFor="goal">Meta de ingreso marketing</label>
+              <Input id="goal" type="number" className="h-8 w-40" value={props.goalRevenue || ""} onChange={(e) => props.setGoalRevenue(Number(e.target.value) || 0)} />
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <Metric label="Inversión" value={moneyFull(projection.projectedSpend)} accent={props.projMode === "goal"} />
+            <Metric label="Revenue proyectado" value={moneyFull(projection.projectedRevenue)} hint={`rango ${money(projection.low)}–${money(projection.high)}`} accent={props.projMode !== "goal"} />
+            <Metric label="Pacientes" value={String(Math.round(projection.projectedPatients))} />
+          </div>
+          <p className="text-muted-foreground text-xs mt-2">{projection.assumptions}</p>
+        </div>
+
+        <div className="border-t pt-3 grid grid-cols-2 gap-3 sm:grid-cols-2">
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-muted-foreground" htmlFor="margin">Margen %</label>
+            <Input id="margin" type="number" className="h-8 w-20" value={props.marginInput} onChange={(e) => props.setMarginInput(Number(e.target.value) || 0)} />
+            <span className="text-xs text-muted-foreground">{props.hasRealMargin ? "real (acciones)" : "estimado"}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-muted-foreground" htmlFor="recompra">Recompra (LTV)</label>
+            <Input id="recompra" type="number" step={0.1} className="h-8 w-20" value={props.repurchase} onChange={(e) => props.setRepurchase(Number(e.target.value) || 1)} />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
