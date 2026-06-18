@@ -22,6 +22,10 @@ export function SettingsPanel({
         <CardContent className="space-y-4">
           <div className="flex gap-2">
             <Input
+              autoCapitalize="off"
+              autoCorrect="off"
+              autoComplete="off"
+              spellCheck={false}
               className="flex-1"
               onChange={(e) => onSecretChange(e.target.value)}
               placeholder="TRACKING_API_SECRET"

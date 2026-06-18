@@ -14,8 +14,10 @@ export function requireTrackingSecret(request: AnyHttpRequest): HttpResponse | n
     return unauthorized("tracking secret is not configured");
   }
 
-  const receivedSecret = getHeader(request, TRACKING_SECRET_HEADER);
-  if (!timingSafeStringEqual(receivedSecret, expectedSecret)) {
+  // Trim ambos lados: un espacio/newline accidental en la env var o el header
+  // no debe causar "unauthorized". (Sigue siendo sensible a mayúsculas.)
+  const receivedSecret = getHeader(request, TRACKING_SECRET_HEADER)?.trim();
+  if (!timingSafeStringEqual(receivedSecret, expectedSecret.trim())) {
     return unauthorized();
   }
 
