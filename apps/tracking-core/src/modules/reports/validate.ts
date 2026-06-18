@@ -1,4 +1,7 @@
-import type { DailyBranchReport, LeadContactChannel } from "../../types/domain.js";
+import type {
+  DailyBranchReport,
+  LeadContactChannel,
+} from "../../types/domain.js";
 
 const ALLOWED_CHANNELS: ReadonlySet<string> = new Set<LeadContactChannel>([
   "llamada",
@@ -11,7 +14,10 @@ const ALLOWED_CHANNELS: ReadonlySet<string> = new Set<LeadContactChannel>([
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-export type DailyReportInput = Omit<DailyBranchReport, "reportId" | "submittedAt">;
+export type DailyReportInput = Omit<
+  DailyBranchReport,
+  "reportId" | "submittedAt"
+>;
 
 export interface ValidationResult {
   ok: true;
@@ -71,12 +77,23 @@ export function validateDailyReportInput(
         error: `unknown channel "${String(c.channel)}"; allowed: ${[...ALLOWED_CHANNELS].join(", ")}`,
       };
     }
-    if (typeof c.count !== "number" || !Number.isInteger(c.count) || c.count < 0) {
-      return { ok: false, error: "each contact count must be a non-negative integer" };
+    if (
+      typeof c.count !== "number" ||
+      !Number.isInteger(c.count) ||
+      c.count < 0
+    ) {
+      return {
+        ok: false,
+        error: "each contact count must be a non-negative integer",
+      };
     }
   }
 
-  if (b.notes !== undefined && b.notes !== null && typeof b.notes !== "string") {
+  if (
+    b.notes !== undefined &&
+    b.notes !== null &&
+    typeof b.notes !== "string"
+  ) {
     return { ok: false, error: "notes must be a string or null" };
   }
 
@@ -85,10 +102,12 @@ export function validateDailyReportInput(
     input: {
       branch: b.branch.trim(),
       date: b.date,
-      contacts: (b.contacts as Array<{ channel: string; count: number }>).map((c) => ({
-        channel: c.channel as LeadContactChannel,
-        count: c.count,
-      })),
+      contacts: (b.contacts as Array<{ channel: string; count: number }>).map(
+        (c) => ({
+          channel: c.channel as LeadContactChannel,
+          count: c.count,
+        }),
+      ),
       leadsReceived: b.leadsReceived as number,
       leadsContacted: b.leadsContacted as number,
       followUpsSent: b.followUpsSent as number,

@@ -85,9 +85,9 @@
   /* Module accent colors — light */
   --module-attribution: oklch(0.55 0.18 250);
   --module-operations: oklch(0.52 0.15 150);
-  --module-marketing: oklch(0.60 0.16 60);
+  --module-marketing: oklch(0.6 0.16 60);
   --module-health: oklch(0.52 0.2 25);
-  --module-reports: oklch(0.50 0.17 300);
+  --module-reports: oklch(0.5 0.17 300);
 }
 
 /* DARK THEME — Elevator branding on dark */
@@ -130,9 +130,9 @@
   /* Module accent colors — dark */
   --module-attribution: oklch(0.65 0.18 250);
   --module-operations: oklch(0.65 0.15 150);
-  --module-marketing: oklch(0.70 0.16 60);
+  --module-marketing: oklch(0.7 0.16 60);
   --module-health: oklch(0.62 0.2 25);
-  --module-reports: oklch(0.60 0.17 300);
+  --module-reports: oklch(0.6 0.17 300);
 }
 
 * {
@@ -147,11 +147,7 @@ body {
     radial-gradient(circle at 70% 0%, var(--brand-glow), transparent 32rem),
     var(--background);
   color: var(--foreground);
-  font-family:
-    Geist,
-    "Avenir Next",
-    "Helvetica Neue",
-    sans-serif;
+  font-family: Geist, "Avenir Next", "Helvetica Neue", sans-serif;
 }
 
 button,

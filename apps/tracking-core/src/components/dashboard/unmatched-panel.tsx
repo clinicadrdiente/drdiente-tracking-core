@@ -2,12 +2,7 @@ import { useState } from "react";
 import { RefreshCwIcon, UserXIcon, CheckCircleIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { MonthlyDashboard, PaymentBlock } from "@/types/dashboard";
 
 function formatMoney(value: number) {
@@ -39,7 +34,12 @@ export function UnmatchedPanel({
   secret: string;
 }) {
   const [isImporting, setIsImporting] = useState(false);
-  const [importResult, setImportResult] = useState<{ created: number; existing: number; skipped: number; failed: number } | null>(null);
+  const [importResult, setImportResult] = useState<{
+    created: number;
+    existing: number;
+    skipped: number;
+    failed: number;
+  } | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
 
   const allPatients = data?.patients ?? [];
@@ -114,15 +114,23 @@ export function UnmatchedPanel({
         <Card className="border-green-200 dark:border-green-900">
           <CardContent className="pt-5">
             <p className="text-sm text-muted-foreground">Con contacto</p>
-            <p className="text-2xl font-bold text-green-600 dark:text-green-400">{conContacto.length}</p>
-            <p className="text-xs text-muted-foreground">pueden importarse a Elevator</p>
+            <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+              {conContacto.length}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              pueden importarse a Elevator
+            </p>
           </CardContent>
         </Card>
         <Card className="border-destructive/30">
           <CardContent className="pt-5">
             <p className="text-sm text-muted-foreground">Sin contacto</p>
-            <p className="text-2xl font-bold text-destructive">{sinContacto.length}</p>
-            <p className="text-xs text-muted-foreground">sin telefono ni email</p>
+            <p className="text-2xl font-bold text-destructive">
+              {sinContacto.length}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              sin telefono ni email
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -139,7 +147,9 @@ export function UnmatchedPanel({
                 size="sm"
               >
                 <RefreshCwIcon aria-hidden="true" data-icon="inline-start" />
-                {isImporting ? "Importando..." : `Importar ${conContacto.length} pacientes`}
+                {isImporting
+                  ? "Importando..."
+                  : `Importar ${conContacto.length} pacientes`}
               </Button>
             </div>
           </CardHeader>
@@ -150,12 +160,18 @@ export function UnmatchedPanel({
                   <CheckCircleIcon className="mr-1 size-3" />
                   {importResult.created} creados
                 </Badge>
-                <Badge variant="secondary">{importResult.existing} ya existían</Badge>
+                <Badge variant="secondary">
+                  {importResult.existing} ya existían
+                </Badge>
                 {importResult.skipped > 0 && (
-                  <Badge variant="outline">{importResult.skipped} omitidos</Badge>
+                  <Badge variant="outline">
+                    {importResult.skipped} omitidos
+                  </Badge>
                 )}
                 {importResult.failed > 0 && (
-                  <Badge variant="destructive">{importResult.failed} fallidos</Badge>
+                  <Badge variant="destructive">
+                    {importResult.failed} fallidos
+                  </Badge>
                 )}
               </div>
             </CardContent>
@@ -173,30 +189,45 @@ export function UnmatchedPanel({
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
-              <UserXIcon className="size-4 text-destructive" aria-hidden="true" />
+              <UserXIcon
+                className="size-4 text-destructive"
+                aria-hidden="true"
+              />
               Sin contacto — {sinContacto.length} pacientes
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-xs text-muted-foreground mb-3">
-              Estos pacientes no tienen telefono ni email. La clinica debe actualizar su ficha en Dentalink para que puedan importarse a Elevator.
+              Estos pacientes no tienen telefono ni email. La clinica debe
+              actualizar su ficha en Dentalink para que puedan importarse a
+              Elevator.
             </p>
             <div className="flex flex-col divide-y">
               {sinContacto.map((p) => (
-                <div key={p.patientId} className="flex items-center justify-between gap-3 py-2">
+                <div
+                  key={p.patientId}
+                  className="flex items-center justify-between gap-3 py-2"
+                >
                   <div>
                     <p className="text-sm font-medium capitalize">
-                      {p.patientName?.toLowerCase() ?? `Paciente #${p.patientId}`}
+                      {p.patientName?.toLowerCase() ??
+                        `Paciente #${p.patientId}`}
                     </p>
                     {p.patientReference ? (
-                      <p className="text-xs text-muted-foreground">{p.patientReference}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {p.patientReference}
+                      </p>
                     ) : null}
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     {p.branch ? (
-                      <Badge variant="outline" className="text-xs">{p.branch}</Badge>
+                      <Badge variant="outline" className="text-xs">
+                        {p.branch}
+                      </Badge>
                     ) : null}
-                    <span className="text-sm font-medium">{formatMoney(p.amount)}</span>
+                    <span className="text-sm font-medium">
+                      {formatMoney(p.amount)}
+                    </span>
                   </div>
                 </div>
               ))}
@@ -206,7 +237,9 @@ export function UnmatchedPanel({
       ) : null}
 
       {sinContacto.length === 0 && conContacto.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No hay pacientes en el periodo seleccionado.</p>
+        <p className="text-sm text-muted-foreground">
+          No hay pacientes en el periodo seleccionado.
+        </p>
       ) : null}
     </div>
   );

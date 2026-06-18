@@ -5,12 +5,12 @@ La herramienta usa la identidad de marca de **Elevator** (fuente: brand book
 
 ## Paleta
 
-| Token | Hex | Uso |
-| --- | --- | --- |
-| Negro | `#000000` | Fondo (modo oscuro), contraste |
-| Azul Intenso | `#1858FB` | Primario — botones, acentos, ROAS/charts |
-| Azul Cielo | `#18BAFB` | Secundario — highlights, degradados, acento en oscuro |
-| Blanco | `#FFFFFF` | Fondo (modo claro), texto sobre azul |
+| Token        | Hex       | Uso                                                   |
+| ------------ | --------- | ----------------------------------------------------- |
+| Negro        | `#000000` | Fondo (modo oscuro), contraste                        |
+| Azul Intenso | `#1858FB` | Primario — botones, acentos, ROAS/charts              |
+| Azul Cielo   | `#18BAFB` | Secundario — highlights, degradados, acento en oscuro |
+| Blanco       | `#FFFFFF` | Fondo (modo claro), texto sobre azul                  |
 
 Definidos como variables en [`src/ui/styles.css`](src/ui/styles.css). Los
 colores semánticos `brand` / `danger` / `warn` cambian de tono según el tema

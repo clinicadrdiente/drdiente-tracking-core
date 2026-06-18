@@ -17,7 +17,8 @@ export default async function handler(
   }
 
   try {
-    const { createTrackingHttpHandlers } = await import("../../src/http/handlers.js");
+    const { createTrackingHttpHandlers } =
+      await import("../../src/http/handlers.js");
     const handlers = createTrackingHttpHandlers();
     response.status(200).json({
       ok: true,
@@ -27,7 +28,8 @@ export default async function handler(
     response.status(200).json({
       ok: false,
       error: err instanceof Error ? err.message : String(err),
-      stack: err instanceof Error ? err.stack?.split("\n").slice(0, 6) : undefined,
+      stack:
+        err instanceof Error ? err.stack?.split("\n").slice(0, 6) : undefined,
     });
   }
 }

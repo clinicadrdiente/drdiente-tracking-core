@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { trailingRange, groupByMonth, previousRange, percentDelta } from "./date-ranges.js";
+import {
+  trailingRange,
+  groupByMonth,
+  previousRange,
+  percentDelta,
+} from "./date-ranges.js";
 
 const FIXED_NOW = new Date("2026-06-10T15:00:00.000Z");
 
@@ -79,27 +84,35 @@ describe("groupByMonth", () => {
   });
 });
 
-
 describe("previousRange", () => {
   it("previous of a 7-day window is the 7 days immediately before it (no gap, no overlap)", () => {
     // current: 2026-06-04T00:00:00.000Z → 2026-06-10T23:59:59.999Z
-    const current = { fromIso: "2026-06-04T00:00:00.000Z", toIso: "2026-06-10T23:59:59.999Z" };
+    const current = {
+      fromIso: "2026-06-04T00:00:00.000Z",
+      toIso: "2026-06-10T23:59:59.999Z",
+    };
     const prev = previousRange(current);
     // prevTo = current.from - 1ms = 2026-06-03T23:59:59.999Z
     expect(prev.toIso).toBe("2026-06-03T23:59:59.999Z");
     // duration of current = 10T23:59:59.999 - 4T00:00:00.000 = 6d 23h 59m 59.999s
     // prevFrom = prevTo - duration
-    const durationMs = new Date(current.toIso).getTime() - new Date(current.fromIso).getTime();
+    const durationMs =
+      new Date(current.toIso).getTime() - new Date(current.fromIso).getTime();
     const expectedFromMs = new Date(prev.toIso).getTime() - durationMs;
     expect(new Date(prev.fromIso).getTime()).toBe(expectedFromMs);
   });
 
   it("chaining previousRange twice steps back one more equal-length window", () => {
-    const current = { fromIso: "2026-06-04T00:00:00.000Z", toIso: "2026-06-10T23:59:59.999Z" };
+    const current = {
+      fromIso: "2026-06-04T00:00:00.000Z",
+      toIso: "2026-06-10T23:59:59.999Z",
+    };
     const prev1 = previousRange(current);
     const prev2 = previousRange(prev1);
     // prev2 ends 1 ms before prev1 starts
-    expect(new Date(prev2.toIso).getTime()).toBe(new Date(prev1.fromIso).getTime() - 1);
+    expect(new Date(prev2.toIso).getTime()).toBe(
+      new Date(prev1.fromIso).getTime() - 1,
+    );
     // All three windows have identical duration
     const dur = (r: { fromIso: string; toIso: string }) =>
       new Date(r.toIso).getTime() - new Date(r.fromIso).getTime();
@@ -108,9 +121,14 @@ describe("previousRange", () => {
   });
 
   it("no overlap: prev.toIso is strictly before current.fromIso", () => {
-    const current = { fromIso: "2026-05-12T00:00:00.000Z", toIso: "2026-06-10T23:59:59.999Z" };
+    const current = {
+      fromIso: "2026-05-12T00:00:00.000Z",
+      toIso: "2026-06-10T23:59:59.999Z",
+    };
     const prev = previousRange(current);
-    expect(new Date(prev.toIso).getTime()).toBeLessThan(new Date(current.fromIso).getTime());
+    expect(new Date(prev.toIso).getTime()).toBeLessThan(
+      new Date(current.fromIso).getTime(),
+    );
   });
 });
 

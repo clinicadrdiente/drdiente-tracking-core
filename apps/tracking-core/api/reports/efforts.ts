@@ -20,7 +20,10 @@ function rangeDaysToPreset(days: RangeDays): { preset: string; note?: string } {
   if (days === 7) return { preset: "last_7d" };
   if (days === 30) return { preset: "last_30d" };
   // 180 days: Windsor has no matching preset — use last_90d and flag it
-  return { preset: "last_90d", note: "Windsor no tiene preset de 180 días — se usó last_90d (90 días)" };
+  return {
+    preset: "last_90d",
+    note: "Windsor no tiene preset de 180 días — se usó last_90d (90 días)",
+  };
 }
 
 export default async function handler(
@@ -48,7 +51,12 @@ export default async function handler(
   // Fetch Windsor (optional — degrade gracefully on error or missing config)
   let windsorData: {
     bySource: WindsorSourceSummary[];
-    totals: { spend: number; impressions: number; reach: number; clicks: number };
+    totals: {
+      spend: number;
+      impressions: number;
+      reach: number;
+      clicks: number;
+    };
   } | null = null;
   let windsorError: string | undefined;
   let windsorPresetNote: string | undefined;
@@ -64,21 +72,29 @@ export default async function handler(
         totals: summary.totals,
       };
     } catch (err) {
-      windsorError = err instanceof Error ? err.message : "Windsor request failed";
+      windsorError =
+        err instanceof Error ? err.message : "Windsor request failed";
     }
   }
 
   // Fetch daily reports from state store
-  let dailyReports: Awaited<ReturnType<typeof trackingHttpHandlers.stateStore.listDailyReports>>;
+  let dailyReports: Awaited<
+    ReturnType<typeof trackingHttpHandlers.stateStore.listDailyReports>
+  >;
   try {
-    dailyReports = await trackingHttpHandlers.stateStore.listDailyReports(fromDate, toDate);
+    dailyReports = await trackingHttpHandlers.stateStore.listDailyReports(
+      fromDate,
+      toDate,
+    );
   } catch (err) {
     send(response, {
       status: 500,
       body: {
         ok: false,
         error: "failed to list daily reports",
-        details: { message: err instanceof Error ? err.message : "unknown error" },
+        details: {
+          message: err instanceof Error ? err.message : "unknown error",
+        },
       },
     });
     return;

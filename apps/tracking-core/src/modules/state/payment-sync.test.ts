@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { InMemoryStateStore } from "./state-store.js";
-import { filterUnprocessedPayments, markPaymentsProcessed } from "./payment-sync.js";
+import {
+  filterUnprocessedPayments,
+  markPaymentsProcessed,
+} from "./payment-sync.js";
 import type { PaymentEvent } from "../../types/domain.js";
 
 const makePayment = (id: number): PaymentEvent => ({

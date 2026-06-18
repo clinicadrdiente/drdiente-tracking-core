@@ -2,7 +2,11 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, it, expect } from "vitest";
-import { FileStateStore, InMemoryStateStore, RedisStateStore } from "./state-store.js";
+import {
+  FileStateStore,
+  InMemoryStateStore,
+  RedisStateStore,
+} from "./state-store.js";
 import type { DailyBranchReport } from "../../types/domain.js";
 
 describe("InMemoryStateStore heartbeat", () => {
@@ -74,7 +78,9 @@ describe("FileStateStore releasePaymentClaim", () => {
 });
 
 describe("InMemoryStateStore daily reports", () => {
-  function makeReport(overrides: Partial<DailyBranchReport> = {}): DailyBranchReport {
+  function makeReport(
+    overrides: Partial<DailyBranchReport> = {},
+  ): DailyBranchReport {
     return {
       reportId: "centro_2026-06-10",
       branch: "centro",
@@ -114,9 +120,15 @@ describe("InMemoryStateStore daily reports", () => {
 
   it("date-range filter excludes out-of-range", async () => {
     const store = new InMemoryStateStore();
-    await store.saveDailyReport(makeReport({ reportId: "centro_2026-06-09", date: "2026-06-09" }));
-    await store.saveDailyReport(makeReport({ reportId: "centro_2026-06-10", date: "2026-06-10" }));
-    await store.saveDailyReport(makeReport({ reportId: "centro_2026-06-11", date: "2026-06-11" }));
+    await store.saveDailyReport(
+      makeReport({ reportId: "centro_2026-06-09", date: "2026-06-09" }),
+    );
+    await store.saveDailyReport(
+      makeReport({ reportId: "centro_2026-06-10", date: "2026-06-10" }),
+    );
+    await store.saveDailyReport(
+      makeReport({ reportId: "centro_2026-06-11", date: "2026-06-11" }),
+    );
     const results = await store.listDailyReports("2026-06-09", "2026-06-10");
     expect(results).toHaveLength(2);
     expect(results.map((r) => r.date)).not.toContain("2026-06-11");
@@ -124,11 +136,21 @@ describe("InMemoryStateStore daily reports", () => {
 
   it("results are returned newest-first", async () => {
     const store = new InMemoryStateStore();
-    await store.saveDailyReport(makeReport({ reportId: "a_2026-06-08", date: "2026-06-08" }));
-    await store.saveDailyReport(makeReport({ reportId: "a_2026-06-10", date: "2026-06-10" }));
-    await store.saveDailyReport(makeReport({ reportId: "a_2026-06-09", date: "2026-06-09" }));
+    await store.saveDailyReport(
+      makeReport({ reportId: "a_2026-06-08", date: "2026-06-08" }),
+    );
+    await store.saveDailyReport(
+      makeReport({ reportId: "a_2026-06-10", date: "2026-06-10" }),
+    );
+    await store.saveDailyReport(
+      makeReport({ reportId: "a_2026-06-09", date: "2026-06-09" }),
+    );
     const results = await store.listDailyReports("2026-06-08", "2026-06-10");
-    expect(results.map((r) => r.date)).toEqual(["2026-06-10", "2026-06-09", "2026-06-08"]);
+    expect(results.map((r) => r.date)).toEqual([
+      "2026-06-10",
+      "2026-06-09",
+      "2026-06-08",
+    ]);
   });
 });
 

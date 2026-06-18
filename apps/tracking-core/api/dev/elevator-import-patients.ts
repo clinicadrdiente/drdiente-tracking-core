@@ -65,12 +65,14 @@ export default async function handler(
     const leadInput = buildLeadInput(patient);
     if (!leadInput) {
       skippedMissingContact += 1;
-      results.push(buildImportResult(patient, {
-        elevatorId: null,
-        readyForStape: false,
-        reason: "Sin telefono/email para buscar o crear contacto",
-        status: "skipped_missing_contact",
-      }));
+      results.push(
+        buildImportResult(patient, {
+          elevatorId: null,
+          readyForStape: false,
+          reason: "Sin telefono/email para buscar o crear contacto",
+          status: "skipped_missing_contact",
+        }),
+      );
       continue;
     }
 
@@ -79,36 +81,41 @@ export default async function handler(
         leadInput.phone,
         leadInput.email,
       );
-      const lead =
-        existing[0] ?? (await elevatorClient.createLead(leadInput));
+      const lead = existing[0] ?? (await elevatorClient.createLead(leadInput));
 
       if (existing[0]) {
         existingLeads += 1;
-        results.push(buildImportResult(patient, {
-          elevatorId: lead.elevatorId,
-          readyForStape: true,
-          reason: "Contacto ya existia en Elevator",
-          status: "existing",
-        }));
+        results.push(
+          buildImportResult(patient, {
+            elevatorId: lead.elevatorId,
+            readyForStape: true,
+            reason: "Contacto ya existia en Elevator",
+            status: "existing",
+          }),
+        );
       } else {
         createdLeads += 1;
-        results.push(buildImportResult(patient, {
-          elevatorId: lead.elevatorId,
-          readyForStape: true,
-          reason: "Contacto creado en Elevator",
-          status: "created",
-        }));
+        results.push(
+          buildImportResult(patient, {
+            elevatorId: lead.elevatorId,
+            readyForStape: true,
+            reason: "Contacto creado en Elevator",
+            status: "created",
+          }),
+        );
       }
 
       await elevatorClient.updateLeadStage(lead.elevatorId, "anticipo_pagado");
     } catch (error) {
       failed += 1;
-      results.push(buildImportResult(patient, {
-        elevatorId: null,
-        readyForStape: false,
-        reason: error instanceof Error ? error.message : "Error desconocido",
-        status: "failed",
-      }));
+      results.push(
+        buildImportResult(patient, {
+          elevatorId: null,
+          readyForStape: false,
+          reason: error instanceof Error ? error.message : "Error desconocido",
+          status: "failed",
+        }),
+      );
     }
   }
 
@@ -164,7 +171,10 @@ function buildLeadInput(patient: PatientPaymentPayload): LeadInput | null {
     attribution: {
       utmSource: marketingSource.source,
       utmMedium: "dashboard_import",
-      utmCampaign: marketingSource.campaign ?? patient.treatmentName ?? "dentalink_patient_import",
+      utmCampaign:
+        marketingSource.campaign ??
+        patient.treatmentName ??
+        "dentalink_patient_import",
       landingUrl: null,
     },
   };
@@ -213,7 +223,9 @@ function normalizeMarketingSource(reference?: string | null): {
   }
 
   return {
-    source: normalized.replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "dentalink",
+    source:
+      normalized.replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") ||
+      "dentalink",
     campaign: raw,
   };
 }

@@ -7,7 +7,9 @@ type AnyHttpRequest = {
   headers?: Record<string, string | undefined>;
 };
 
-export function requireTrackingSecret(request: AnyHttpRequest): HttpResponse | null {
+export function requireTrackingSecret(
+  request: AnyHttpRequest,
+): HttpResponse | null {
   const expectedSecret = process.env.TRACKING_API_SECRET;
 
   if (!expectedSecret) {
@@ -22,7 +24,10 @@ export function requireTrackingSecret(request: AnyHttpRequest): HttpResponse | n
   return null;
 }
 
-function timingSafeStringEqual(a: string | undefined, b: string | undefined): boolean {
+function timingSafeStringEqual(
+  a: string | undefined,
+  b: string | undefined,
+): boolean {
   if (!a || !b) return false;
   // Buffers must be same length for timingSafeEqual; hash both to normalize length.
   const hashA = createHash("sha256").update(a).digest();

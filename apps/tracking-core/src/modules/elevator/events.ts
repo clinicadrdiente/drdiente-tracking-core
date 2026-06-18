@@ -51,7 +51,9 @@ export function createElevatorEventsDispatcher(): ElevatorEventsDispatcher {
   return new ApiElevatorEventsDispatcher(webhookUrl);
 }
 
-export function buildElevatorEventPayload(event: ConversionEvent): Record<string, unknown> {
+export function buildElevatorEventPayload(
+  event: ConversionEvent,
+): Record<string, unknown> {
   const cd = event.customData;
 
   return {

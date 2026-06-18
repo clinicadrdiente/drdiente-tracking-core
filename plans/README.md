@@ -27,7 +27,7 @@ Each executor: read the plan fully before starting, honor its STOP conditions, a
 | [015](015-bound-processed-set.md) | The processed-payment dedupe store stays bounded and cheap | P2 | M | 012 | DONE |
 | [016](016-http-boundary-tests.md) | The auth + validation boundary has automated test coverage | P2 | M | 001 | DONE |
 | [017](017-shared-http-client.md) | Integration clients share one HTTP request helper and env loader | P3 | L | 001 | DONE |
-| [018](018-eslint-prettier.md) | Lint and format gates exist and run in CI | P3 | S–M | — | BLOCKED (needs `npm install -D` for eslint/prettier; tree-wide reformat pending) |
+| [018](018-eslint-prettier.md) | Lint and format gates exist and run in CI | P3 | S–M | — | DONE |
 
 Status values: `TODO` | `IN PROGRESS` | `DONE` | `BLOCKED (reason)` | `REJECTED (reason)`
 

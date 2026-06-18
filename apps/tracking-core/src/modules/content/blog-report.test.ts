@@ -28,7 +28,9 @@ describe("classifyTreatment", () => {
     expect(classifyTreatment("full-mouth-dental-implants-mexico-price")).toBe(
       "Implantes dentales",
     );
-    expect(classifyTreatment("protesis-hibrida-all-on-4")).toBe("Implantes dentales");
+    expect(classifyTreatment("protesis-hibrida-all-on-4")).toBe(
+      "Implantes dentales",
+    );
   });
 
   it("maps smile design and veneer slugs to Diseño de sonrisa", () => {
@@ -90,7 +92,12 @@ describe("joinSearchConsoleMetrics", () => {
         impressions: 300,
         position: 8.4,
       },
-      { page: "https://clinicadrdiente.com/precios", clicks: 50, impressions: 900, position: 3 },
+      {
+        page: "https://clinicadrdiente.com/precios",
+        clicks: 50,
+        impressions: 900,
+        position: 3,
+      },
     ]);
     expect(joined[0].clicks).toBe(12);
     expect(joined[0].impressions).toBe(300);
@@ -103,18 +110,51 @@ describe("joinSearchConsoleMetrics", () => {
       "/blog-drdiente/",
     );
     const joined = joinSearchConsoleMetrics(pages, []);
-    expect(joined[0]).toMatchObject({ clicks: 0, impressions: 0, position: null });
+    expect(joined[0]).toMatchObject({
+      clicks: 0,
+      impressions: 0,
+      position: null,
+    });
   });
 });
 
 describe("rollupByTreatment", () => {
   it("aggregates posts and clicks per treatment, sorted by posts", () => {
     const rollup = rollupByTreatment([
-      { url: "u1", slug: "s1", treatment: "Diseño de sonrisa", clicks: 5, impressions: 100, position: null },
-      { url: "u2", slug: "s2", treatment: "Diseño de sonrisa", clicks: 3, impressions: 50, position: null },
-      { url: "u3", slug: "s3", treatment: "Implantes dentales", clicks: 9, impressions: 200, position: null },
+      {
+        url: "u1",
+        slug: "s1",
+        treatment: "Diseño de sonrisa",
+        clicks: 5,
+        impressions: 100,
+        position: null,
+      },
+      {
+        url: "u2",
+        slug: "s2",
+        treatment: "Diseño de sonrisa",
+        clicks: 3,
+        impressions: 50,
+        position: null,
+      },
+      {
+        url: "u3",
+        slug: "s3",
+        treatment: "Implantes dentales",
+        clicks: 9,
+        impressions: 200,
+        position: null,
+      },
     ]);
-    expect(rollup[0]).toMatchObject({ treatment: "Diseño de sonrisa", posts: 2, clicks: 8 });
-    expect(rollup[1]).toMatchObject({ treatment: "Implantes dentales", posts: 1, clicks: 9 });
+    expect(rollup[0]).toMatchObject({
+      treatment: "Diseño de sonrisa",
+      posts: 2,
+      clicks: 8,
+    });
+    expect(rollup[1]).toMatchObject({
+      treatment: "Implantes dentales",
+      posts: 1,
+      clicks: 9,
+    });
   });
 });

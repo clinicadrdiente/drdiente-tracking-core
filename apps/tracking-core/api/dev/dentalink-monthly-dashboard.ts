@@ -5,13 +5,23 @@ import {
   type VercelRequest,
   type VercelResponse,
 } from "../_lib/http.js";
-import { requireTrackingSecret, serverError, trackingHttpHandlers } from "../../src/index.js";
+import {
+  requireTrackingSecret,
+  serverError,
+  trackingHttpHandlers,
+} from "../../src/index.js";
 import { getDentalinkConfig } from "../../src/modules/dentalink/config.js";
 import {
   buildMarketingAttribution,
   type MarketingAttributionSummary,
 } from "../../src/modules/dentalink/reference-attribution.js";
-import { trailingRange, groupByMonth, previousRange, type RangeDays, type MonthBucket } from "../../src/lib/date-ranges.js";
+import {
+  trailingRange,
+  groupByMonth,
+  previousRange,
+  type RangeDays,
+  type MonthBucket,
+} from "../../src/lib/date-ranges.js";
 
 interface MonthlyPaymentBlock {
   paymentId: number;
@@ -155,13 +165,18 @@ export default async function handler(
       const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
       fromDate = monthStart;
       toDate = new Date(nextMonthStart.getTime() - 1000);
-      rangeField = { days: null, fromIso: fromDate.toISOString(), toIso: toDate.toISOString() };
+      rangeField = {
+        days: null,
+        fromIso: fromDate.toISOString(),
+        toIso: toDate.toISOString(),
+      };
     }
 
     const monthStart = fromDate;
     const monthEnd = toDate;
     const compareParam = parseCompareParam(request.query?.compare);
-    const rangeSuffix = rangeDaysParam !== null ? `:range${rangeDaysParam}` : "";
+    const rangeSuffix =
+      rangeDaysParam !== null ? `:range${rangeDaysParam}` : "";
     const compareSuffix = compareParam === "previous" ? ":compare" : "";
     const cacheKey = `${config.mode}:${monthStart.toISOString()}:${monthEnd.toISOString()}${rangeSuffix}${compareSuffix}`;
     const cached = readMonthlyDashboardCache(cacheKey);
@@ -273,10 +288,15 @@ export default async function handler(
       });
     }
 
-    payments.sort((a, b) => Date.parse(b.createdAt ?? "") - Date.parse(a.createdAt ?? ""));
+    payments.sort(
+      (a, b) => Date.parse(b.createdAt ?? "") - Date.parse(a.createdAt ?? ""),
+    );
 
     const days = buildDayBlocks(monthStart, monthEnd, payments);
-    const revenueTotal = payments.reduce((sum, payment) => sum + payment.amount, 0);
+    const revenueTotal = payments.reduce(
+      (sum, payment) => sum + payment.amount,
+      0,
+    );
     const uniquePatientsTotal = new Set(
       payments.map((payment) => payment.patientId).filter((id) => id > 0),
     ).size;
@@ -352,7 +372,9 @@ export default async function handler(
         });
       }
       const prevRevenue = prevPayments.reduce((sum, p) => sum + p.amount, 0);
-      const prevUnique = new Set(prevPayments.map((p) => p.patientId).filter((id) => id > 0)).size;
+      const prevUnique = new Set(
+        prevPayments.map((p) => p.patientId).filter((id) => id > 0),
+      ).size;
       const prevBranchShare = buildBranchShare(prevPayments).map((b) => ({
         branch: b.branch,
         revenue: b.revenue,
@@ -364,9 +386,12 @@ export default async function handler(
         revenueTotal: prevRevenue,
         paymentsTotal: prevPayments.length,
         uniquePatientsTotal: prevUnique,
-        averagePaymentValue: prevPayments.length > 0 ? prevRevenue / prevPayments.length : 0,
+        averagePaymentValue:
+          prevPayments.length > 0 ? prevRevenue / prevPayments.length : 0,
         branchShare: prevBranchShare,
-        marketingAttribution: buildMarketingAttribution(await enrichWithDigitalSources(prevPayments)),
+        marketingAttribution: buildMarketingAttribution(
+          await enrichWithDigitalSources(prevPayments),
+        ),
       };
     }
 
@@ -375,20 +400,24 @@ export default async function handler(
     const body: MonthlyDashboardBody = {
       ok: true,
       mode: config.mode,
-      month: rangeDaysParam === null ? {
-        label: monthStart.toLocaleDateString("es-MX", {
-          month: "long",
-          year: "numeric",
-        }),
-        fromIso: monthStart.toISOString(),
-        toIso: monthEnd.toISOString(),
-      } : undefined,
+      month:
+        rangeDaysParam === null
+          ? {
+              label: monthStart.toLocaleDateString("es-MX", {
+                month: "long",
+                year: "numeric",
+              }),
+              fromIso: monthStart.toISOString(),
+              toIso: monthEnd.toISOString(),
+            }
+          : undefined,
       range: rangeField,
       months,
       revenueTotal,
       paymentsTotal: payments.length,
       uniquePatientsTotal,
-      averagePaymentValue: payments.length > 0 ? revenueTotal / payments.length : 0,
+      averagePaymentValue:
+        payments.length > 0 ? revenueTotal / payments.length : 0,
       days,
       patients: payments,
       treatmentShare: buildTreatmentShare(payments),
@@ -455,7 +484,10 @@ function readAnyFreshEnoughMonthlyDashboardCache() {
   return monthlyDashboardCache;
 }
 
-function writeMonthlyDashboardCache(cacheKey: string, body: MonthlyDashboardBody) {
+function writeMonthlyDashboardCache(
+  cacheKey: string,
+  body: MonthlyDashboardBody,
+) {
   monthlyDashboardCache = {
     key: cacheKey,
     cachedAtMs: Date.now(),
@@ -500,7 +532,11 @@ async function fetchMonthlyPaymentRecords(
 ): Promise<Record<string, unknown>[]> {
   const records: Record<string, unknown>[] = [];
   let pageUrl: URL | null = new URL(paymentsPath.replace(/^\/+/, ""), baseUrl);
-  pageUrl.search = buildMonthlyPaymentsQuery(paymentDateField, monthStart, monthEnd);
+  pageUrl.search = buildMonthlyPaymentsQuery(
+    paymentDateField,
+    monthStart,
+    monthEnd,
+  );
 
   for (let page = 0; pageUrl && page < MAX_PAYMENT_PAGES; page += 1) {
     const body = await requestDentalink(pageUrl, apiAuthScheme, apiToken);
@@ -594,7 +630,9 @@ async function getCachedPatient(
   const url = new URL(path.replace(/^\/+/, ""), baseUrl);
 
   try {
-    const record = unwrapRecord(await requestDentalink(url, apiAuthScheme, apiToken));
+    const record = unwrapRecord(
+      await requestDentalink(url, apiAuthScheme, apiToken),
+    );
     const firstName = readString(record, fields.firstNameField);
     const lastName = readString(record, fields.lastNameField);
     const patient = {
@@ -608,17 +646,19 @@ async function getCachedPatient(
         "telefono_fijo",
         "fono",
       ]),
-      reference: readPatientReference(
-        record,
-        fields.referenceField,
-        fields.referenceCatalog,
-      ) ?? await fetchPatientAdditionalReference(
-        baseUrl,
-        apiAuthScheme,
-        apiToken,
-        patientId,
-        fields.referenceCatalog,
-      ),
+      reference:
+        readPatientReference(
+          record,
+          fields.referenceField,
+          fields.referenceCatalog,
+        ) ??
+        (await fetchPatientAdditionalReference(
+          baseUrl,
+          apiAuthScheme,
+          apiToken,
+          patientId,
+          fields.referenceCatalog,
+        )),
       fullName: [firstName, lastName].filter(Boolean).join(" ") || null,
     };
     cache.set(patientId, patient);
@@ -641,7 +681,10 @@ async function fetchPatientAdditionalReference(
     return patientAdditionalReferenceCache.get(patientId) ?? null;
   }
 
-  const path = PATIENT_ADDITIONAL_FIELDS_PATH_TEMPLATE.replace("{id}", String(patientId));
+  const path = PATIENT_ADDITIONAL_FIELDS_PATH_TEMPLATE.replace(
+    "{id}",
+    String(patientId),
+  );
   const url = new URL(path.replace(/^\/+/, ""), baseUrl);
 
   try {
@@ -662,7 +705,8 @@ async function fetchReferenceCatalog(
 ): Promise<ReferenceCatalog> {
   if (
     referenceCatalogCache &&
-    Date.now() - referenceCatalogCache.cachedAtMs < REFERENCE_CATALOG_CACHE_TTL_MS
+    Date.now() - referenceCatalogCache.cachedAtMs <
+      REFERENCE_CATALOG_CACHE_TTL_MS
   ) {
     return referenceCatalogCache.catalog;
   }
@@ -727,7 +771,9 @@ async function getCachedTreatment(
   const url = new URL(path.replace(/^\/+/, ""), baseUrl);
 
   try {
-    const record = unwrapRecord(await requestDentalink(url, apiAuthScheme, apiToken));
+    const record = unwrapRecord(
+      await requestDentalink(url, apiAuthScheme, apiToken),
+    );
     const treatment = {
       name: readString(record, fields.nameField),
       budgetTotal: readNumber(record, fields.budgetTotalField),
@@ -752,7 +798,9 @@ function buildDayBlocks(
   while (cursor <= monthEnd) {
     const dateKey = toDateKey(cursor);
     const patients = payments.filter((payment) =>
-      payment.createdAt ? toDateKey(new Date(payment.createdAt)) === dateKey : false,
+      payment.createdAt
+        ? toDateKey(new Date(payment.createdAt)) === dateKey
+        : false,
     );
     days.push({
       day: cursor.getDate(),
@@ -773,10 +821,15 @@ function buildDayBlocks(
 
 function buildTreatmentShare(payments: MonthlyPaymentBlock[]) {
   const totals = new Map<string, number>();
-  const revenueTotal = payments.reduce((sum, payment) => sum + payment.amount, 0);
+  const revenueTotal = payments.reduce(
+    (sum, payment) => sum + payment.amount,
+    0,
+  );
 
   for (const payment of payments) {
-    const key = payment.treatmentName ?? `Tratamiento #${payment.treatmentId || "sin-id"}`;
+    const key =
+      payment.treatmentName ??
+      `Tratamiento #${payment.treatmentId || "sin-id"}`;
     totals.set(key, (totals.get(key) ?? 0) + payment.amount);
   }
 
@@ -791,7 +844,10 @@ function buildTreatmentShare(payments: MonthlyPaymentBlock[]) {
 
 function buildBranchShare(payments: MonthlyPaymentBlock[]): BranchSummary[] {
   const groups = new Map<string, MonthlyPaymentBlock[]>();
-  const revenueTotal = payments.reduce((sum, payment) => sum + payment.amount, 0);
+  const revenueTotal = payments.reduce(
+    (sum, payment) => sum + payment.amount,
+    0,
+  );
 
   for (const payment of payments) {
     const branch = payment.branch?.trim() || "Sin sucursal";
@@ -802,9 +858,14 @@ function buildBranchShare(payments: MonthlyPaymentBlock[]): BranchSummary[] {
 
   return [...groups.entries()]
     .map(([branch, branchPayments]) => {
-      const revenue = branchPayments.reduce((sum, payment) => sum + payment.amount, 0);
+      const revenue = branchPayments.reduce(
+        (sum, payment) => sum + payment.amount,
+        0,
+      );
       const uniquePatients = new Set(
-        branchPayments.map((payment) => payment.patientId).filter((id) => id > 0),
+        branchPayments
+          .map((payment) => payment.patientId)
+          .filter((id) => id > 0),
       ).size;
 
       return {
@@ -869,11 +930,18 @@ function isRecordInsideDateRange(
   }
 
   const time = Date.parse(value);
-  return Number.isFinite(time) && time >= monthStart.getTime() && time <= monthEnd.getTime();
+  return (
+    Number.isFinite(time) &&
+    time >= monthStart.getTime() &&
+    time <= monthEnd.getTime()
+  );
 }
 
 function toDentalinkDateTime(date: Date): string {
-  return date.toISOString().replace("T", " ").replace(/\.\d{3}Z$/, "");
+  return date
+    .toISOString()
+    .replace("T", " ")
+    .replace(/\.\d{3}Z$/, "");
 }
 
 function toDateKey(date: Date): string {
@@ -900,7 +968,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-function readString(record: Record<string, unknown>, key: string): string | null {
+function readString(
+  record: Record<string, unknown>,
+  key: string,
+): string | null {
   const value = record[key];
   return typeof value === "string" && value.trim() !== "" ? value : null;
 }
@@ -955,7 +1026,11 @@ function readPatientReference(
     }
   }
 
-  for (const key of ["campos_adicionales", "camposAdicionales", "custom_fields"]) {
+  for (const key of [
+    "campos_adicionales",
+    "camposAdicionales",
+    "custom_fields",
+  ]) {
     const value = readReferenceFromAdditionalFields(record[key], catalog);
     if (value) {
       return value;
@@ -1049,7 +1124,9 @@ function readAdditionalFieldLabel(
   );
 }
 
-function readAdditionalFieldName(record: Record<string, unknown>): string | null {
+function readAdditionalFieldName(
+  record: Record<string, unknown>,
+): string | null {
   return readFirstString(record, [
     "nombre",
     "nombre_campo",
@@ -1091,7 +1168,10 @@ function readAdditionalFieldId(
   return null;
 }
 
-function readReferenceValue(value: unknown, catalog: ReferenceCatalog): string | null {
+function readReferenceValue(
+  value: unknown,
+  catalog: ReferenceCatalog,
+): string | null {
   if (typeof value === "string" && value.trim() !== "") {
     const trimmed = value.trim();
     return catalog.labelsById.get(trimmed) ?? trimmed;
@@ -1176,9 +1256,10 @@ async function enrichWithDigitalSources(
       if (p.patientPhone) contacts.add(p.patientPhone);
     }
     if (contacts.size === 0) return payments;
-    const sourceMap = await trackingHttpHandlers.stateStore.batchGetContactLeadSources(
-      Array.from(contacts),
-    );
+    const sourceMap =
+      await trackingHttpHandlers.stateStore.batchGetContactLeadSources(
+        Array.from(contacts),
+      );
     if (sourceMap.size === 0) return payments;
     return payments.map((p) => ({
       ...p,

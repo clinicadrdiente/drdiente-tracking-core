@@ -1,4 +1,8 @@
-import type { CanonicalLead, ConversionEvent, PaymentEvent } from "../../types/domain.js";
+import type {
+  CanonicalLead,
+  ConversionEvent,
+  PaymentEvent,
+} from "../../types/domain.js";
 
 function toUnixTime(isoDate: string): number {
   return Math.floor(new Date(isoDate).getTime() / 1000);
@@ -27,7 +31,8 @@ export function buildPurchaseEvent(
       cash_collected: payment.paymentAmount,
       // Join key against Windsor spend (stable id preferred over campaign name).
       campaign_id: lead.attribution.campaignId ?? null,
-      utm_source: lead.attribution.utmSource ?? lead.attribution.firstTouchSource ?? null,
+      utm_source:
+        lead.attribution.utmSource ?? lead.attribution.firstTouchSource ?? null,
       utm_medium: lead.attribution.utmMedium ?? null,
       utm_campaign: lead.attribution.utmCampaign ?? null,
       dentalink_payment_id: payment.paymentId,

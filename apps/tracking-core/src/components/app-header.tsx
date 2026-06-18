@@ -13,32 +13,31 @@ import { BellIcon } from "lucide-react";
 const activeItem = navLinks.find((item) => item.isActive);
 
 export function AppHeader() {
-	return (
-		<header
-			className={cn(
-				"pxx-4 mb-6 flex items-center justify-between gap-2 md:px-2"
-			)}
-		>
-			<div className="flex items-center gap-3">
-				<CustomSidebarTrigger />
-				<Separator
-					className="mr-2 h-4 data-[orientation=vertical]:self-center"
-					orientation="vertical"
-				/>
-				<AppBreadcrumbs page={activeItem} />
-			</div>
-			<div className="flex items-center gap-3">
-				<ThemeToggle />
-				<Button aria-label="Notifications" size="icon" variant="ghost">
-					<BellIcon
-					/>
-				</Button>
-				<Separator
-					className="h-4 data-[orientation=vertical]:self-center"
-					orientation="vertical"
-				/>
-				<NavUser />
-			</div>
-		</header>
-	);
+  return (
+    <header
+      className={cn(
+        "pxx-4 mb-6 flex items-center justify-between gap-2 md:px-2",
+      )}
+    >
+      <div className="flex items-center gap-3">
+        <CustomSidebarTrigger />
+        <Separator
+          className="mr-2 h-4 data-[orientation=vertical]:self-center"
+          orientation="vertical"
+        />
+        <AppBreadcrumbs page={activeItem} />
+      </div>
+      <div className="flex items-center gap-3">
+        <ThemeToggle />
+        <Button aria-label="Notifications" size="icon" variant="ghost">
+          <BellIcon />
+        </Button>
+        <Separator
+          className="h-4 data-[orientation=vertical]:self-center"
+          orientation="vertical"
+        />
+        <NavUser />
+      </div>
+    </header>
+  );
 }

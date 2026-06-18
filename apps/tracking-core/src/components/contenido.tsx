@@ -2,12 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { BookOpenIcon, SearchIcon } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 
@@ -98,7 +93,8 @@ export function Contenido({ secret }: { secret: string }) {
     return (
       <Card>
         <CardContent className="py-10 text-center text-muted-foreground text-sm">
-          Pega el TRACKING_API_SECRET en Control para ver el reporte de contenido.
+          Pega el TRACKING_API_SECRET en Control para ver el reporte de
+          contenido.
         </CardContent>
       </Card>
     );
@@ -117,7 +113,9 @@ export function Contenido({ secret }: { secret: string }) {
           aria-label="Mes de metricas organicas"
           className="h-9 w-40"
           max={currentMonthKey()}
-          onChange={(event) => event.target.value && setMonth(event.target.value)}
+          onChange={(event) =>
+            event.target.value && setMonth(event.target.value)
+          }
           type="month"
           value={month}
         />
@@ -142,7 +140,10 @@ export function Contenido({ secret }: { secret: string }) {
       {state === "ready" && report ? (
         <>
           <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <StatTile label="Blogs publicados" value={formatInteger(report.totalBlogs ?? 0)} />
+            <StatTile
+              label="Blogs publicados"
+              value={formatInteger(report.totalBlogs ?? 0)}
+            />
             <StatTile
               label={`Clicks organicos blog · ${monthLabel(month)}`}
               value={formatInteger(gsc?.blogClicks ?? 0)}
@@ -161,8 +162,8 @@ export function Contenido({ secret }: { secret: string }) {
             <Card className="border-warn/40">
               <CardContent className="py-4 text-sm text-warn">
                 Search Console no disponible
-                {gsc.error ? ` (${gsc.error})` : ""}: se muestra solo el conteo de
-                blogs del sitemap.
+                {gsc.error ? ` (${gsc.error})` : ""}: se muestra solo el conteo
+                de blogs del sitemap.
               </CardContent>
             </Card>
           ) : null}
@@ -187,11 +188,22 @@ export function Contenido({ secret }: { secret: string }) {
                   </thead>
                   <tbody>
                     {(report.byTreatment ?? []).map((row) => (
-                      <tr className="border-b last:border-0" key={row.treatment}>
-                        <td className="py-2.5 pr-3 font-medium">{row.treatment}</td>
-                        <td className="py-2.5 pr-3 tabular-nums">{formatInteger(row.posts)}</td>
-                        <td className="py-2.5 pr-3 tabular-nums">{formatInteger(row.clicks)}</td>
-                        <td className="py-2.5 tabular-nums">{formatInteger(row.impressions)}</td>
+                      <tr
+                        className="border-b last:border-0"
+                        key={row.treatment}
+                      >
+                        <td className="py-2.5 pr-3 font-medium">
+                          {row.treatment}
+                        </td>
+                        <td className="py-2.5 pr-3 tabular-nums">
+                          {formatInteger(row.posts)}
+                        </td>
+                        <td className="py-2.5 pr-3 tabular-nums">
+                          {formatInteger(row.clicks)}
+                        </td>
+                        <td className="py-2.5 tabular-nums">
+                          {formatInteger(row.impressions)}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -203,10 +215,13 @@ export function Contenido({ secret }: { secret: string }) {
           <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>Top blogs por clicks · {monthLabel(month)}</CardTitle>
+                <CardTitle>
+                  Top blogs por clicks · {monthLabel(month)}
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                {(report.topPages ?? []).filter((page) => page.clicks > 0).length > 0 ? (
+                {(report.topPages ?? []).filter((page) => page.clicks > 0)
+                  .length > 0 ? (
                   <div className="space-y-2">
                     {(report.topPages ?? [])
                       .filter((page) => page.clicks > 0)
@@ -219,7 +234,10 @@ export function Contenido({ secret }: { secret: string }) {
                           target="_blank"
                         >
                           <div className="flex items-center justify-between gap-2">
-                            <span className="min-w-0 truncate font-medium" title={page.slug}>
+                            <span
+                              className="min-w-0 truncate font-medium"
+                              title={page.slug}
+                            >
                               {page.slug}
                             </span>
                             <span className="shrink-0 font-semibold text-brand">
@@ -227,7 +245,8 @@ export function Contenido({ secret }: { secret: string }) {
                             </span>
                           </div>
                           <p className="mt-1 text-muted-foreground text-xs">
-                            {page.treatment} · {formatInteger(page.impressions)} impresiones
+                            {page.treatment} · {formatInteger(page.impressions)}{" "}
+                            impresiones
                             {page.position !== null
                               ? ` · posicion ${page.position.toFixed(1)}`
                               : ""}
@@ -258,7 +277,10 @@ export function Contenido({ secret }: { secret: string }) {
                         className="flex items-center justify-between gap-2 rounded-lg border bg-background/40 px-3 py-2"
                         key={row.query ?? ""}
                       >
-                        <span className="min-w-0 truncate" title={row.query ?? ""}>
+                        <span
+                          className="min-w-0 truncate"
+                          title={row.query ?? ""}
+                        >
                           {row.query}
                         </span>
                         <span className="shrink-0 text-muted-foreground text-xs">
@@ -285,7 +307,9 @@ export function Contenido({ secret }: { secret: string }) {
 function StatTile({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border bg-background/50 p-4">
-      <p className="text-muted-foreground text-xs uppercase tracking-[0.14em]">{label}</p>
+      <p className="text-muted-foreground text-xs uppercase tracking-[0.14em]">
+        {label}
+      </p>
       <p className="mt-2 font-semibold text-2xl tracking-tight">{value}</p>
     </div>
   );
@@ -310,9 +334,10 @@ function monthDateRange(monthKey: string): { from: string; to: string } {
 function monthLabel(monthKey: string): string {
   const [yearStr, monthStr] = monthKey.split("-");
   const date = new Date(Number(yearStr), Number(monthStr) - 1, 1);
-  return new Intl.DateTimeFormat("es-MX", { month: "long", year: "numeric" }).format(
-    date,
-  );
+  return new Intl.DateTimeFormat("es-MX", {
+    month: "long",
+    year: "numeric",
+  }).format(date);
 }
 
 function formatInteger(value: number): string {

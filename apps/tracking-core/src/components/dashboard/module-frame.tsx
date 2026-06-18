@@ -1,11 +1,11 @@
 import type { ReactNode } from "react";
 
 export type ModuleAccent =
-  | "attribution"   // revenue/atribución
-  | "operations"    // Elevator / acciones
-  | "marketing"     // Windsor / esfuerzos
-  | "health"        // estado del sistema
-  | "reports";      // formularios/reportes
+  | "attribution" // revenue/atribución
+  | "operations" // Elevator / acciones
+  | "marketing" // Windsor / esfuerzos
+  | "health" // estado del sistema
+  | "reports"; // formularios/reportes
 
 export function ModuleFrame({
   accent,

@@ -4,7 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ModuleFrame } from "./module-frame";
 import { SyncMetric } from "./actions";
-import type { PaymentsSyncResult, ElevatorImportResult } from "@/types/dashboard";
+import type {
+  PaymentsSyncResult,
+  ElevatorImportResult,
+} from "@/types/dashboard";
 
 function formatInteger(value: number) {
   return new Intl.NumberFormat("es-MX", {
@@ -28,9 +31,7 @@ function StatusBadge({ status }: { status: ElevatorImportResult["status"] }) {
   };
 
   return (
-    <Badge className={classNameByStatus[status]}>
-      {labelByStatus[status]}
-    </Badge>
+    <Badge className={classNameByStatus[status]}>{labelByStatus[status]}</Badge>
   );
 }
 
@@ -49,7 +50,9 @@ function ElevatorImportResultsTable({
         <div>
           <p className="font-medium">Detalle de envio a Elevator</p>
         </div>
-        <Badge variant="secondary">{formatInteger(results.length)} registros</Badge>
+        <Badge variant="secondary">
+          {formatInteger(results.length)} registros
+        </Badge>
       </div>
       <div className="max-h-96 overflow-auto">
         <table className="w-full min-w-[960px] text-sm">
@@ -61,17 +64,28 @@ function ElevatorImportResultsTable({
               <th className="px-4 py-3 text-left font-medium">Sucursal</th>
               <th className="px-4 py-3 text-left font-medium">Estado</th>
               <th className="px-4 py-3 text-left font-medium">Elevator ID</th>
-              <th className="px-4 py-3 text-left font-medium">Listo para Stape</th>
+              <th className="px-4 py-3 text-left font-medium">
+                Listo para Stape
+              </th>
               <th className="px-4 py-3 text-left font-medium">Motivo</th>
             </tr>
           </thead>
           <tbody>
             {results.map((result) => (
-              <tr className="border-b last:border-b-0" key={`${result.paymentId}-${result.patientId}-${result.status}`}>
+              <tr
+                className="border-b last:border-b-0"
+                key={`${result.paymentId}-${result.patientId}-${result.status}`}
+              >
                 <td className="px-4 py-3 font-medium">{result.patientName}</td>
-                <td className="px-4 py-3 text-muted-foreground">{result.contact}</td>
-                <td className="px-4 py-3 text-muted-foreground">{result.reference}</td>
-                <td className="px-4 py-3 text-muted-foreground">{result.branch}</td>
+                <td className="px-4 py-3 text-muted-foreground">
+                  {result.contact}
+                </td>
+                <td className="px-4 py-3 text-muted-foreground">
+                  {result.reference}
+                </td>
+                <td className="px-4 py-3 text-muted-foreground">
+                  {result.branch}
+                </td>
                 <td className="px-4 py-3">
                   <StatusBadge status={result.status} />
                 </td>
@@ -87,7 +101,9 @@ function ElevatorImportResultsTable({
                     <Badge variant="secondary">Pendiente</Badge>
                   )}
                 </td>
-                <td className="px-4 py-3 text-muted-foreground">{result.reason}</td>
+                <td className="px-4 py-3 text-muted-foreground">
+                  {result.reason}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -129,11 +145,23 @@ export function ElevatorSyncCard({
           {result ? (
             <div className="flex flex-col gap-4">
               <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                <SyncMetric label="Pagos encontrados" value={result.paymentsFound} />
+                <SyncMetric
+                  label="Pagos encontrados"
+                  value={result.paymentsFound}
+                />
                 <SyncMetric label="Leads creados" value={result.createdLeads} />
-                <SyncMetric label="Ya existian" value={result.existingLeads ?? result.alreadyProcessed} />
-                <SyncMetric label="Sin match/contacto" value={result.unmatchedLeads} />
-                <SyncMetric label="Eventos preparados" value={result.dispatched} />
+                <SyncMetric
+                  label="Ya existian"
+                  value={result.existingLeads ?? result.alreadyProcessed}
+                />
+                <SyncMetric
+                  label="Sin match/contacto"
+                  value={result.unmatchedLeads}
+                />
+                <SyncMetric
+                  label="Eventos preparados"
+                  value={result.dispatched}
+                />
                 <SyncMetric label="Fallidos" value={result.failed ?? 0} />
               </div>
               <ElevatorImportResultsTable results={result.results ?? []} />
@@ -204,7 +232,10 @@ export function ElevatorPanel({
         rows={[
           ["Modo", "api"],
           ["Leads demo", "creacion y deduplicacion activa"],
-          ["Matching pagos", `${formatInteger(data?.patients.length ?? 0)} pagos disponibles`],
+          [
+            "Matching pagos",
+            `${formatInteger(data?.patients.length ?? 0)} pagos disponibles`,
+          ],
         ]}
         title="Elevator CRM"
       />

@@ -149,7 +149,10 @@ async function probeRecentPatientReferences(
   catalogLabelsById: Map<string, string>,
 ) {
   const sinceIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-  const paymentsUrl = new URL(config.paymentsPath.replace(/^\/+/, ""), config.baseUrl);
+  const paymentsUrl = new URL(
+    config.paymentsPath.replace(/^\/+/, ""),
+    config.baseUrl,
+  );
   paymentsUrl.search = buildPaymentsQuery(config.paymentDateField, sinceIso);
   const paymentsResult = await requestDentalink(
     paymentsUrl,
@@ -169,7 +172,8 @@ async function probeRecentPatientReferences(
   if (explicitPatientId) {
     const payment = payments.find(
       (candidate) =>
-        readNumber(candidate, config.paymentPatientIdField) === explicitPatientId,
+        readNumber(candidate, config.paymentPatientIdField) ===
+        explicitPatientId,
     );
     return [
       await probePatientReference(
@@ -213,7 +217,9 @@ async function probePatientReference(
   catalogLabelsById: Map<string, string>,
 ): Promise<PatientReferenceProbe> {
   const patientUrl = new URL(
-    config.patientsPathTemplate.replace("{id}", String(patientId)).replace(/^\/+/, ""),
+    config.patientsPathTemplate
+      .replace("{id}", String(patientId))
+      .replace(/^\/+/, ""),
     config.baseUrl,
   );
   const patientResult = await requestDentalink(
@@ -226,7 +232,9 @@ async function probePatientReference(
     return {
       patientId,
       patientName: paymentPatientName,
-      fields: [{ key: "patient_detail", value: `unavailable_${patientResult.status}` }],
+      fields: [
+        { key: "patient_detail", value: `unavailable_${patientResult.status}` },
+      ],
       checkedPaths: [],
     };
   }
@@ -257,7 +265,11 @@ async function probePatientReference(
   for (const pathTemplate of PATIENT_REFERENCE_PATH_TEMPLATES) {
     const path = pathTemplate.replace("{id}", String(patientId));
     const url = new URL(path.replace(/^\/+/, ""), config.baseUrl);
-    const result = await requestDentalink(url, config.apiAuthScheme, config.apiToken);
+    const result = await requestDentalink(
+      url,
+      config.apiAuthScheme,
+      config.apiToken,
+    );
     const candidateFields = result.ok
       ? describeReferenceFieldsFromUnknown(result.body, catalogLabelsById)
       : [];
@@ -269,10 +281,12 @@ async function probePatientReference(
     });
 
     if (hasUsefulReferenceFields(candidateFields)) {
-      fields.push(...candidateFields.map((field) => ({
-        key: `${path}.${field.key}`,
-        value: field.value,
-      })));
+      fields.push(
+        ...candidateFields.map((field) => ({
+          key: `${path}.${field.key}`,
+          value: field.value,
+        })),
+      );
       break;
     }
 
@@ -342,14 +356,22 @@ function describeReferenceFields(
     }
   }
 
-  for (const containerKey of ["campos_adicionales", "camposAdicionales", "custom_fields"]) {
+  for (const containerKey of [
+    "campos_adicionales",
+    "camposAdicionales",
+    "custom_fields",
+  ]) {
     const value = record[containerKey];
     if (!value) {
       continue;
     }
 
     fields.push(
-      ...describeAdditionalReferenceFields(containerKey, value, catalogLabelsById),
+      ...describeAdditionalReferenceFields(
+        containerKey,
+        value,
+        catalogLabelsById,
+      ),
     );
   }
 
@@ -366,7 +388,11 @@ function describeAdditionalReferenceFields(
   const fields: Array<{ key: string; value: string }> = [];
 
   if (isRecord(value) && Array.isArray(value.data)) {
-    return describeAdditionalReferenceFields(containerKey, value.data, catalogLabelsById);
+    return describeAdditionalReferenceFields(
+      containerKey,
+      value.data,
+      catalogLabelsById,
+    );
   }
 
   if (Array.isArray(value)) {
@@ -396,7 +422,10 @@ function describeAdditionalReferenceFields(
   if (isRecord(value)) {
     for (const [key, entry] of Object.entries(value)) {
       if (isReferenceKey(key)) {
-        fields.push({ key: `${containerKey}.${key}`, value: describeValue(entry) });
+        fields.push({
+          key: `${containerKey}.${key}`,
+          value: describeValue(entry),
+        });
       }
     }
   }
@@ -422,7 +451,9 @@ function readAdditionalFieldLabel(
   );
 }
 
-function readAdditionalFieldName(record: Record<string, unknown>): string | null {
+function readAdditionalFieldName(
+  record: Record<string, unknown>,
+): string | null {
   for (const key of [
     "nombre",
     "nombre_campo",
@@ -479,10 +510,12 @@ function describeReferenceFieldsFromUnknown(
     return body
       .filter(isRecord)
       .flatMap((record, index) =>
-        describeReferenceFields(record, "referencia", catalogLabelsById).map((field) => ({
-          key: `${index}.${field.key}`,
-          value: field.value,
-        })),
+        describeReferenceFields(record, "referencia", catalogLabelsById).map(
+          (field) => ({
+            key: `${index}.${field.key}`,
+            value: field.value,
+          }),
+        ),
       )
       .filter((field) => field.key !== "reference_fields");
   }
@@ -492,13 +525,19 @@ function describeReferenceFieldsFromUnknown(
   }
 
   if (isRecord(body)) {
-    return describeReferenceFields(unwrapRecord(body), "referencia", catalogLabelsById);
+    return describeReferenceFields(
+      unwrapRecord(body),
+      "referencia",
+      catalogLabelsById,
+    );
   }
 
   return [];
 }
 
-function hasUsefulReferenceFields(fields: Array<{ key: string; value: string }>): boolean {
+function hasUsefulReferenceFields(
+  fields: Array<{ key: string; value: string }>,
+): boolean {
   return fields.some(
     (field) =>
       field.key !== "reference_fields" &&
@@ -517,7 +556,9 @@ function buildRecommendation(
   );
   const candidateField = patientProbes
     .flatMap((probe) => probe.fields)
-    .find((field) => field.key !== "reference_fields" && field.key !== "request");
+    .find(
+      (field) => field.key !== "reference_fields" && field.key !== "request",
+    );
 
   if (workingCatalog && candidateField) {
     return `Usar campo ${candidateField.key} y resolver IDs con ${workingCatalog.path}.`;
@@ -530,7 +571,9 @@ function buildRecommendation(
   return "No se detecto campo de referencia en pacientes recientes. Revisar permisos de Pacientes/Campos adicionales en Dentalink.";
 }
 
-function buildCatalogLabelsById(catalogProbes: ReferenceCatalogProbe[]): Map<string, string> {
+function buildCatalogLabelsById(
+  catalogProbes: ReferenceCatalogProbe[],
+): Map<string, string> {
   const labelsById = new Map<string, string>();
 
   for (const probe of catalogProbes) {
@@ -643,9 +686,11 @@ function describeValue(value: unknown): string {
   if (isRecord(value)) {
     const id = readReferenceId(value);
     const label = readReferenceLabel(value);
-    return [id ? `id=${id}` : null, label ? `label=${label}` : null]
-      .filter(Boolean)
-      .join(", ") || `{${Object.keys(value).sort().join(", ")}}`;
+    return (
+      [id ? `id=${id}` : null, label ? `label=${label}` : null]
+        .filter(Boolean)
+        .join(", ") || `{${Object.keys(value).sort().join(", ")}}`
+    );
   }
 
   return "empty";
@@ -661,7 +706,10 @@ function isReferenceKey(value: string): boolean {
   );
 }
 
-function readString(record: Record<string, unknown>, key: string): string | null {
+function readString(
+  record: Record<string, unknown>,
+  key: string,
+): string | null {
   const value = record[key];
   return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
 }

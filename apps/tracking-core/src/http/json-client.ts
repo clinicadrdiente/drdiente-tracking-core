@@ -19,7 +19,9 @@ export interface JsonRequestOptions {
   parseResponse?: boolean;
 }
 
-export async function jsonRequest<T = unknown>(opts: JsonRequestOptions): Promise<T> {
+export async function jsonRequest<T = unknown>(
+  opts: JsonRequestOptions,
+): Promise<T> {
   const f = opts.fetchImpl ?? fetch;
   const response = await f(opts.url, {
     method: opts.method,

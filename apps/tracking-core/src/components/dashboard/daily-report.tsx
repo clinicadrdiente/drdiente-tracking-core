@@ -5,12 +5,7 @@ import { ModuleFrame } from "@/components/dashboard/module-frame";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { DailyBranchReport, LeadContactChannel } from "@/types/domain";
 
 const CHANNELS: LeadContactChannel[] = [
@@ -91,7 +86,11 @@ export function DailyReport({ secret }: { secret: string }) {
       const res = await fetch("/api/reports/daily", {
         headers: { "x-tracking-secret": secret.trim() },
       });
-      const body = (await res.json()) as { ok: boolean; reports?: DailyBranchReport[]; error?: string };
+      const body = (await res.json()) as {
+        ok: boolean;
+        reports?: DailyBranchReport[];
+        error?: string;
+      };
       if (res.ok && body.ok && Array.isArray(body.reports)) {
         setReports(body.reports);
       }
@@ -117,9 +116,12 @@ export function DailyReport({ secret }: { secret: string }) {
     if (!secret.trim() || !form.date) return;
     setIsAutofilling(true);
     try {
-      const res = await fetch(`/api/dev/dentalink-day-summary?date=${form.date}`, {
-        headers: { "x-tracking-secret": secret.trim() },
-      });
+      const res = await fetch(
+        `/api/dev/dentalink-day-summary?date=${form.date}`,
+        {
+          headers: { "x-tracking-secret": secret.trim() },
+        },
+      );
       const body = (await res.json()) as {
         ok: boolean;
         revenueTotal?: number;
@@ -129,12 +131,19 @@ export function DailyReport({ secret }: { secret: string }) {
       };
       if (!res.ok || !body.ok) return;
 
-      const fmt = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 });
+      const fmt = new Intl.NumberFormat("es-MX", {
+        style: "currency",
+        currency: "MXN",
+        maximumFractionDigits: 0,
+      });
       const branches = body.branches ?? [];
       const primaryBranch = branches[0]?.branch ?? "";
       const noteLines: string[] = [
         `Dentalink ${form.date}: ${fmt.format(body.revenueTotal ?? 0)} en ${body.paymentsCount ?? 0} pagos, ${body.uniquePatients ?? 0} pacientes`,
-        ...branches.map((b) => `  ${b.branch}: ${fmt.format(b.revenue)} (${b.payments} pagos)`),
+        ...branches.map(
+          (b) =>
+            `  ${b.branch}: ${fmt.format(b.revenue)} (${b.payments} pagos)`,
+        ),
       ];
 
       setForm((prev) => ({
@@ -152,7 +161,9 @@ export function DailyReport({ secret }: { secret: string }) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!secret.trim()) {
-      setSubmitError("Configura el TRACKING_API_SECRET en la pantalla principal.");
+      setSubmitError(
+        "Configura el TRACKING_API_SECRET en la pantalla principal.",
+      );
       return;
     }
 
@@ -160,9 +171,10 @@ export function DailyReport({ secret }: { secret: string }) {
     setSubmitError(null);
     setSubmitSuccess(null);
 
-    const contacts = CHANNELS
-      .map((ch) => ({ channel: ch, count: parseInt(form.channelCounts[ch] || "0", 10) }))
-      .filter((c) => c.count > 0);
+    const contacts = CHANNELS.map((ch) => ({
+      channel: ch,
+      count: parseInt(form.channelCounts[ch] || "0", 10),
+    })).filter((c) => c.count > 0);
 
     const payload = {
       branch: form.branch.trim(),
@@ -192,7 +204,9 @@ export function DailyReport({ secret }: { secret: string }) {
         throw new Error(body.error ?? "Error al enviar reporte.");
       }
 
-      setSubmitSuccess(`Reporte de ${payload.branch} para ${payload.date} enviado.`);
+      setSubmitSuccess(
+        `Reporte de ${payload.branch} para ${payload.date} enviado.`,
+      );
       setForm(defaultForm);
       void loadReports();
     } catch (err) {
@@ -203,10 +217,13 @@ export function DailyReport({ secret }: { secret: string }) {
   }
 
   // Group reports by date for display
-  const byDate = reports.reduce<Record<string, DailyBranchReport[]>>((acc, r) => {
-    (acc[r.date] ??= []).push(r);
-    return acc;
-  }, {});
+  const byDate = reports.reduce<Record<string, DailyBranchReport[]>>(
+    (acc, r) => {
+      (acc[r.date] ??= []).push(r);
+      return acc;
+    },
+    {},
+  );
   const sortedDates = Object.keys(byDate).sort((a, b) => b.localeCompare(a));
 
   return (
@@ -241,7 +258,9 @@ export function DailyReport({ secret }: { secret: string }) {
             disabled={isAutofilling || !secret.trim() || !form.date}
             onClick={() => void handleAutofill()}
           >
-            {isAutofilling ? "Cargando Dentalink..." : "Autocompletar desde Dentalink"}
+            {isAutofilling
+              ? "Cargando Dentalink..."
+              : "Autocompletar desde Dentalink"}
           </Button>
         </div>
 
@@ -273,7 +292,9 @@ export function DailyReport({ secret }: { secret: string }) {
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {CHANNELS.map((ch) => (
               <div key={ch} className="flex flex-col gap-1">
-                <label className="text-xs text-muted-foreground">{CHANNEL_LABELS[ch]}</label>
+                <label className="text-xs text-muted-foreground">
+                  {CHANNEL_LABELS[ch]}
+                </label>
                 <Input
                   type="number"
                   min="0"
@@ -296,7 +317,9 @@ export function DailyReport({ secret }: { secret: string }) {
         </div>
 
         {submitSuccess ? (
-          <p className="text-sm text-green-600 dark:text-green-400">{submitSuccess}</p>
+          <p className="text-sm text-green-600 dark:text-green-400">
+            {submitSuccess}
+          </p>
         ) : null}
         {submitError ? (
           <p className="text-sm text-destructive">{submitError}</p>
@@ -310,13 +333,20 @@ export function DailyReport({ secret }: { secret: string }) {
       <section className="mt-6 space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="font-medium text-sm">Ultimos reportes</h3>
-          <Button size="sm" variant="outline" onClick={() => void loadReports()} disabled={isLoadingReports}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => void loadReports()}
+            disabled={isLoadingReports}
+          >
             {isLoadingReports ? "Cargando..." : "Actualizar"}
           </Button>
         </div>
 
         {sortedDates.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No hay reportes en los ultimos 30 dias.</p>
+          <p className="text-sm text-muted-foreground">
+            No hay reportes en los ultimos 30 dias.
+          </p>
         ) : (
           sortedDates.map((date) => (
             <Card key={date} className="border-border/50">
@@ -342,7 +372,13 @@ export function DailyReport({ secret }: { secret: string }) {
                           </span>
                           {rate !== null ? (
                             <Badge
-                              variant={rate >= 80 ? "default" : rate >= 50 ? "secondary" : "destructive"}
+                              variant={
+                                rate >= 80
+                                  ? "default"
+                                  : rate >= 50
+                                    ? "secondary"
+                                    : "destructive"
+                              }
                             >
                               {rate}%
                             </Badge>

@@ -22,12 +22,7 @@ import {
   TrendingDownIcon,
   TrendingUpIcon,
 } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -207,7 +202,10 @@ export function Executive({ data }: { data: ExecutiveBaseline | null }) {
   }
 
   function setGoal(branchId: string, goal: number) {
-    setInputs((prev) => ({ ...prev, goals: { ...prev.goals, [branchId]: goal } }));
+    setInputs((prev) => ({
+      ...prev,
+      goals: { ...prev.goals, [branchId]: goal },
+    }));
   }
 
   const branches: BranchComputed[] = useMemo(() => {
@@ -254,7 +252,9 @@ export function Executive({ data }: { data: ExecutiveBaseline | null }) {
           <h1 className="font-semibold text-3xl tracking-tight md:text-4xl">
             Resumen ejecutivo
           </h1>
-          <Badge variant="secondary">{data?.month?.label ?? "Mes en curso"}</Badge>
+          <Badge variant="secondary">
+            {data?.month?.label ?? "Mes en curso"}
+          </Badge>
         </div>
         <ScopeTabs branches={branches} onChange={setScope} scope={scope} />
       </section>
@@ -379,7 +379,11 @@ function GlobalView({
           />
           <div className="space-y-4">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <PlainStat label="Llevamos" tone="good" value={formatMoney(globalRevenue)} />
+              <PlainStat
+                label="Llevamos"
+                tone="good"
+                value={formatMoney(globalRevenue)}
+              />
               <PlainStat label="Meta del mes" value={formatMoney(globalGoal)} />
               <PlainStat
                 label="Si seguimos asi, cerramos en"
@@ -417,7 +421,10 @@ function GlobalView({
           <CardContent>
             <div className="h-64 w-full">
               <ResponsiveContainer height="100%" width="100%">
-                <BarChart data={compareData} margin={{ left: 8, right: 8, top: 8 }}>
+                <BarChart
+                  data={compareData}
+                  margin={{ left: 8, right: 8, top: 8 }}
+                >
                   <XAxis
                     axisLine={false}
                     dataKey="name"
@@ -429,7 +436,11 @@ function GlobalView({
                     cursor={{ fill: "rgba(255,255,255,0.04)" }}
                     formatter={(value) => formatMoney(Number(value))}
                   />
-                  <Bar dataKey="Meta" fill="rgba(255,255,255,0.14)" radius={[6, 6, 0, 0]} />
+                  <Bar
+                    dataKey="Meta"
+                    fill="rgba(255,255,255,0.14)"
+                    radius={[6, 6, 0, 0]}
+                  />
                   <Bar dataKey="Logrado" radius={[6, 6, 0, 0]}>
                     {compareData.map((entry) => (
                       <Cell fill={entry.color} key={entry.name} />
@@ -476,13 +487,20 @@ function GlobalView({
                 {branches.map((branch) => {
                   const share = pct(branch.revenue, globalRevenue);
                   return (
-                    <div className="flex items-center gap-2 text-sm" key={branch.id}>
+                    <div
+                      className="flex items-center gap-2 text-sm"
+                      key={branch.id}
+                    >
                       <span
                         className="size-3 rounded-full"
                         style={{ backgroundColor: branch.color }}
                       />
-                      <span className="text-muted-foreground">{branch.sublabel}</span>
-                      <span className="font-semibold">{formatPercent(share)}</span>
+                      <span className="text-muted-foreground">
+                        {branch.sublabel}
+                      </span>
+                      <span className="font-semibold">
+                        {formatPercent(share)}
+                      </span>
                     </div>
                   );
                 })}
@@ -560,7 +578,11 @@ function BranchView({
           />
           <div className="space-y-4">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <PlainStat label="Llevamos" tone="good" value={formatMoney(branch.revenue)} />
+              <PlainStat
+                label="Llevamos"
+                tone="good"
+                value={formatMoney(branch.revenue)}
+              />
               <div className="rounded-2xl border bg-background/50 p-4">
                 <p className="text-muted-foreground text-xs uppercase tracking-[0.18em]">
                   Meta del mes
@@ -591,7 +613,10 @@ function BranchView({
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <PlainStat label="Pacientes" value={formatInteger(branch.patients)} />
         <PlainStat label="Pagos" value={formatInteger(branch.payments)} />
-        <PlainStat label="Ticket promedio" value={formatMoney(branch.avgTicket)} />
+        <PlainStat
+          label="Ticket promedio"
+          value={formatMoney(branch.avgTicket)}
+        />
         <PlainStat
           label="Falta para la meta"
           tone={branch.revenue >= branch.goal ? "good" : "warn"}
@@ -667,12 +692,7 @@ function BranchMiniCard({
               ? "meta cumplida 🎉"
               : `faltan ${formatMoney(branch.goal - branch.revenue)}`}
           </p>
-          <Button
-            className="mt-3"
-            onClick={onOpen}
-            size="sm"
-            variant="outline"
-          >
+          <Button className="mt-3" onClick={onOpen} size="sm" variant="outline">
             Ver detalle
           </Button>
         </div>
@@ -753,7 +773,11 @@ function ReturnCard({
             tone={roasMarketing !== null && roasMarketing >= 1 ? "good" : "bad"}
             value={roasMarketing !== null ? formatRoas(roasMarketing) : "—"}
           />
-          <MetricTile label="ROI" tone={roi >= 0 ? "good" : "bad"} value={formatPercent(roi)} />
+          <MetricTile
+            label="ROI"
+            tone={roi >= 0 ? "good" : "bad"}
+            value={formatPercent(roi)}
+          />
           <MetricTile
             label="Ganancia"
             tone={profit >= 0 ? "good" : "bad"}
@@ -762,7 +786,11 @@ function ReturnCard({
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field
-            hint={usingWindsor ? "Auto desde Windsor. Escribe para cambiar." : "Inversion total en anuncios."}
+            hint={
+              usingWindsor
+                ? "Auto desde Windsor. Escribe para cambiar."
+                : "Inversion total en anuncios."
+            }
             label="Inversion en anuncios"
           >
             <MoneyInput
@@ -775,7 +803,8 @@ function ReturnCard({
                 onClick={() => patch({ adSpendOverride: null })}
                 type="button"
               >
-                Usando Windsor · {monthLabel(spendMonth)} ({formatMoney(windsorSpend ?? 0)})
+                Usando Windsor · {monthLabel(spendMonth)} (
+                {formatMoney(windsorSpend ?? 0)})
               </button>
             ) : null}
             {!isCurrentMonth ? (
@@ -797,7 +826,9 @@ function ReturnCard({
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Button
-            onClick={() => patch({ roiManualEnabled: !inputs.roiManualEnabled })}
+            onClick={() =>
+              patch({ roiManualEnabled: !inputs.roiManualEnabled })
+            }
             size="sm"
             variant={inputs.roiManualEnabled ? "default" : "outline"}
           >
@@ -853,12 +884,20 @@ function ChannelCard({
           <div className="space-y-2">
             {sources.map((source) => {
               const spend = source.spend ?? 0;
-              const share = totalSpend && totalSpend > 0 ? (spend / totalSpend) * 100 : 0;
+              const share =
+                totalSpend && totalSpend > 0 ? (spend / totalSpend) * 100 : 0;
               return (
-                <div className="rounded-lg border bg-background/40 p-3" key={source.source}>
+                <div
+                  className="rounded-lg border bg-background/40 p-3"
+                  key={source.source}
+                >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="truncate font-medium capitalize">{source.source}</span>
-                    <span className="font-semibold text-brand">{formatMoney(spend)}</span>
+                    <span className="truncate font-medium capitalize">
+                      {source.source}
+                    </span>
+                    <span className="font-semibold text-brand">
+                      {formatMoney(spend)}
+                    </span>
                   </div>
                   <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
                     <div
@@ -901,8 +940,18 @@ function FunnelCard({
 }) {
   const steps = [
     { key: "funnelLeads", label: "Leads", value: leads, editable: true },
-    { key: "funnelScheduled", label: "Agendados", value: scheduled, editable: true },
-    { key: "funnelAttended", label: "Asistieron", value: attended, editable: true },
+    {
+      key: "funnelScheduled",
+      label: "Agendados",
+      value: scheduled,
+      editable: true,
+    },
+    {
+      key: "funnelAttended",
+      label: "Asistieron",
+      value: attended,
+      editable: true,
+    },
     { key: "closed", label: "Cerraron", value: closed, editable: false },
   ];
 
@@ -917,10 +966,13 @@ function FunnelCard({
       <CardContent className="space-y-2">
         {steps.map((step, index) => {
           const previous = index > 0 ? steps[index - 1].value : 0;
-          const rate = index > 0 && previous > 0 ? (step.value / previous) * 100 : null;
+          const rate =
+            index > 0 && previous > 0 ? (step.value / previous) * 100 : null;
           return (
             <div className="flex items-center gap-3" key={step.key}>
-              <span className="w-24 text-muted-foreground text-sm">{step.label}</span>
+              <span className="w-24 text-muted-foreground text-sm">
+                {step.label}
+              </span>
               {step.editable ? (
                 <Input
                   className="h-8 w-28"
@@ -934,17 +986,23 @@ function FunnelCard({
                   value={step.value}
                 />
               ) : (
-                <span className="w-28 font-semibold text-lg">{formatInteger(step.value)}</span>
+                <span className="w-28 font-semibold text-lg">
+                  {formatInteger(step.value)}
+                </span>
               )}
               {rate !== null ? (
-                <span className="text-brand text-xs">{formatPercent(rate)}</span>
+                <span className="text-brand text-xs">
+                  {formatPercent(rate)}
+                </span>
               ) : null}
             </div>
           );
         })}
         <div className="mt-1 flex items-center justify-between rounded-lg border border-brand/30 bg-brand/5 px-3 py-2">
           <span className="font-medium">Revenue</span>
-          <span className="font-semibold text-brand">{formatMoney(revenue)}</span>
+          <span className="font-semibold text-brand">
+            {formatMoney(revenue)}
+          </span>
         </div>
       </CardContent>
     </Card>
@@ -964,7 +1022,10 @@ function GoalGauge({
   pct: number;
   tone: "good" | "warn" | "bad";
 }) {
-  const clamped = Math.max(0, Math.min(100, Number.isFinite(value) ? value : 0));
+  const clamped = Math.max(
+    0,
+    Math.min(100, Number.isFinite(value) ? value : 0),
+  );
   const toneColor =
     tone === "good" ? color : tone === "warn" ? "#fbbf24" : "#fb7185";
   const chartData = [{ name: "meta", value: clamped, fill: toneColor }];
@@ -980,7 +1041,12 @@ function GoalGauge({
           outerRadius="100%"
           startAngle={210}
         >
-          <PolarAngleAxis angleAxisId={0} domain={[0, 100]} tick={false} type="number" />
+          <PolarAngleAxis
+            angleAxisId={0}
+            domain={[0, 100]}
+            tick={false}
+            type="number"
+          />
           <RadialBar
             angleAxisId={0}
             background={{ fill: "rgba(255,255,255,0.06)" }}
@@ -1032,7 +1098,10 @@ function PlainStatusLine({
       {onPace ? (
         <TrendingUpIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
       ) : (
-        <TrendingDownIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+        <TrendingDownIcon
+          aria-hidden="true"
+          className="mt-0.5 size-4 shrink-0"
+        />
       )}
       <span>{message}</span>
     </div>
@@ -1050,7 +1119,9 @@ function PlainStat({
 }) {
   return (
     <div className="rounded-2xl border bg-background/50 p-4">
-      <p className="text-muted-foreground text-xs uppercase tracking-[0.16em]">{label}</p>
+      <p className="text-muted-foreground text-xs uppercase tracking-[0.16em]">
+        {label}
+      </p>
       <p
         className={`mt-2 font-semibold text-2xl tracking-tight ${
           tone === "good"
@@ -1081,7 +1152,9 @@ function MetricTile({
 }) {
   return (
     <div className="rounded-xl border bg-background/40 p-3">
-      <p className="text-muted-foreground text-xs uppercase tracking-wider">{label}</p>
+      <p className="text-muted-foreground text-xs uppercase tracking-wider">
+        {label}
+      </p>
       <p
         className={`mt-1 font-semibold text-2xl tracking-tight ${
           tone === "good" ? "text-brand" : "text-danger"
@@ -1089,7 +1162,9 @@ function MetricTile({
       >
         {value}
       </p>
-      {hint ? <p className="text-muted-foreground text-[11px]">{hint}</p> : null}
+      {hint ? (
+        <p className="text-muted-foreground text-[11px]">{hint}</p>
+      ) : null}
     </div>
   );
 }

@@ -62,8 +62,20 @@ export class StubDentalinkClient implements DentalinkClient {
 
   async getPatientTreatments(patientId: number): Promise<DentalinkTreatment[]> {
     return [
-      { treatmentId: 77, patientId, name: "Diseno de Sonrisa", budgetTotal: 150000, currency: "MXN" },
-      { treatmentId: 55, patientId, name: "Ortodoncia", budgetTotal: 45000, currency: "MXN" },
+      {
+        treatmentId: 77,
+        patientId,
+        name: "Diseno de Sonrisa",
+        budgetTotal: 150000,
+        currency: "MXN",
+      },
+      {
+        treatmentId: 55,
+        patientId,
+        name: "Ortodoncia",
+        budgetTotal: 45000,
+        currency: "MXN",
+      },
     ];
   }
 }
@@ -75,12 +87,12 @@ export class ApiDentalinkClient implements DentalinkClient {
   ) {}
 
   async getPatient(patientId: number): Promise<DentalinkPatient> {
-    const path = this.config.patientsPathTemplate.replace("{id}", String(patientId));
-    const response = unwrapRecord(await this.request("GET", path));
-    return mapPatientRecord(
-      this.config,
-      response,
+    const path = this.config.patientsPathTemplate.replace(
+      "{id}",
+      String(patientId),
     );
+    const response = unwrapRecord(await this.request("GET", path));
+    return mapPatientRecord(this.config, response);
   }
 
   async setPatientElevatorId(
@@ -95,7 +107,10 @@ export class ApiDentalinkClient implements DentalinkClient {
     await this.request("PUT", path, payload);
   }
 
-  async listRecentPayments(sinceIso: string, limit?: number): Promise<PaymentEvent[]> {
+  async listRecentPayments(
+    sinceIso: string,
+    limit?: number,
+  ): Promise<PaymentEvent[]> {
     const query = buildPaymentsQuery(this.config.paymentDateField, sinceIso);
     const path = `${this.config.paymentsPath}?${query}`;
     const response = await this.request("GET", path);
@@ -117,7 +132,10 @@ export class ApiDentalinkClient implements DentalinkClient {
   }
 
   async getPatientTreatments(patientId: number): Promise<DentalinkTreatment[]> {
-    const query = buildTreatmentsByPatientQuery(this.config.treatmentPatientIdField, patientId);
+    const query = buildTreatmentsByPatientQuery(
+      this.config.treatmentPatientIdField,
+      patientId,
+    );
     const path = `${this.config.treatmentsListPath}?${query}`;
     const response = await this.request("GET", path);
     return unwrapCollection(response).map((r) => ({
@@ -151,10 +169,7 @@ export class ApiDentalinkClient implements DentalinkClient {
     );
     const response = await this.request("GET", path);
     const record = unwrapRecord(response);
-    return mapTreatmentRecord(
-      this.config,
-      record,
-    );
+    return mapTreatmentRecord(this.config, record);
   }
 
   private async request(
@@ -197,7 +212,9 @@ export class DentalinkRequestError extends Error {
   }
 }
 
-export function parseAppointmentEvent(payload: AppointmentEvent): AppointmentEvent {
+export function parseAppointmentEvent(
+  payload: AppointmentEvent,
+): AppointmentEvent {
   return payload;
 }
 

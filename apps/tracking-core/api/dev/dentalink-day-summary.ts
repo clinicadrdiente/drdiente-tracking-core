@@ -40,9 +40,12 @@ export default async function handler(
     return;
   }
 
-  const dateParam = typeof request.query?.date === "string" ? request.query.date.trim() : null;
+  const dateParam =
+    typeof request.query?.date === "string" ? request.query.date.trim() : null;
   if (!dateParam || !/^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
-    response.status(400).json({ ok: false, error: "date param required (YYYY-MM-DD)" });
+    response
+      .status(400)
+      .json({ ok: false, error: "date param required (YYYY-MM-DD)" });
     return;
   }
 
@@ -52,7 +55,14 @@ export default async function handler(
     if (config.mode !== "api") {
       send(response, {
         status: 200,
-        body: { ok: true, date: dateParam, revenueTotal: 0, paymentsCount: 0, uniquePatients: 0, branches: [] } satisfies DaySummaryBody,
+        body: {
+          ok: true,
+          date: dateParam,
+          revenueTotal: 0,
+          paymentsCount: 0,
+          uniquePatients: 0,
+          branches: [],
+        } satisfies DaySummaryBody,
       });
       return;
     }
@@ -88,7 +98,9 @@ export default async function handler(
       branchMap.set(branch, b);
     }
 
-    const branches = [...branchMap.values()].sort((a, b) => b.revenue - a.revenue);
+    const branches = [...branchMap.values()].sort(
+      (a, b) => b.revenue - a.revenue,
+    );
 
     send(response, {
       status: 200,
@@ -122,8 +134,14 @@ async function fetchDayPayments(
   patientIdField: string,
   dayStart: Date,
   dayEnd: Date,
-): Promise<Array<{ amount: number; branch: string | null; patientId: number }>> {
-  const results: Array<{ amount: number; branch: string | null; patientId: number }> = [];
+): Promise<
+  Array<{ amount: number; branch: string | null; patientId: number }>
+> {
+  const results: Array<{
+    amount: number;
+    branch: string | null;
+    patientId: number;
+  }> = [];
   const fromIso = dayStart.toISOString().replace("T", " ").slice(0, 19);
   const toIso = dayEnd.toISOString().replace("T", " ").slice(0, 19);
 
@@ -196,7 +214,10 @@ function readNumber(record: Record<string, unknown>, key: string): number {
   return 0;
 }
 
-function readString(record: Record<string, unknown>, key: string): string | null {
+function readString(
+  record: Record<string, unknown>,
+  key: string,
+): string | null {
   const value = record[key];
   if (typeof value === "string" && value.trim()) return value.trim();
   return null;

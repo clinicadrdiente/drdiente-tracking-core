@@ -11,7 +11,10 @@ import {
 
 export interface ElevatorClient {
   createLead(input: LeadInput): Promise<CanonicalLead>;
-  findLeadsByIdentity(phone: string, email?: string | null): Promise<CanonicalLead[]>;
+  findLeadsByIdentity(
+    phone: string,
+    email?: string | null,
+  ): Promise<CanonicalLead[]>;
   updateLeadStage(elevatorId: string, stage: string): Promise<void>;
 }
 
@@ -61,7 +64,10 @@ export class ApiElevatorClient implements ElevatorClient {
   ) {}
 
   async createLead(input: LeadInput): Promise<CanonicalLead> {
-    const existingLeads = await this.findLeadsByIdentity(input.phone, input.email);
+    const existingLeads = await this.findLeadsByIdentity(
+      input.phone,
+      input.email,
+    );
     if (existingLeads[0]) {
       return existingLeads[0];
     }
@@ -80,10 +86,7 @@ export class ApiElevatorClient implements ElevatorClient {
     }
 
     const record = unwrapRecord(response, "contact");
-    return mapElevatorRecordToCanonicalLead(
-      this.config,
-      record,
-    );
+    return mapElevatorRecordToCanonicalLead(this.config, record);
   }
 
   async findLeadsByIdentity(
@@ -93,22 +96,20 @@ export class ApiElevatorClient implements ElevatorClient {
     const duplicateRecords = await this.findDuplicateContacts(phone, email);
     if (duplicateRecords.length > 0) {
       return duplicateRecords.map((record) =>
-        mapElevatorRecordToCanonicalLead(
-          this.config,
-          record,
-        ),
+        mapElevatorRecordToCanonicalLead(this.config, record),
       );
     }
 
     const payload = buildSearchPayload(this.config, phone, email);
-    const response = await this.request("POST", this.config.searchPath, payload);
+    const response = await this.request(
+      "POST",
+      this.config.searchPath,
+      payload,
+    );
     const records = unwrapCollection(response);
 
     return records.map((record) =>
-      mapElevatorRecordToCanonicalLead(
-        this.config,
-        record,
-      ),
+      mapElevatorRecordToCanonicalLead(this.config, record),
     );
   }
 
@@ -265,7 +266,10 @@ function readDuplicateContactId(error: unknown): string | null {
   return null;
 }
 
-function unwrapRecord(response: unknown, preferredKey: string): Record<string, unknown> {
+function unwrapRecord(
+  response: unknown,
+  preferredKey: string,
+): Record<string, unknown> {
   if (isRecord(response) && isRecord(response[preferredKey])) {
     return response[preferredKey];
   }

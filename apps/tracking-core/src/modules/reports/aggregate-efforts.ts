@@ -27,7 +27,12 @@ export interface EffortsSummary {
 export function aggregateEfforts(
   windsor: {
     bySource: WindsorSourceSummary[];
-    totals: { spend: number; impressions: number; reach: number; clicks: number };
+    totals: {
+      spend: number;
+      impressions: number;
+      reach: number;
+      clicks: number;
+    };
   } | null,
   dailyReports: DailyBranchReport[],
   range: { fromIso: string; toIso: string },

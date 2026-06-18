@@ -6,10 +6,7 @@ interface RecordedCall {
   init: RequestInit | undefined;
 }
 
-function makeFetch(
-  response: Response,
-  recorded: RecordedCall[],
-): typeof fetch {
+function makeFetch(response: Response, recorded: RecordedCall[]): typeof fetch {
   return (async (url: URL | string, init?: RequestInit) => {
     recorded.push({ url, init });
     return response;
@@ -26,7 +23,10 @@ function okJsonResponse(body: unknown): Response {
 describe("jsonRequest", () => {
   it("returns parsed JSON on a successful response", async () => {
     const recorded: RecordedCall[] = [];
-    const fetchImpl = makeFetch(okJsonResponse({ id: 42, name: "demo" }), recorded);
+    const fetchImpl = makeFetch(
+      okJsonResponse({ id: 42, name: "demo" }),
+      recorded,
+    );
 
     const result = await jsonRequest<{ id: number; name: string }>({
       url: "https://example.test/resource",

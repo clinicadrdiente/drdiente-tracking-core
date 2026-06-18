@@ -72,7 +72,9 @@ export class TrackingApp {
         Date.now() - this.services.config.paymentsSyncLookbackMinutes * 60_000,
       ).toISOString();
 
-    this.services.logger.info("syncing payments", { sinceIso: resolvedSinceIso });
+    this.services.logger.info("syncing payments", {
+      sinceIso: resolvedSinceIso,
+    });
 
     return handlePaymentsSync(
       this.services.dentalinkClient,

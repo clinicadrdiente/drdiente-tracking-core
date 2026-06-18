@@ -46,7 +46,9 @@ function ReadinessRow({
           <p className="font-medium">{label}</p>
         </div>
       </div>
-      <Badge variant={tone === "good" ? "default" : "secondary"}>{status}</Badge>
+      <Badge variant={tone === "good" ? "default" : "secondary"}>
+        {status}
+      </Badge>
     </div>
   );
 }
@@ -85,8 +87,14 @@ export function SystemHealthCard({
         <ReadinessRow
           icon={<ShieldCheckIcon aria-hidden="true" />}
           label="Persistencia"
-          status={systemStatus?.config.stateStoreMode === "redis" ? "Redis" : "Temporal"}
-          tone={systemStatus?.config.stateStoreMode === "redis" ? "good" : "warn"}
+          status={
+            systemStatus?.config.stateStoreMode === "redis"
+              ? "Redis"
+              : "Temporal"
+          }
+          tone={
+            systemStatus?.config.stateStoreMode === "redis" ? "good" : "warn"
+          }
         />
         {cronHeartbeatStatus !== null && (
           <ReadinessRow
@@ -133,13 +141,20 @@ export function SystemHealthPanel({
   cronHeartbeatStatus: "ok" | "stale" | "unknown" | null;
 }) {
   return (
-    <ModuleFrame accent="health" title={route === "status" ? "Estado del sistema" : "Ayuda interna"}>
+    <ModuleFrame
+      accent="health"
+      title={route === "status" ? "Estado del sistema" : "Ayuda interna"}
+    >
       <Card>
         <CardHeader className="flex flex-row items-start justify-between gap-4">
           <div>
-            <CardTitle>{route === "status" ? "Estado del sistema" : "Ayuda interna"}</CardTitle>
+            <CardTitle>
+              {route === "status" ? "Estado del sistema" : "Ayuda interna"}
+            </CardTitle>
           </div>
-          <Badge variant="secondary">{route === "status" ? "Healthy" : "Interno"}</Badge>
+          <Badge variant="secondary">
+            {route === "status" ? "Healthy" : "Interno"}
+          </Badge>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -148,7 +163,10 @@ export function SystemHealthPanel({
               ["Pagos", formatInteger(data?.paymentsTotal ?? 0)],
               ["Pacientes", formatInteger(data?.uniquePatientsTotal ?? 0)],
             ].map(([label, value]) => (
-              <div className="rounded-xl border bg-background/50 p-4" key={label}>
+              <div
+                className="rounded-xl border bg-background/50 p-4"
+                key={label}
+              >
                 <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
                   {label}
                 </p>
@@ -158,7 +176,10 @@ export function SystemHealthPanel({
           </div>
         </CardContent>
       </Card>
-      <SystemHealthCard systemStatus={systemStatus} cronHeartbeatStatus={cronHeartbeatStatus} />
+      <SystemHealthCard
+        systemStatus={systemStatus}
+        cronHeartbeatStatus={cronHeartbeatStatus}
+      />
     </ModuleFrame>
   );
 }

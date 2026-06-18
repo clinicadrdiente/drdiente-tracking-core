@@ -100,11 +100,16 @@ function effectiveVariableRate(inputs: ProjectionInputs): number {
   if (inputs.variableMode === "percent") {
     return inputs.variablePercent / 100;
   }
-  return inputs.avgTicket > 0 ? inputs.variablePerPatient / inputs.avgTicket : 0;
+  return inputs.avgTicket > 0
+    ? inputs.variablePerPatient / inputs.avgTicket
+    : 0;
 }
 
 function sumFixed(inputs: ProjectionInputs): number {
-  return inputs.fixedCosts.reduce((total, cost) => total + (cost.amount || 0), 0);
+  return inputs.fixedCosts.reduce(
+    (total, cost) => total + (cost.amount || 0),
+    0,
+  );
 }
 
 function computeScenario(
@@ -224,9 +229,19 @@ export function Projection({ data }: { data: ProjectionBaseline | null }) {
 
   const scenarios = useMemo(
     () => [
-      computeScenario(inputs, "conservador", "Conservador", inputs.conservativeFactor),
+      computeScenario(
+        inputs,
+        "conservador",
+        "Conservador",
+        inputs.conservativeFactor,
+      ),
       computeScenario(inputs, "base", "Base", 1),
-      computeScenario(inputs, "optimista", "Optimista", inputs.optimisticFactor),
+      computeScenario(
+        inputs,
+        "optimista",
+        "Optimista",
+        inputs.optimisticFactor,
+      ),
     ],
     [inputs],
   );
@@ -281,9 +296,10 @@ export function Projection({ data }: { data: ProjectionBaseline | null }) {
           <Badge variant="secondary">ESTIMADO</Badge>
         </div>
         <p className="max-w-3xl text-muted-foreground text-sm">
-          Ajusta inversion en anuncios, gastos fijos y variables para ver el ROAS
-          y ROI aproximados del proximo mes en un rango conservador-optimista.
-          Todos los numeros son estimaciones para decision, no datos medidos.
+          Ajusta inversion en anuncios, gastos fijos y variables para ver el
+          ROAS y ROI aproximados del proximo mes en un rango
+          conservador-optimista. Todos los numeros son estimaciones para
+          decision, no datos medidos.
         </p>
       </section>
 
@@ -523,14 +539,28 @@ function ScenarioCard({ scenario }: { scenario: ScenarioResult }) {
         <div className="grid grid-cols-2 gap-2">
           <SmallMetric label="ROAS" value={formatRoas(scenario.roas)} />
           <SmallMetric label="Revenue" value={formatMoney(scenario.revenue)} />
-          <SmallMetric label="Profit" value={formatMoney(scenario.profit)} tone={scenario.profit >= 0 ? "good" : "bad"} />
-          <SmallMetric label="Pacientes" value={formatInteger(scenario.patients)} />
+          <SmallMetric
+            label="Profit"
+            value={formatMoney(scenario.profit)}
+            tone={scenario.profit >= 0 ? "good" : "bad"}
+          />
+          <SmallMetric
+            label="Pacientes"
+            value={formatInteger(scenario.patients)}
+          />
         </div>
         <div className="space-y-1 border-t pt-2 text-muted-foreground text-xs">
           <CostLine label="Anuncios" value={formatMoney(scenario.adSpend)} />
           <CostLine label="Fijos" value={formatMoney(scenario.fixedTotal)} />
-          <CostLine label="Variables" value={formatMoney(scenario.variableCosts)} />
-          <CostLine label="Costo total" value={formatMoney(scenario.totalCosts)} strong />
+          <CostLine
+            label="Variables"
+            value={formatMoney(scenario.variableCosts)}
+          />
+          <CostLine
+            label="Costo total"
+            value={formatMoney(scenario.totalCosts)}
+            strong
+          />
         </div>
       </CardContent>
     </Card>
@@ -572,8 +602,8 @@ function ManualRoiCard({
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-muted-foreground text-sm">
-          Fija el ROI que quieres y calculamos al reves: cuanto revenue y que ROAS
-          necesitarias para lograrlo, con los mismos gastos.
+          Fija el ROI que quieres y calculamos al reves: cuanto revenue y que
+          ROAS necesitarias para lograrlo, con los mismos gastos.
         </p>
         <div className="flex items-center gap-3">
           <div className="w-40">
@@ -692,11 +722,7 @@ function SmallMetric({
       </p>
       <p
         className={`font-semibold text-sm ${
-          tone === "good"
-            ? "text-brand"
-            : tone === "bad"
-              ? "text-danger"
-              : ""
+          tone === "good" ? "text-brand" : tone === "bad" ? "text-danger" : ""
         }`}
       >
         {value}
@@ -715,7 +741,9 @@ function CostLine({
   strong?: boolean;
 }) {
   return (
-    <div className={`flex justify-between ${strong ? "font-medium text-foreground" : ""}`}>
+    <div
+      className={`flex justify-between ${strong ? "font-medium text-foreground" : ""}`}
+    >
       <span>{label}</span>
       <span>{value}</span>
     </div>

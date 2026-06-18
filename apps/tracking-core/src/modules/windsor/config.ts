@@ -61,7 +61,8 @@ function normalizeWindsorFields(rawFields: string): string[] {
     .filter(Boolean)
     .filter((field) => !DEPRECATED_WINDSOR_FIELDS.has(field));
 
-  const fields = configuredFields.length > 0 ? configuredFields : FINAL_WINDSOR_FIELDS;
+  const fields =
+    configuredFields.length > 0 ? configuredFields : FINAL_WINDSOR_FIELDS;
 
   return [...new Set([...fields, ...FINAL_WINDSOR_FIELDS])];
 }

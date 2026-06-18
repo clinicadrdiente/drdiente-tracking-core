@@ -30,8 +30,7 @@ export default async function handler(
     request.query = {
       ...request.query,
       since: new Date(
-        Date.now() -
-          getAppConfig().paymentsSyncLookbackMinutes * 60 * 1000,
+        Date.now() - getAppConfig().paymentsSyncLookbackMinutes * 60 * 1000,
       ).toISOString(),
       maxPayments: "50",
     };
@@ -79,10 +78,7 @@ function readBearerToken(request: VercelRequest): string | null {
   return match?.[1] ?? null;
 }
 
-function readHeader(
-  request: VercelRequest,
-  name: string,
-): string | undefined {
+function readHeader(request: VercelRequest, name: string): string | undefined {
   const normalized = name.toLowerCase();
   for (const [key, value] of Object.entries(request.headers ?? {})) {
     if (key.toLowerCase() === normalized) {

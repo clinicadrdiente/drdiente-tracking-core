@@ -34,7 +34,8 @@ export function SettingsPanel({
             </Button>
           </div>
           <p className="text-muted-foreground text-xs">
-            El secret se guarda localmente en tu navegador y carga los datos al guardar.
+            El secret se guarda localmente en tu navegador y carga los datos al
+            guardar.
           </p>
         </CardContent>
       </Card>

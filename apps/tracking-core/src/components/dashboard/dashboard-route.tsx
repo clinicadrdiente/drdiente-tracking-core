@@ -1,9 +1,5 @@
 import React, { useState } from "react";
-import {
-  RefreshCwIcon,
-  UserRoundIcon,
-  WebhookIcon,
-} from "lucide-react";
+import { RefreshCwIcon, UserRoundIcon, WebhookIcon } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -37,11 +33,23 @@ import type {
 } from "@/types/dashboard";
 import { DailyReport } from "@/components/dashboard/daily-report";
 import { EffortsPanel } from "@/components/dashboard/efforts-panel";
-import { SystemHealthPanel, SystemHealthCard } from "@/components/dashboard/system-health";
-import { GuidedActionsCard, OperationsResultCard } from "@/components/dashboard/actions";
+import {
+  SystemHealthPanel,
+  SystemHealthCard,
+} from "@/components/dashboard/system-health";
+import {
+  GuidedActionsCard,
+  OperationsResultCard,
+} from "@/components/dashboard/actions";
 import { WindsorMarketingCard } from "@/components/dashboard/windsor-panel";
-import { ElevatorSyncCard, IntegrationPanel } from "@/components/dashboard/elevator-panel";
-import { StapeTestCard, DiagnosticsPanel } from "@/components/dashboard/diagnostics-panel";
+import {
+  ElevatorSyncCard,
+  IntegrationPanel,
+} from "@/components/dashboard/elevator-panel";
+import {
+  StapeTestCard,
+  DiagnosticsPanel,
+} from "@/components/dashboard/diagnostics-panel";
 import { PatientsPanel } from "@/components/dashboard/patients-panel";
 import { RecurringPatients } from "@/components/recurring-patients";
 import { SettingsPanel } from "@/components/dashboard/settings-panel";
@@ -126,7 +134,9 @@ export function ControlRoom({
               />
               <HeroMetric
                 label="Pagos guardados"
-                value={formatInteger(systemStatus?.paymentSync.processedPaymentCount ?? 0)}
+                value={formatInteger(
+                  systemStatus?.paymentSync.processedPaymentCount ?? 0,
+                )}
               />
             </div>
           </CardContent>
@@ -150,7 +160,10 @@ export function ControlRoom({
           </CardFooter>
         </Card>
 
-        <SystemHealthCard systemStatus={systemStatus} cronHeartbeatStatus={cronHeartbeatStatus} />
+        <SystemHealthCard
+          systemStatus={systemStatus}
+          cronHeartbeatStatus={cronHeartbeatStatus}
+        />
       </section>
 
       <GuidedActionsCard
@@ -162,7 +175,7 @@ export function ControlRoom({
         syncResult={syncResult}
       />
 
-      {(syncError || realFlowError || syncResult || realFlowResult) ? (
+      {syncError || realFlowError || syncResult || realFlowResult ? (
         <OperationsResultCard
           realFlowError={realFlowError}
           realFlowResult={realFlowResult}
@@ -193,7 +206,9 @@ function RevenuePage({
     <>
       <div className="flex items-center justify-between gap-4">
         <p className="text-muted-foreground text-sm">
-          {rangeDays ? `Últimos ${rangeDays} días` : (data?.month?.label ?? "Mes actual")}
+          {rangeDays
+            ? `Últimos ${rangeDays} días`
+            : (data?.month?.label ?? "Mes actual")}
         </p>
         <div className="flex items-center gap-2">
           {rangeDays !== null && (
@@ -208,7 +223,8 @@ function RevenuePage({
           <Select
             value={rangeDays !== null ? String(rangeDays) : "month"}
             onValueChange={(val) => {
-              const next = val === "month" ? null : (Number(val) as 7 | 30 | 180);
+              const next =
+                val === "month" ? null : (Number(val) as 7 | 30 | 180);
               setCompareEnabled(false);
               onRangeChange(next);
             }}
@@ -241,7 +257,9 @@ function RevenuePage({
                 >
                   <div>
                     <p className="font-medium capitalize">{bucket.label}</p>
-                    <p className="text-muted-foreground text-sm">{bucket.payments} pagos</p>
+                    <p className="text-muted-foreground text-sm">
+                      {bucket.payments} pagos
+                    </p>
                   </div>
                   <p className="font-semibold text-brand">
                     {new Intl.NumberFormat("es-MX", {
@@ -371,11 +389,7 @@ export function DashboardRoute({
 
   if (route === "patients" || route === "dentalink/patients") {
     return (
-      <PatientsPanel
-        data={data}
-        isLoading={isLoading}
-        onRefresh={onRefresh}
-      />
+      <PatientsPanel data={data} isLoading={isLoading} onRefresh={onRefresh} />
     );
   }
 
@@ -435,7 +449,10 @@ export function DashboardRoute({
           rows={[
             ["Modo", "api"],
             ["Leads demo", "creacion y deduplicacion activa"],
-            ["Matching pagos", `${formatInteger(data?.patients.length ?? 0)} pagos disponibles`],
+            [
+              "Matching pagos",
+              `${formatInteger(data?.patients.length ?? 0)} pagos disponibles`,
+            ],
           ]}
           title="Elevator CRM"
         />
@@ -471,7 +488,12 @@ export function DashboardRoute({
   if (route === "help" || route === "status") {
     return (
       <>
-        <SystemHealthPanel route={route} data={data} systemStatus={systemStatus} cronHeartbeatStatus={cronHeartbeatStatus} />
+        <SystemHealthPanel
+          route={route}
+          data={data}
+          systemStatus={systemStatus}
+          cronHeartbeatStatus={cronHeartbeatStatus}
+        />
         <DiagnosticsPanel
           diagnostic={referenceDiagnostic}
           diagnosticError={referenceDiagnosticError}
@@ -495,7 +517,13 @@ export function DashboardRoute({
   }
 
   if (route === "esfuerzos") {
-    return <EffortsPanel secret={secret} rangeDays={rangeDays} dashboardData={data} />;
+    return (
+      <EffortsPanel
+        secret={secret}
+        rangeDays={rangeDays}
+        dashboardData={data}
+      />
+    );
   }
 
   return (

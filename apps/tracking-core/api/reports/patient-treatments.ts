@@ -26,7 +26,10 @@ export default async function handler(
   const minTreatments = Math.max(1, Number(request.query?.min_treatments ?? 1));
 
   try {
-    const patients = await trackingHttpHandlers.stateStore.listRecurringPatients(minTreatments);
+    const patients =
+      await trackingHttpHandlers.stateStore.listRecurringPatients(
+        minTreatments,
+      );
 
     send(response, {
       status: 200,
@@ -43,7 +46,9 @@ export default async function handler(
       body: {
         ok: false,
         error: "failed to list patient treatments",
-        details: { message: err instanceof Error ? err.message : "unknown error" },
+        details: {
+          message: err instanceof Error ? err.message : "unknown error",
+        },
       },
     });
   }

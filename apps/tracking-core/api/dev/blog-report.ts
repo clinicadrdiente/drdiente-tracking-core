@@ -62,7 +62,10 @@ export default async function handler(
     return;
   }
 
-  const blogPages = extractBlogPages(parseSitemapUrls(sitemapXml), config.blogPathPrefix);
+  const blogPages = extractBlogPages(
+    parseSitemapUrls(sitemapXml),
+    config.blogPathPrefix,
+  );
 
   const windsor = createWindsorClient();
   let gscConfigured = windsor.isConfigured();
@@ -101,13 +104,19 @@ export default async function handler(
 
   const pagesWithMetrics = joinSearchConsoleMetrics(blogPages, gscPageRows);
   const byTreatment = rollupByTreatment(pagesWithMetrics);
-  const blogClicks = pagesWithMetrics.reduce((sum, page) => sum + page.clicks, 0);
+  const blogClicks = pagesWithMetrics.reduce(
+    (sum, page) => sum + page.clicks,
+    0,
+  );
   const blogImpressions = pagesWithMetrics.reduce(
     (sum, page) => sum + page.impressions,
     0,
   );
   const siteClicks = gscPageRows.reduce((sum, row) => sum + row.clicks, 0);
-  const siteImpressions = gscPageRows.reduce((sum, row) => sum + row.impressions, 0);
+  const siteImpressions = gscPageRows.reduce(
+    (sum, row) => sum + row.impressions,
+    0,
+  );
 
   send(response, {
     status: 200,

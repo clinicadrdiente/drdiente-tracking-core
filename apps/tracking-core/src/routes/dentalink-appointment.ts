@@ -13,7 +13,10 @@ export async function handleDentalinkAppointment(
   const idempotencyKey = `appointment_${event.appointmentId}`;
   const claimed = await stateStore.claimPaymentProcessed(idempotencyKey);
   if (!claimed) {
-    return { status: "duplicate" as const, reason: "appointment already processed" };
+    return {
+      status: "duplicate" as const,
+      reason: "appointment already processed",
+    };
   }
 
   try {
@@ -26,7 +29,10 @@ export async function handleDentalinkAppointment(
     const match = matchPatientToLead(patient, candidates);
 
     if (match.status === "linked" && match.elevatorId) {
-      await dentalinkClient.setPatientElevatorId(patient.patientId, match.elevatorId);
+      await dentalinkClient.setPatientElevatorId(
+        patient.patientId,
+        match.elevatorId,
+      );
       await elevatorClient.updateLeadStage(match.elevatorId, "agendo");
     }
 

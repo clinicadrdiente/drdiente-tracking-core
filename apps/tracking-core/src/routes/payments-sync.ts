@@ -9,7 +9,11 @@ import {
   markPaymentsProcessed,
 } from "../modules/state/payment-sync.js";
 import type { StateStore } from "../modules/state/state-store.js";
-import type { DentalinkPatient, LeadInput, PaymentEvent } from "../types/domain.js";
+import type {
+  DentalinkPatient,
+  LeadInput,
+  PaymentEvent,
+} from "../types/domain.js";
 
 export async function handlePaymentsSync(
   dentalinkClient: DentalinkClient,
@@ -21,7 +25,10 @@ export async function handlePaymentsSync(
   maxPayments?: number,
   elevatorEvents?: ElevatorEventsDispatcher,
 ) {
-  const payments = await dentalinkClient.listRecentPayments(sinceIso, maxPayments);
+  const payments = await dentalinkClient.listRecentPayments(
+    sinceIso,
+    maxPayments,
+  );
   const unprocessedPayments = await filterUnprocessedPayments(
     stateStore,
     payments,
@@ -78,7 +85,10 @@ export async function handlePaymentsSync(
         firstPaymentAt: payment.paidAt,
         lastPaymentAt: payment.paidAt,
         patientId: payment.patientId,
-        patientName: [patient.firstName, patient.lastName].filter(Boolean).join(" ") || payment.patientName || null,
+        patientName:
+          [patient.firstName, patient.lastName].filter(Boolean).join(" ") ||
+          payment.patientName ||
+          null,
         branch: payment.branch ?? patient.branch ?? null,
       });
     }

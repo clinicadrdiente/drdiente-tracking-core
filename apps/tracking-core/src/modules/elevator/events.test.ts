@@ -78,7 +78,9 @@ describe("buildElevatorEventPayload", () => {
   });
 
   it("handles Refund events", () => {
-    const payload = buildElevatorEventPayload(makeEvent({ eventName: "Refund" }));
+    const payload = buildElevatorEventPayload(
+      makeEvent({ eventName: "Refund" }),
+    );
     expect(payload.event_name).toBe("Refund");
   });
 

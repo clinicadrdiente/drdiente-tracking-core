@@ -84,16 +84,23 @@ export function mapPaymentRecord(
     budgetTotal: hasTreatmentBudget ? treatment.budgetTotal : paymentAmount,
     currency: treatment.currency ?? "MXN",
     isVoided: readBooleanish(record, config.paymentVoidedField),
-    paidAt: readString(record, config.paymentDateField) ?? new Date().toISOString(),
+    paidAt:
+      readString(record, config.paymentDateField) ?? new Date().toISOString(),
   };
 }
 
-export function buildTreatmentsByPatientQuery(patientIdField: string, patientId: number): string {
+export function buildTreatmentsByPatientQuery(
+  patientIdField: string,
+  patientId: number,
+): string {
   const filter = JSON.stringify({ [patientIdField]: { value: patientId } });
   return `q=${encodeURIComponent(filter)}`;
 }
 
-export function buildPaymentsQuery(dateField: string, sinceIso: string): string {
+export function buildPaymentsQuery(
+  dateField: string,
+  sinceIso: string,
+): string {
   const filter = JSON.stringify({
     [dateField]: { gte: toDentalinkDateTime(sinceIso) },
   });
@@ -107,13 +114,13 @@ function toDentalinkDateTime(isoDate: string): string {
     return isoDate;
   }
 
-  return date.toISOString().replace("T", " ").replace(/\.\d{3}Z$/, "");
+  return date
+    .toISOString()
+    .replace("T", " ")
+    .replace(/\.\d{3}Z$/, "");
 }
 
-function readRecord(
-  record: DentalinkRecord,
-  key: string,
-): DentalinkRecord {
+function readRecord(record: DentalinkRecord, key: string): DentalinkRecord {
   const value = record[key];
   return typeof value === "object" && value !== null
     ? (value as DentalinkRecord)

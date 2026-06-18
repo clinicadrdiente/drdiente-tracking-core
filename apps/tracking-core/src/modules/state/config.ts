@@ -18,7 +18,8 @@ export function getStateStoreConfig(): StateStoreConfig {
   // Auto-enable redis if KV credentials are present and no explicit mode is set
   const hasRedisCredentials = Boolean(redisRestUrl && redisRestToken);
   const mode =
-    (requestedMode === "redis" || (!requestedMode && hasRedisCredentials)) && hasRedisCredentials
+    (requestedMode === "redis" || (!requestedMode && hasRedisCredentials)) &&
+    hasRedisCredentials
       ? "redis"
       : requestedMode === "memory"
         ? "memory"
@@ -27,19 +28,22 @@ export function getStateStoreConfig(): StateStoreConfig {
   // On Vercel, file mode is unsafe (ephemeral /tmp). Fall back to memory so the
   // dashboard stays functional; payment dedup and daily reports won't persist
   // across cold starts until Redis is properly configured.
-  const resolvedMode = process.env.VERCEL === "1" && mode === "file" ? "memory" : mode;
+  const resolvedMode =
+    process.env.VERCEL === "1" && mode === "file" ? "memory" : mode;
   if (resolvedMode === "memory" && mode === "file") {
     console.warn(
       "[state-store] Running on Vercel without Redis — falling back to memory mode. " +
-      "Configure UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN for persistence.",
+        "Configure UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN for persistence.",
     );
   }
 
   return {
     mode: resolvedMode,
-    filePath: process.env.STATE_STORE_FILE_PATH ?? ".runtime/payment-sync-state.json",
+    filePath:
+      process.env.STATE_STORE_FILE_PATH ?? ".runtime/payment-sync-state.json",
     redisRestUrl,
     redisRestToken,
-    redisKeyPrefix: process.env.STATE_STORE_REDIS_KEY_PREFIX ?? "drdiente:tracking",
+    redisKeyPrefix:
+      process.env.STATE_STORE_REDIS_KEY_PREFIX ?? "drdiente:tracking",
   };
 }

@@ -7,12 +7,7 @@ import {
   MinusIcon,
   Scale3dIcon,
 } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 
@@ -70,7 +65,9 @@ interface MonthMetrics {
 type LoadState = "idle" | "loading" | "ready" | "error";
 
 export function Comparativas({ secret }: { secret: string }) {
-  const [monthA, setMonthA] = useState<string>(() => shiftMonth(currentMonthKey(), -1));
+  const [monthA, setMonthA] = useState<string>(() =>
+    shiftMonth(currentMonthKey(), -1),
+  );
   const [monthB, setMonthB] = useState<string>(() => currentMonthKey());
   const [metricsA, setMetricsA] = useState<MonthMetrics | null>(null);
   const [metricsB, setMetricsB] = useState<MonthMetrics | null>(null);
@@ -149,7 +146,9 @@ export function Comparativas({ secret }: { secret: string }) {
     <div className="flex flex-col gap-5">
       <section className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <h1 className="font-semibold text-3xl tracking-tight">Comparativas</h1>
+          <h1 className="font-semibold text-3xl tracking-tight">
+            Comparativas
+          </h1>
           <Badge variant="secondary">mes vs mes</Badge>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -157,7 +156,9 @@ export function Comparativas({ secret }: { secret: string }) {
             aria-label="Mes A"
             className="h-9 w-40"
             max={currentMonthKey()}
-            onChange={(event) => event.target.value && setMonthA(event.target.value)}
+            onChange={(event) =>
+              event.target.value && setMonthA(event.target.value)
+            }
             type="month"
             value={monthA}
           />
@@ -166,7 +167,9 @@ export function Comparativas({ secret }: { secret: string }) {
             aria-label="Mes B"
             className="h-9 w-40"
             max={currentMonthKey()}
-            onChange={(event) => event.target.value && setMonthB(event.target.value)}
+            onChange={(event) =>
+              event.target.value && setMonthB(event.target.value)
+            }
             type="month"
             value={monthB}
           />
@@ -191,10 +194,21 @@ export function Comparativas({ secret }: { secret: string }) {
 
       {state === "ready" && enrichedA && enrichedB ? (
         <>
-          <KpiComparisonCard a={enrichedA} b={enrichedB} monthA={monthA} monthB={monthB} />
+          <KpiComparisonCard
+            a={enrichedA}
+            b={enrichedB}
+            monthA={monthA}
+            monthB={monthB}
+          />
           <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <ChannelComparisonCard metrics={enrichedA} title={monthLabel(monthA)} />
-            <ChannelComparisonCard metrics={enrichedB} title={monthLabel(monthB)} />
+            <ChannelComparisonCard
+              metrics={enrichedA}
+              title={monthLabel(monthA)}
+            />
+            <ChannelComparisonCard
+              metrics={enrichedB}
+              title={monthLabel(monthB)}
+            />
           </section>
           <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <CampaignsCard metrics={enrichedA} title={monthLabel(monthA)} />
@@ -228,8 +242,14 @@ function enrichWithRevenue(
     ...metrics,
     revenue,
     payments,
-    ctr: metrics.impressions > 0 ? (metrics.clicks / metrics.impressions) * 100 : 0,
-    cpm: metrics.impressions > 0 ? (metrics.spend / metrics.impressions) * 1000 : 0,
+    ctr:
+      metrics.impressions > 0
+        ? (metrics.clicks / metrics.impressions) * 100
+        : 0,
+    cpm:
+      metrics.impressions > 0
+        ? (metrics.spend / metrics.impressions) * 1000
+        : 0,
     cpc: metrics.clicks > 0 ? metrics.spend / metrics.clicks : 0,
     frequency: metrics.reach > 0 ? metrics.impressions / metrics.reach : 0,
     roas: metrics.spend > 0 ? revenue / metrics.spend : 0,
@@ -247,10 +267,26 @@ const KPI_DEFS: Array<{
   upIsGood: boolean;
 }> = [
   { key: "spend", label: "Inversion", format: formatMoney, upIsGood: false },
-  { key: "revenue", label: "Revenue (Dentalink)", format: formatMoney, upIsGood: true },
-  { key: "roas", label: "ROAS", hint: "revenue / inversion", format: formatRoas, upIsGood: true },
+  {
+    key: "revenue",
+    label: "Revenue (Dentalink)",
+    format: formatMoney,
+    upIsGood: true,
+  },
+  {
+    key: "roas",
+    label: "ROAS",
+    hint: "revenue / inversion",
+    format: formatRoas,
+    upIsGood: true,
+  },
   { key: "payments", label: "Pagos", format: formatInteger, upIsGood: true },
-  { key: "ticket", label: "Ticket promedio", format: formatMoney, upIsGood: true },
+  {
+    key: "ticket",
+    label: "Ticket promedio",
+    format: formatMoney,
+    upIsGood: true,
+  },
   {
     key: "costPerPayment",
     label: "Costo por pago (aprox CAC)",
@@ -258,7 +294,12 @@ const KPI_DEFS: Array<{
     format: formatMoney,
     upIsGood: false,
   },
-  { key: "impressions", label: "Impresiones", format: formatInteger, upIsGood: true },
+  {
+    key: "impressions",
+    label: "Impresiones",
+    format: formatInteger,
+    upIsGood: true,
+  },
   { key: "reach", label: "Alcance", format: formatInteger, upIsGood: true },
   {
     key: "frequency",
@@ -307,7 +348,8 @@ function KpiComparisonCard({
               {KPI_DEFS.map((def) => {
                 const valueA = Number(a[def.key]) || 0;
                 const valueB = Number(b[def.key]) || 0;
-                const delta = valueA !== 0 ? ((valueB - valueA) / valueA) * 100 : null;
+                const delta =
+                  valueA !== 0 ? ((valueB - valueA) / valueA) * 100 : null;
                 const improved =
                   delta === null ? null : def.upIsGood ? delta > 0 : delta < 0;
                 return (
@@ -320,7 +362,9 @@ function KpiComparisonCard({
                         </span>
                       ) : null}
                     </td>
-                    <td className="py-2.5 pr-3 tabular-nums">{def.format(valueA)}</td>
+                    <td className="py-2.5 pr-3 tabular-nums">
+                      {def.format(valueA)}
+                    </td>
                     <td className="py-2.5 pr-3 font-semibold tabular-nums">
                       {def.format(valueB)}
                     </td>
@@ -393,9 +437,14 @@ function ChannelComparisonCard({
             {metrics.bySource.map((source) => {
               const share = total > 0 ? (source.spend / total) * 100 : 0;
               return (
-                <div className="rounded-lg border bg-background/40 p-3" key={source.source}>
+                <div
+                  className="rounded-lg border bg-background/40 p-3"
+                  key={source.source}
+                >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="truncate font-medium capitalize">{source.source}</span>
+                    <span className="truncate font-medium capitalize">
+                      {source.source}
+                    </span>
                     <span className="font-semibold text-brand">
                       {formatMoney(source.spend)}
                     </span>
@@ -441,7 +490,10 @@ function CampaignsCard({
                 key={`${campaign.source}-${campaign.campaign}`}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="min-w-0 truncate font-medium" title={campaign.campaign}>
+                  <span
+                    className="min-w-0 truncate font-medium"
+                    title={campaign.campaign}
+                  >
                     {campaign.campaign}
                   </span>
                   <span className="shrink-0 font-semibold text-brand">
@@ -449,8 +501,8 @@ function CampaignsCard({
                   </span>
                 </div>
                 <p className="mt-1 text-muted-foreground text-xs capitalize">
-                  {campaign.source} · {formatInteger(campaign.clicks)} clicks · CPC{" "}
-                  {formatMoney(campaign.cpc)}
+                  {campaign.source} · {formatInteger(campaign.clicks)} clicks ·
+                  CPC {formatMoney(campaign.cpc)}
                 </p>
               </div>
             ))}
@@ -493,7 +545,12 @@ async function fetchMonthMetrics(
     if (!campaign) continue;
     const source = row.source?.trim() ?? "";
     const key = `${source}|${campaign}`;
-    const group = campaignGroups.get(key) ?? { campaign, source, spend: 0, clicks: 0 };
+    const group = campaignGroups.get(key) ?? {
+      campaign,
+      source,
+      spend: 0,
+      clicks: 0,
+    };
     group.spend += row.spend ?? 0;
     group.clicks += row.clicks ?? 0;
     campaignGroups.set(key, group);
@@ -547,9 +604,10 @@ function monthDateRange(monthKey: string): { from: string; to: string } {
 function monthLabel(monthKey: string): string {
   const [yearStr, monthStr] = monthKey.split("-");
   const date = new Date(Number(yearStr), Number(monthStr) - 1, 1);
-  return new Intl.DateTimeFormat("es-MX", { month: "long", year: "numeric" }).format(
-    date,
-  );
+  return new Intl.DateTimeFormat("es-MX", {
+    month: "long",
+    year: "numeric",
+  }).format(date);
 }
 
 function formatMoney(value: number): string {

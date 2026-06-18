@@ -1,4 +1,8 @@
-import type { AppointmentEvent, AttributionData, LeadInput } from "../types/domain.js";
+import type {
+  AppointmentEvent,
+  AttributionData,
+  LeadInput,
+} from "../types/domain.js";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -34,7 +38,9 @@ export function parseLeadInput(body: unknown): LeadInput | null {
   }
 
   const rawUtmSource = asOptionalString(nested?.utmSource ?? flat.utm_source);
-  const firstTouchSource = asOptionalString(nested?.firstTouchSource ?? flat.first_touch_source);
+  const firstTouchSource = asOptionalString(
+    nested?.firstTouchSource ?? flat.first_touch_source,
+  );
 
   const attribution: AttributionData = {
     fbclid: asOptionalString(nested?.fbclid ?? flat.fbclid),

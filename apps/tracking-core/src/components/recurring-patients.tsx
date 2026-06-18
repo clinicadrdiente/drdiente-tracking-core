@@ -1,11 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronDownIcon, ChevronRightIcon, RefreshCwIcon, RepeatIcon } from "lucide-react";
+import {
+  ChevronDownIcon,
+  ChevronRightIcon,
+  RefreshCwIcon,
+  RepeatIcon,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface TreatmentRecord {
@@ -62,29 +73,51 @@ function PatientRow({ patient }: { patient: PatientSummary }) {
         type="button"
       >
         <span className="text-muted-foreground shrink-0">
-          {expanded ? <ChevronDownIcon className="size-4" /> : <ChevronRightIcon className="size-4" />}
+          {expanded ? (
+            <ChevronDownIcon className="size-4" />
+          ) : (
+            <ChevronRightIcon className="size-4" />
+          )}
         </span>
-        <span className="font-medium flex-1 truncate">{patient.patientName ?? `Paciente #${patient.patientId}`}</span>
-        <span className="text-muted-foreground text-sm hidden sm:block shrink-0">{patient.branch ?? "—"}</span>
-        <Badge variant={patient.treatmentCount >= 3 ? "default" : "secondary"} className="shrink-0">
-          {patient.treatmentCount} {patient.treatmentCount === 1 ? "tratamiento" : "tratamientos"}
+        <span className="font-medium flex-1 truncate">
+          {patient.patientName ?? `Paciente #${patient.patientId}`}
+        </span>
+        <span className="text-muted-foreground text-sm hidden sm:block shrink-0">
+          {patient.branch ?? "—"}
+        </span>
+        <Badge
+          variant={patient.treatmentCount >= 3 ? "default" : "secondary"}
+          className="shrink-0"
+        >
+          {patient.treatmentCount}{" "}
+          {patient.treatmentCount === 1 ? "tratamiento" : "tratamientos"}
         </Badge>
-        <span className="font-semibold text-sm shrink-0">{formatMoney(patient.totalBudget)}</span>
+        <span className="font-semibold text-sm shrink-0">
+          {formatMoney(patient.totalBudget)}
+        </span>
       </button>
 
       {expanded && (
         <div className="border-t bg-muted/20 px-4 py-3 space-y-2">
           <div className="text-xs text-muted-foreground mb-3">
-            Primer pago: {formatDate(patient.firstPaymentAt)} · Último: {formatDate(patient.lastPaymentAt)}
+            Primer pago: {formatDate(patient.firstPaymentAt)} · Último:{" "}
+            {formatDate(patient.lastPaymentAt)}
           </div>
           {patient.treatments.map((t) => (
-            <div key={t.treatmentId} className="flex items-center gap-3 text-sm">
+            <div
+              key={t.treatmentId}
+              className="flex items-center gap-3 text-sm"
+            >
               <span className="size-2 rounded-full bg-primary/60 shrink-0" />
-              <span className="flex-1 truncate">{t.treatmentName ?? `Tratamiento #${t.treatmentId}`}</span>
+              <span className="flex-1 truncate">
+                {t.treatmentName ?? `Tratamiento #${t.treatmentId}`}
+              </span>
               <span className="text-muted-foreground text-xs hidden sm:block shrink-0">
                 {formatDate(t.firstPaymentAt)}
               </span>
-              <span className="font-medium shrink-0">{formatMoney(t.budgetTotal)}</span>
+              <span className="font-medium shrink-0">
+                {formatMoney(t.budgetTotal)}
+              </span>
             </div>
           ))}
         </div>
@@ -107,12 +140,19 @@ export function RecurringPatients({ secret }: { secret: string }) {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/reports/patient-treatments?min_treatments=${min}`, {
-        headers: { "x-tracking-secret": secret.trim() },
-      });
-      const body = (await res.json()) as RecurringPatientsResponse | { error?: string };
+      const res = await fetch(
+        `/api/reports/patient-treatments?min_treatments=${min}`,
+        {
+          headers: { "x-tracking-secret": secret.trim() },
+        },
+      );
+      const body = (await res.json()) as
+        | RecurringPatientsResponse
+        | { error?: string };
       if (!res.ok || !("patients" in body)) {
-        throw new Error("error" in body ? body.error : "Error al cargar pacientes.");
+        throw new Error(
+          "error" in body ? body.error : "Error al cargar pacientes.",
+        );
       }
       setData(body);
     } catch (e) {
@@ -132,7 +172,8 @@ export function RecurringPatients({ secret }: { secret: string }) {
     void loadData(value);
   }
 
-  const totalBudget = data?.patients.reduce((sum, p) => sum + p.totalBudget, 0) ?? 0;
+  const totalBudget =
+    data?.patients.reduce((sum, p) => sum + p.totalBudget, 0) ?? 0;
 
   return (
     <div className="flex flex-col gap-4">
@@ -147,7 +188,10 @@ export function RecurringPatients({ secret }: { secret: string }) {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Select value={minTreatments} onValueChange={(v) => handleMinChange(v as "1" | "2" | "3")}>
+          <Select
+            value={minTreatments}
+            onValueChange={(v) => handleMinChange(v as "1" | "2" | "3")}
+          >
             <SelectTrigger className="w-48">
               <SelectValue />
             </SelectTrigger>
@@ -157,7 +201,13 @@ export function RecurringPatients({ secret }: { secret: string }) {
               <SelectItem value="3">≥ 3 tratamientos</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" size="icon" onClick={() => void loadData()} disabled={isLoading} aria-label="Actualizar">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => void loadData()}
+            disabled={isLoading}
+            aria-label="Actualizar"
+          >
             <RefreshCwIcon className={isLoading ? "animate-spin" : ""} />
           </Button>
         </div>
@@ -165,7 +215,9 @@ export function RecurringPatients({ secret }: { secret: string }) {
 
       {error && (
         <Card className="border-destructive/40">
-          <CardContent className="py-4 text-destructive text-sm">{error}</CardContent>
+          <CardContent className="py-4 text-destructive text-sm">
+            {error}
+          </CardContent>
         </Card>
       )}
 
@@ -173,7 +225,9 @@ export function RecurringPatients({ secret }: { secret: string }) {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Pacientes</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Pacientes
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-bold">{data.count}</p>
@@ -181,7 +235,9 @@ export function RecurringPatients({ secret }: { secret: string }) {
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Tratamientos totales</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Tratamientos totales
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-bold">
@@ -191,7 +247,9 @@ export function RecurringPatients({ secret }: { secret: string }) {
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Presupuesto total</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Presupuesto total
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-bold">{formatMoney(totalBudget)}</p>
@@ -203,7 +261,11 @@ export function RecurringPatients({ secret }: { secret: string }) {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">
-            {isLoading ? "Cargando..." : data ? `${data.count} pacientes encontrados` : "Pacientes"}
+            {isLoading
+              ? "Cargando..."
+              : data
+                ? `${data.count} pacientes encontrados`
+                : "Pacientes"}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
@@ -216,12 +278,14 @@ export function RecurringPatients({ secret }: { secret: string }) {
           )}
           {!isLoading && data?.patients.length === 0 && (
             <p className="text-muted-foreground text-sm py-4 text-center">
-              Aún no hay datos. Los tratamientos se acumulan automáticamente con cada sync de pagos.
+              Aún no hay datos. Los tratamientos se acumulan automáticamente con
+              cada sync de pagos.
             </p>
           )}
-          {!isLoading && data?.patients.map((patient) => (
-            <PatientRow key={patient.patientId} patient={patient} />
-          ))}
+          {!isLoading &&
+            data?.patients.map((patient) => (
+              <PatientRow key={patient.patientId} patient={patient} />
+            ))}
         </CardContent>
       </Card>
     </div>

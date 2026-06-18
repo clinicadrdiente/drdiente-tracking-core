@@ -29,7 +29,10 @@ export interface ElevatorConfig {
 export function getElevatorConfig(): ElevatorConfig {
   return {
     mode: getEnv("ELEVATOR_MODE", "stub") === "api" ? "api" : "stub",
-    baseUrl: getEnv("ELEVATOR_BASE_URL", "https://services.leadconnectorhq.com"),
+    baseUrl: getEnv(
+      "ELEVATOR_BASE_URL",
+      "https://services.leadconnectorhq.com",
+    ),
     apiKey: getEnv("ELEVATOR_API_KEY"),
     locationId: getEnv("ELEVATOR_LOCATION_ID"),
     apiVersion: getEnv("ELEVATOR_API_VERSION", "2021-07-28"),
@@ -39,10 +42,7 @@ export function getElevatorConfig(): ElevatorConfig {
       "ELEVATOR_DUPLICATE_SEARCH_PATH",
       "/contacts/search/duplicate",
     ),
-    stagePathTemplate: getEnv(
-      "ELEVATOR_STAGE_PATH_TEMPLATE",
-      "",
-    ),
+    stagePathTemplate: getEnv("ELEVATOR_STAGE_PATH_TEMPLATE", ""),
     idField: getEnv("ELEVATOR_ID_FIELD", "id"),
     phoneField: getEnv("ELEVATOR_PHONE_FIELD", "phone"),
     emailField: getEnv("ELEVATOR_EMAIL_FIELD", "email"),
@@ -50,7 +50,10 @@ export function getElevatorConfig(): ElevatorConfig {
     firstNameField: getEnv("ELEVATOR_FIRST_NAME_FIELD", "firstName"),
     lastNameField: getEnv("ELEVATOR_LAST_NAME_FIELD", "lastName"),
     stageField: getEnv("ELEVATOR_STAGE_FIELD", "stage"),
-    attributionFieldPrefix: getEnv("ELEVATOR_ATTRIBUTION_FIELD_PREFIX", "attr_"),
+    attributionFieldPrefix: getEnv(
+      "ELEVATOR_ATTRIBUTION_FIELD_PREFIX",
+      "attr_",
+    ),
     attributionContainer: getEnv("ELEVATOR_ATTRIBUTION_CONTAINER", ""),
   };
 }

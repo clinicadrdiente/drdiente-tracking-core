@@ -26,7 +26,10 @@ export default async function handler(
   methodNotAllowed(response);
 }
 
-async function handlePost(request: VercelRequest, response: VercelResponse): Promise<void> {
+async function handlePost(
+  request: VercelRequest,
+  response: VercelResponse,
+): Promise<void> {
   const authError = requireTrackingSecret(toHttpRequest(request));
   if (authError) {
     send(response, authError);
@@ -54,13 +57,18 @@ async function handlePost(request: VercelRequest, response: VercelResponse): Pro
       body: {
         ok: false,
         error: "failed to save daily report",
-        details: { message: error instanceof Error ? error.message : "unknown error" },
+        details: {
+          message: error instanceof Error ? error.message : "unknown error",
+        },
       },
     });
   }
 }
 
-async function handleGet(request: VercelRequest, response: VercelResponse): Promise<void> {
+async function handleGet(
+  request: VercelRequest,
+  response: VercelResponse,
+): Promise<void> {
   const authError = requireTrackingSecret(toHttpRequest(request));
   if (authError) {
     send(response, authError);
@@ -76,7 +84,10 @@ async function handleGet(request: VercelRequest, response: VercelResponse): Prom
   const to = readQueryString(request.query?.to) ?? today;
 
   try {
-    const reports = await trackingHttpHandlers.stateStore.listDailyReports(from, to);
+    const reports = await trackingHttpHandlers.stateStore.listDailyReports(
+      from,
+      to,
+    );
     send(response, { status: 200, body: { ok: true, reports } });
   } catch (error) {
     send(response, {
@@ -84,7 +95,9 @@ async function handleGet(request: VercelRequest, response: VercelResponse): Prom
       body: {
         ok: false,
         error: "failed to list daily reports",
-        details: { message: error instanceof Error ? error.message : "unknown error" },
+        details: {
+          message: error instanceof Error ? error.message : "unknown error",
+        },
       },
     });
   }

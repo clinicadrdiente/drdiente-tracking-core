@@ -12,7 +12,9 @@ export async function filterUnprocessedPayments(
   const unprocessed: PaymentEvent[] = [];
 
   for (const payment of payments) {
-    const processed = await stateStore.hasProcessedPayment(toPaymentKey(payment));
+    const processed = await stateStore.hasProcessedPayment(
+      toPaymentKey(payment),
+    );
     if (!processed) {
       unprocessed.push(payment);
     }

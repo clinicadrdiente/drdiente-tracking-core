@@ -78,7 +78,13 @@ const TREATMENT_KEYWORDS: Array<{ treatment: string; keywords: string[] }> = [
   },
   {
     treatment: "Turismo dental",
-    keywords: ["turismo", "tourism", "mexico-price", "mexico-cost", "dental-implants-mexico"],
+    keywords: [
+      "turismo",
+      "tourism",
+      "mexico-price",
+      "mexico-cost",
+      "dental-implants-mexico",
+    ],
   },
 ];
 
@@ -131,7 +137,12 @@ export function extractBlogPages(
  */
 export function joinSearchConsoleMetrics(
   pages: BlogPage[],
-  gscRows: Array<{ page: string | null; clicks: number; impressions: number; position: number | null }>,
+  gscRows: Array<{
+    page: string | null;
+    clicks: number;
+    impressions: number;
+    position: number | null;
+  }>,
 ): BlogPageWithMetrics[] {
   const byPath = new Map<
     string,
@@ -206,7 +217,8 @@ export interface BlogReportConfig {
 export function getBlogReportConfig(): BlogReportConfig {
   return {
     sitemapUrl:
-      process.env.BLOG_SITEMAP_URL ?? "https://www.clinicadrdiente.com/sitemap.xml",
+      process.env.BLOG_SITEMAP_URL ??
+      "https://www.clinicadrdiente.com/sitemap.xml",
     blogPathPrefix: process.env.BLOG_PATH_PREFIX ?? "/blog-drdiente/",
   };
 }

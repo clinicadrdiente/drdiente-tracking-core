@@ -2,12 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ModuleFrame } from "@/components/dashboard/module-frame";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatCompactCurrency, formatInteger } from "@/components/formater";
 import type { MarketingAttribution, MonthlyDashboard } from "@/types/dashboard";
@@ -98,7 +93,9 @@ function PlatformsTable({
         </CardHeader>
         <CardContent>
           <div className="rounded-lg border border-dashed p-6 text-center space-y-1">
-            <p className="text-sm font-medium text-muted-foreground">Sin datos de Windsor</p>
+            <p className="text-sm font-medium text-muted-foreground">
+              Sin datos de Windsor
+            </p>
             <p className="text-xs text-muted-foreground">{windsorError}</p>
           </div>
         </CardContent>
@@ -144,9 +141,15 @@ function PlatformsTable({
               {platforms.map((p) => (
                 <tr key={p.source} className="border-b last:border-0">
                   <td className="py-2 font-medium capitalize">{p.source}</td>
-                  <td className="py-2 text-right">{formatCompactCurrency(p.spend)}</td>
-                  <td className="py-2 text-right">{formatCompactNumber(p.impressions)}</td>
-                  <td className="py-2 text-right">{formatCompactNumber(p.reach)}</td>
+                  <td className="py-2 text-right">
+                    {formatCompactCurrency(p.spend)}
+                  </td>
+                  <td className="py-2 text-right">
+                    {formatCompactNumber(p.impressions)}
+                  </td>
+                  <td className="py-2 text-right">
+                    {formatCompactNumber(p.reach)}
+                  </td>
                   <td className="py-2 text-right">{formatInteger(p.clicks)}</td>
                 </tr>
               ))}
@@ -154,10 +157,18 @@ function PlatformsTable({
             <tfoot>
               <tr className="border-t font-semibold">
                 <td className="py-2">Total</td>
-                <td className="py-2 text-right">{formatCompactCurrency(totals.spend)}</td>
-                <td className="py-2 text-right">{formatCompactNumber(totals.impressions)}</td>
-                <td className="py-2 text-right">{formatCompactNumber(totals.reach)}</td>
-                <td className="py-2 text-right">{formatInteger(totals.clicks)}</td>
+                <td className="py-2 text-right">
+                  {formatCompactCurrency(totals.spend)}
+                </td>
+                <td className="py-2 text-right">
+                  {formatCompactNumber(totals.impressions)}
+                </td>
+                <td className="py-2 text-right">
+                  {formatCompactNumber(totals.reach)}
+                </td>
+                <td className="py-2 text-right">
+                  {formatInteger(totals.clicks)}
+                </td>
               </tr>
             </tfoot>
           </table>
@@ -175,8 +186,16 @@ type SpendState =
 
 const CHANNEL_ROWS = [
   { key: "marketing", label: "Marketing (digital)", barClass: "bg-brand" },
-  { key: "organico", label: "Orgánico (recomendación, paso, convenio)", barClass: "bg-muted-foreground/50" },
-  { key: "desconocido", label: "Sin identificar", barClass: "bg-muted-foreground/25" },
+  {
+    key: "organico",
+    label: "Orgánico (recomendación, paso, convenio)",
+    barClass: "bg-muted-foreground/50",
+  },
+  {
+    key: "desconocido",
+    label: "Sin identificar",
+    barClass: "bg-muted-foreground/25",
+  },
 ] as const;
 
 function AttributionRoasCard({
@@ -186,9 +205,13 @@ function AttributionRoasCard({
   data: MonthlyDashboard | null;
   secret: string;
 }) {
-  const attribution: MarketingAttribution | undefined = data?.marketingAttribution;
+  const attribution: MarketingAttribution | undefined =
+    data?.marketingAttribution;
   const window =
-    data?.range ?? (data?.month ? { days: null, fromIso: data.month.fromIso, toIso: data.month.toIso } : null);
+    data?.range ??
+    (data?.month
+      ? { days: null, fromIso: data.month.fromIso, toIso: data.month.toIso }
+      : null);
   const from = window?.fromIso.slice(0, 10) ?? null;
   const to = window?.toIso.slice(0, 10) ?? null;
 
@@ -231,12 +254,15 @@ function AttributionRoasCard({
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Atribución y ROAS (según Dentalink)</CardTitle>
+          <CardTitle className="text-base">
+            Atribución y ROAS (según Dentalink)
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="rounded-lg border border-dashed p-6 text-center">
             <p className="text-sm text-muted-foreground">
-              Presiona Actualizar en el dashboard para recalcular la atribución de pacientes.
+              Presiona Actualizar en el dashboard para recalcular la atribución
+              de pacientes.
             </p>
           </div>
         </CardContent>
@@ -250,12 +276,16 @@ function AttributionRoasCard({
   const roasGeneral =
     spend !== null && spend > 0 ? data.revenueTotal / spend : null;
   const periodLabel =
-    window !== null ? `${formatDayMonth(window.fromIso)} – ${formatDayMonth(window.toIso)}` : null;
+    window !== null
+      ? `${formatDayMonth(window.fromIso)} – ${formatDayMonth(window.toIso)}`
+      : null;
 
   return (
     <Card>
       <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
-        <CardTitle className="text-base">Atribución y ROAS (según Dentalink)</CardTitle>
+        <CardTitle className="text-base">
+          Atribución y ROAS (según Dentalink)
+        </CardTitle>
         {periodLabel ? (
           <Badge variant="secondary" className="text-xs font-normal">
             {periodLabel}
@@ -265,7 +295,9 @@ function AttributionRoasCard({
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <div className="rounded-lg border bg-background/50 p-4 flex flex-col gap-1">
-            <span className="text-xs text-muted-foreground">Pacientes de marketing</span>
+            <span className="text-xs text-muted-foreground">
+              Pacientes de marketing
+            </span>
             <span className="text-2xl font-bold tabular-nums">
               {formatInteger(attribution.marketing.patients)}
             </span>
@@ -274,16 +306,21 @@ function AttributionRoasCard({
             </span>
           </div>
           <div className="rounded-lg border bg-background/50 p-4 flex flex-col gap-1">
-            <span className="text-xs text-muted-foreground">Revenue de marketing</span>
+            <span className="text-xs text-muted-foreground">
+              Revenue de marketing
+            </span>
             <span className="text-2xl font-bold tabular-nums">
               {formatCompactCurrency(attribution.marketing.revenue)}
             </span>
             <span className="text-xs text-muted-foreground">
-              {formatPercentShare(attribution.marketing.share)} del revenue total
+              {formatPercentShare(attribution.marketing.share)} del revenue
+              total
             </span>
           </div>
           <div className="rounded-lg border bg-background/50 p-4 flex flex-col gap-1">
-            <span className="text-xs text-muted-foreground">Inversión del periodo</span>
+            <span className="text-xs text-muted-foreground">
+              Inversión del periodo
+            </span>
             <span className="text-2xl font-bold tabular-nums">
               {spendState.status === "loading"
                 ? "…"
@@ -300,7 +337,9 @@ function AttributionRoasCard({
             </span>
           </div>
           <div className="rounded-lg border border-brand/40 bg-brand/5 p-4 flex flex-col gap-1">
-            <span className="text-xs text-muted-foreground">ROAS marketing</span>
+            <span className="text-xs text-muted-foreground">
+              ROAS marketing
+            </span>
             <span className="text-2xl font-bold tabular-nums text-brand">
               {roasMarketing !== null ? formatRoas(roasMarketing) : "—"}
             </span>
@@ -328,7 +367,9 @@ function AttributionRoasCard({
                 <div className="mt-1 h-2 overflow-hidden rounded-full bg-muted">
                   <div
                     className={`h-full rounded-full ${barClass}`}
-                    style={{ width: `${Math.min(100, Math.max(bucket.share > 0 ? 3 : 0, bucket.share))}%` }}
+                    style={{
+                      width: `${Math.min(100, Math.max(bucket.share > 0 ? 3 : 0, bucket.share))}%`,
+                    }}
                   />
                 </div>
               </div>
@@ -361,9 +402,10 @@ function AttributionRoasCard({
         ) : null}
 
         <p className="text-xs text-muted-foreground">
-          Clasificación automática del campo "Referencia" de Dentalink: menciones a
-          internet, redes sociales o plataformas digitales cuentan como marketing,
-          aunque la nota mezcle otras fuentes (p. ej. "GOOGLE/RECOMENDACIÓN").
+          Clasificación automática del campo "Referencia" de Dentalink:
+          menciones a internet, redes sociales o plataformas digitales cuentan
+          como marketing, aunque la nota mezcle otras fuentes (p. ej.
+          "GOOGLE/RECOMENDACIÓN").
         </p>
       </CardContent>
     </Card>
@@ -379,16 +421,14 @@ function StatTile({ label, value }: StatTileProps) {
   return (
     <div className="rounded-lg border bg-background/50 p-4 flex flex-col gap-1">
       <span className="text-xs text-muted-foreground">{label}</span>
-      <span className="text-2xl font-bold tabular-nums">{formatInteger(value)}</span>
+      <span className="text-2xl font-bold tabular-nums">
+        {formatInteger(value)}
+      </span>
     </div>
   );
 }
 
-function ManualEffortsGrid({
-  manual,
-}: {
-  manual: ManualEfforts;
-}) {
+function ManualEffortsGrid({ manual }: { manual: ManualEfforts }) {
   const hasBranches = manual.reportingBranches > 0;
 
   return (
@@ -397,8 +437,10 @@ function ManualEffortsGrid({
         <CardTitle className="text-base">Esfuerzos operativos</CardTitle>
         {hasBranches ? (
           <Badge variant="secondary" className="text-xs font-normal">
-            Fuente: reportes diarios de sucursal ({manual.reportingBranches} sucursal
-            {manual.reportingBranches !== 1 ? "es" : ""}, {manual.daysWithReports} día
+            Fuente: reportes diarios de sucursal ({manual.reportingBranches}{" "}
+            sucursal
+            {manual.reportingBranches !== 1 ? "es" : ""},{" "}
+            {manual.daysWithReports} día
             {manual.daysWithReports !== 1 ? "s" : ""} reportados)
           </Badge>
         ) : null}
@@ -410,7 +452,8 @@ function ManualEffortsGrid({
               Ninguna sucursal ha reportado en este periodo.
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              Los reportes diarios se envían desde la sección "Reporte diario de sucursal".
+              Los reportes diarios se envían desde la sección "Reporte diario de
+              sucursal".
             </p>
           </div>
         ) : (
@@ -459,7 +502,10 @@ export function EffortsPanel({
       const res = await fetch(`/api/reports/efforts?rangeDays=${activeRange}`, {
         headers: { "x-tracking-secret": secret.trim() },
       });
-      const body = (await res.json()) as EffortsSummary & { ok?: boolean; error?: string };
+      const body = (await res.json()) as EffortsSummary & {
+        ok?: boolean;
+        error?: string;
+      };
       if (!res.ok || !("manual" in body)) {
         throw new Error(body.error ?? "No se pudo cargar esfuerzos.");
       }
@@ -480,7 +526,9 @@ export function EffortsPanel({
       <AttributionRoasCard data={dashboardData} secret={secret} />
 
       {isLoading ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">Cargando…</p>
+        <p className="py-8 text-center text-sm text-muted-foreground">
+          Cargando…
+        </p>
       ) : error ? (
         <div className="rounded-lg border border-dashed p-6 text-center">
           <p className="text-sm text-muted-foreground">{error}</p>
@@ -488,7 +536,9 @@ export function EffortsPanel({
       ) : data ? (
         <div className="space-y-4">
           {data.windsorPresetNote ? (
-            <p className="text-xs text-muted-foreground italic">{data.windsorPresetNote}</p>
+            <p className="text-xs text-muted-foreground italic">
+              {data.windsorPresetNote}
+            </p>
           ) : null}
           <PlatformsTable
             platforms={data.platforms}

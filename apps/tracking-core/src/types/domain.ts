@@ -107,10 +107,10 @@ export type LeadContactChannel =
   | "otro";
 
 export interface DailyBranchReport {
-  reportId: string;          // `${branch}_${date}` — natural key, one report per branch per day
+  reportId: string; // `${branch}_${date}` — natural key, one report per branch per day
   branch: string;
-  date: string;              // "YYYY-MM-DD"
-  submittedAt: string;       // ISO
+  date: string; // "YYYY-MM-DD"
+  submittedAt: string; // ISO
   contacts: Array<{ channel: LeadContactChannel; count: number }>;
   leadsReceived: number;
   leadsContacted: number;

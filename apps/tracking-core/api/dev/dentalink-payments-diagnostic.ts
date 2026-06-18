@@ -266,7 +266,10 @@ function describePaymentShape(
         type: describeValueType(payment[name]),
       })),
     expectedFields: {
-      [expectedFields.paymentIdField]: Object.hasOwn(payment, expectedFields.paymentIdField),
+      [expectedFields.paymentIdField]: Object.hasOwn(
+        payment,
+        expectedFields.paymentIdField,
+      ),
       [expectedFields.paymentPatientIdField]: Object.hasOwn(
         payment,
         expectedFields.paymentPatientIdField,
@@ -279,7 +282,10 @@ function describePaymentShape(
         payment,
         expectedFields.paymentAmountField,
       ),
-      [expectedFields.paymentDateField]: Object.hasOwn(payment, expectedFields.paymentDateField),
+      [expectedFields.paymentDateField]: Object.hasOwn(
+        payment,
+        expectedFields.paymentDateField,
+      ),
     },
   };
 }
@@ -319,26 +325,28 @@ async function describeRecentPayments(
   for (const payment of payments) {
     const patientId = readNumber(payment, config.paymentPatientIdField);
     const treatmentId = readNumber(payment, config.paymentTreatmentIdField);
-    const patient = patientId > 0
-      ? await fetchPatientDetails(
-          baseUrl,
-          apiAuthScheme,
-          apiToken,
-          config.patientsPathTemplate,
-          patientId,
-          config,
-        )
-      : null;
-    const treatment = treatmentId > 0
-      ? await fetchTreatmentDetails(
-          baseUrl,
-          apiAuthScheme,
-          apiToken,
-          config.treatmentsPathTemplate,
-          treatmentId,
-          config,
-        )
-      : null;
+    const patient =
+      patientId > 0
+        ? await fetchPatientDetails(
+            baseUrl,
+            apiAuthScheme,
+            apiToken,
+            config.patientsPathTemplate,
+            patientId,
+            config,
+          )
+        : null;
+    const treatment =
+      treatmentId > 0
+        ? await fetchTreatmentDetails(
+            baseUrl,
+            apiAuthScheme,
+            apiToken,
+            config.treatmentsPathTemplate,
+            treatmentId,
+            config,
+          )
+        : null;
 
     recentPayments.push(describeRecentPayment(payment, patient, treatment));
   }
@@ -462,7 +470,8 @@ function describeRecentPayment(
   return {
     id: readNumber(payment, "id"),
     patientId: readNumber(payment, "id_paciente"),
-    patientName: readString(payment, "nombre_paciente") ?? patient?.fullName ?? null,
+    patientName:
+      readString(payment, "nombre_paciente") ?? patient?.fullName ?? null,
     patientEmail: patient?.email ?? null,
     patientEmailStatus: patient?.emailStatus ?? "not_requested",
     patientPhone: patient?.phone ?? null,
@@ -487,7 +496,10 @@ function unwrapRecord(response: unknown): Record<string, unknown> {
   return isRecord(response) ? response : {};
 }
 
-function readString(record: Record<string, unknown>, key: string): string | null {
+function readString(
+  record: Record<string, unknown>,
+  key: string,
+): string | null {
   const value = record[key];
   return typeof value === "string" && value.trim() !== "" ? value : null;
 }

@@ -2,7 +2,11 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, resolve } from "node:path";
 import { getAppConfig } from "../../config/app-config.js";
-import type { DailyBranchReport, PatientTreatmentRecord, PatientTreatmentSummary } from "../../types/domain.js";
+import type {
+  DailyBranchReport,
+  PatientTreatmentRecord,
+  PatientTreatmentSummary,
+} from "../../types/domain.js";
 
 export interface PaymentSyncState {
   lastCheckIso?: string;
@@ -23,7 +27,10 @@ export interface StateStore {
   /** Upsert by reportId (same branch+date overwrites). */
   saveDailyReport(report: DailyBranchReport): Promise<void>;
   /** Reports with date in [fromDate, toDate] (inclusive, "YYYY-MM-DD"), newest first. */
-  listDailyReports(fromDate: string, toDate: string): Promise<DailyBranchReport[]>;
+  listDailyReports(
+    fromDate: string,
+    toDate: string,
+  ): Promise<DailyBranchReport[]>;
   /** Store the digital marketing source for a contact (phone or email). TTL: 90 days. */
   setContactLeadSource(contact: string, source: string): Promise<void>;
   getContactLeadSource(contact: string): Promise<string | null>;
@@ -31,7 +38,9 @@ export interface StateStore {
   /** Upsert a treatment for a patient. Dedupes by treatmentId; updates lastPaymentAt on subsequent calls. */
   recordPatientTreatment(record: PatientTreatmentRecord): Promise<void>;
   /** Patients sorted by treatmentCount desc. minTreatments defaults to 1 (all). */
-  listRecurringPatients(minTreatments?: number): Promise<PatientTreatmentSummary[]>;
+  listRecurringPatients(
+    minTreatments?: number,
+  ): Promise<PatientTreatmentSummary[]>;
 }
 
 export class InMemoryStateStore implements StateStore {
@@ -41,7 +50,8 @@ export class InMemoryStateStore implements StateStore {
   private heartbeats: Map<string, string> = new Map();
   private dailyReports: Map<string, DailyBranchReport> = new Map();
   private contactLeadSources: Map<string, string> = new Map();
-  private patientTreatments: Map<number, Map<number, PatientTreatmentRecord>> = new Map();
+  private patientTreatments: Map<number, Map<number, PatientTreatmentRecord>> =
+    new Map();
 
   async getPaymentSyncState(): Promise<PaymentSyncState> {
     return {
@@ -83,7 +93,9 @@ export class InMemoryStateStore implements StateStore {
 
   async releasePaymentClaim(paymentId: string): Promise<void> {
     this.paymentSyncState.processedPaymentIds =
-      this.paymentSyncState.processedPaymentIds.filter((id) => id !== paymentId);
+      this.paymentSyncState.processedPaymentIds.filter(
+        (id) => id !== paymentId,
+      );
   }
 
   async writeHeartbeat(key: string, isoTimestamp: string): Promise<void> {
@@ -98,7 +110,10 @@ export class InMemoryStateStore implements StateStore {
     this.dailyReports.set(report.reportId, { ...report });
   }
 
-  async listDailyReports(fromDate: string, toDate: string): Promise<DailyBranchReport[]> {
+  async listDailyReports(
+    fromDate: string,
+    toDate: string,
+  ): Promise<DailyBranchReport[]> {
     return Array.from(this.dailyReports.values())
       .filter((r) => r.date >= fromDate && r.date <= toDate)
       .sort((a, b) => b.date.localeCompare(a.date));
@@ -112,7 +127,9 @@ export class InMemoryStateStore implements StateStore {
     return this.contactLeadSources.get(contact) ?? null;
   }
 
-  async batchGetContactLeadSources(contacts: string[]): Promise<Map<string, string>> {
+  async batchGetContactLeadSources(
+    contacts: string[],
+  ): Promise<Map<string, string>> {
     const result = new Map<string, string>();
     for (const contact of contacts) {
       const source = this.contactLeadSources.get(contact);
@@ -130,12 +147,19 @@ export class InMemoryStateStore implements StateStore {
     const existing = byTreatment.get(record.treatmentId);
     byTreatment.set(record.treatmentId, {
       ...record,
-      firstPaymentAt: existing ? existing.firstPaymentAt : record.firstPaymentAt,
-      lastPaymentAt: record.lastPaymentAt > (existing?.lastPaymentAt ?? "") ? record.lastPaymentAt : (existing?.lastPaymentAt ?? record.lastPaymentAt),
+      firstPaymentAt: existing
+        ? existing.firstPaymentAt
+        : record.firstPaymentAt,
+      lastPaymentAt:
+        record.lastPaymentAt > (existing?.lastPaymentAt ?? "")
+          ? record.lastPaymentAt
+          : (existing?.lastPaymentAt ?? record.lastPaymentAt),
     });
   }
 
-  async listRecurringPatients(minTreatments = 1): Promise<PatientTreatmentSummary[]> {
+  async listRecurringPatients(
+    minTreatments = 1,
+  ): Promise<PatientTreatmentSummary[]> {
     return buildSummaries(this.patientTreatments, minTreatments);
   }
 }
@@ -197,30 +221,38 @@ export class FileStateStore implements StateStore {
   async writeHeartbeat(key: string, isoTimestamp: string): Promise<void> {
     const state = await this.readRawState();
     (state as Record<string, unknown>).heartbeats = {
-      ...((state as Record<string, unknown>).heartbeats as Record<string, string> | undefined ?? {}),
+      ...(((state as Record<string, unknown>).heartbeats as
+        | Record<string, string>
+        | undefined) ?? {}),
       [key]: isoTimestamp,
     };
     await this.writeRawState(state as Record<string, unknown>);
   }
 
   async readHeartbeat(key: string): Promise<string | null> {
-    const state = await this.readRawState() as Record<string, unknown>;
+    const state = (await this.readRawState()) as Record<string, unknown>;
     const heartbeats = state.heartbeats as Record<string, string> | undefined;
     return heartbeats?.[key] ?? null;
   }
 
   async saveDailyReport(report: DailyBranchReport): Promise<void> {
     const state = await this.readRawState();
-    const existing = (state.dailyReports as Record<string, DailyBranchReport> | undefined) ?? {};
+    const existing =
+      (state.dailyReports as Record<string, DailyBranchReport> | undefined) ??
+      {};
     existing[report.reportId] = report;
     state.dailyReports = existing;
     await this.writeRawState(state);
   }
 
-  async listDailyReports(fromDate: string, toDate: string): Promise<DailyBranchReport[]> {
+  async listDailyReports(
+    fromDate: string,
+    toDate: string,
+  ): Promise<DailyBranchReport[]> {
     const state = await this.readRawState();
     const reports = Object.values(
-      (state.dailyReports as Record<string, DailyBranchReport> | undefined) ?? {},
+      (state.dailyReports as Record<string, DailyBranchReport> | undefined) ??
+        {},
     ) as DailyBranchReport[];
     return reports
       .filter((r) => r.date >= fromDate && r.date <= toDate)
@@ -229,21 +261,25 @@ export class FileStateStore implements StateStore {
 
   async setContactLeadSource(contact: string, source: string): Promise<void> {
     const state = await this.readRawState();
-    const existing = (state.contactLeadSources as Record<string, string> | undefined) ?? {};
+    const existing =
+      (state.contactLeadSources as Record<string, string> | undefined) ?? {};
     existing[contact] = source;
     state.contactLeadSources = existing;
     await this.writeRawState(state);
   }
 
   async getContactLeadSource(contact: string): Promise<string | null> {
-    const state = await this.readRawState() as Record<string, unknown>;
+    const state = (await this.readRawState()) as Record<string, unknown>;
     const map = state.contactLeadSources as Record<string, string> | undefined;
     return map?.[contact] ?? null;
   }
 
-  async batchGetContactLeadSources(contacts: string[]): Promise<Map<string, string>> {
-    const state = await this.readRawState() as Record<string, unknown>;
-    const map = state.contactLeadSources as Record<string, string> | undefined ?? {};
+  async batchGetContactLeadSources(
+    contacts: string[],
+  ): Promise<Map<string, string>> {
+    const state = (await this.readRawState()) as Record<string, unknown>;
+    const map =
+      (state.contactLeadSources as Record<string, string> | undefined) ?? {};
     const result = new Map<string, string>();
     for (const contact of contacts) {
       if (map[contact]) result.set(contact, map[contact]);
@@ -253,23 +289,36 @@ export class FileStateStore implements StateStore {
 
   async recordPatientTreatment(record: PatientTreatmentRecord): Promise<void> {
     const state = await this.readRawState();
-    const all = (state.patientTreatments as Record<string, Record<string, PatientTreatmentRecord>> | undefined) ?? {};
+    const all =
+      (state.patientTreatments as
+        | Record<string, Record<string, PatientTreatmentRecord>>
+        | undefined) ?? {};
     const pid = String(record.patientId);
     const tid = String(record.treatmentId);
     const existing = all[pid]?.[tid];
     all[pid] = all[pid] ?? {};
     all[pid][tid] = {
       ...record,
-      firstPaymentAt: existing ? existing.firstPaymentAt : record.firstPaymentAt,
-      lastPaymentAt: record.lastPaymentAt > (existing?.lastPaymentAt ?? "") ? record.lastPaymentAt : (existing?.lastPaymentAt ?? record.lastPaymentAt),
+      firstPaymentAt: existing
+        ? existing.firstPaymentAt
+        : record.firstPaymentAt,
+      lastPaymentAt:
+        record.lastPaymentAt > (existing?.lastPaymentAt ?? "")
+          ? record.lastPaymentAt
+          : (existing?.lastPaymentAt ?? record.lastPaymentAt),
     };
     state.patientTreatments = all;
     await this.writeRawState(state);
   }
 
-  async listRecurringPatients(minTreatments = 1): Promise<PatientTreatmentSummary[]> {
+  async listRecurringPatients(
+    minTreatments = 1,
+  ): Promise<PatientTreatmentSummary[]> {
     const state = await this.readRawState();
-    const all = (state.patientTreatments as Record<string, Record<string, PatientTreatmentRecord>> | undefined) ?? {};
+    const all =
+      (state.patientTreatments as
+        | Record<string, Record<string, PatientTreatmentRecord>>
+        | undefined) ?? {};
     const asMap = new Map<number, Map<number, PatientTreatmentRecord>>();
     for (const [pid, treatments] of Object.entries(all)) {
       const inner = new Map<number, PatientTreatmentRecord>();
@@ -380,7 +429,10 @@ export class RedisStateStore implements StateStore {
   }
 
   async hasProcessedPayment(paymentId: string): Promise<boolean> {
-    const r = await this.command<number>(["EXISTS", this.processedKey(paymentId)]);
+    const r = await this.command<number>([
+      "EXISTS",
+      this.processedKey(paymentId),
+    ]);
     return r === 1;
   }
 
@@ -422,15 +474,28 @@ export class RedisStateStore implements StateStore {
   }
 
   async saveDailyReport(report: DailyBranchReport): Promise<void> {
-    await this.command(["HSET", this.dailyReportsKey, report.reportId, JSON.stringify(report)]);
+    await this.command([
+      "HSET",
+      this.dailyReportsKey,
+      report.reportId,
+      JSON.stringify(report),
+    ]);
   }
 
-  async listDailyReports(fromDate: string, toDate: string): Promise<DailyBranchReport[]> {
-    const raw = await this.command<Record<string, string> | null>(["HGETALL", this.dailyReportsKey]);
+  async listDailyReports(
+    fromDate: string,
+    toDate: string,
+  ): Promise<DailyBranchReport[]> {
+    const raw = await this.command<Record<string, string> | null>([
+      "HGETALL",
+      this.dailyReportsKey,
+    ]);
     if (!raw || typeof raw !== "object") {
       return [];
     }
-    const reports = Object.values(raw).map((v) => JSON.parse(v) as DailyBranchReport);
+    const reports = Object.values(raw).map(
+      (v) => JSON.parse(v) as DailyBranchReport,
+    );
     return reports
       .filter((r) => r.date >= fromDate && r.date <= toDate)
       .sort((a, b) => b.date.localeCompare(a.date));
@@ -446,7 +511,9 @@ export class RedisStateStore implements StateStore {
     return await this.command<string | null>(["GET", key]);
   }
 
-  async batchGetContactLeadSources(contacts: string[]): Promise<Map<string, string>> {
+  async batchGetContactLeadSources(
+    contacts: string[],
+  ): Promise<Map<string, string>> {
     if (contacts.length === 0) return new Map();
     const keys = contacts.map((c) => `${this.stateKey}:contact-source:${c}`);
     const values = await this.command<(string | null)[]>(["MGET", ...keys]);
@@ -462,28 +529,54 @@ export class RedisStateStore implements StateStore {
 
   async recordPatientTreatment(record: PatientTreatmentRecord): Promise<void> {
     const hashKey = `${this.stateKey}:patient-treatments:${record.patientId}`;
-    const existing = await this.command<string | null>(["HGET", hashKey, String(record.treatmentId)]);
-    const prev = existing ? (JSON.parse(existing) as PatientTreatmentRecord) : null;
+    const existing = await this.command<string | null>([
+      "HGET",
+      hashKey,
+      String(record.treatmentId),
+    ]);
+    const prev = existing
+      ? (JSON.parse(existing) as PatientTreatmentRecord)
+      : null;
     const toStore: PatientTreatmentRecord = {
       ...record,
       firstPaymentAt: prev ? prev.firstPaymentAt : record.firstPaymentAt,
-      lastPaymentAt: record.lastPaymentAt > (prev?.lastPaymentAt ?? "") ? record.lastPaymentAt : (prev?.lastPaymentAt ?? record.lastPaymentAt),
+      lastPaymentAt:
+        record.lastPaymentAt > (prev?.lastPaymentAt ?? "")
+          ? record.lastPaymentAt
+          : (prev?.lastPaymentAt ?? record.lastPaymentAt),
     };
     await Promise.all([
-      this.command(["HSET", hashKey, String(record.treatmentId), JSON.stringify(toStore)]),
-      this.command(["SADD", this.patientTreatmentsIndexKey, String(record.patientId)]),
+      this.command([
+        "HSET",
+        hashKey,
+        String(record.treatmentId),
+        JSON.stringify(toStore),
+      ]),
+      this.command([
+        "SADD",
+        this.patientTreatmentsIndexKey,
+        String(record.patientId),
+      ]),
     ]);
   }
 
-  async listRecurringPatients(minTreatments = 1): Promise<PatientTreatmentSummary[]> {
-    const patientIds = await this.command<string[]>(["SMEMBERS", this.patientTreatmentsIndexKey]);
+  async listRecurringPatients(
+    minTreatments = 1,
+  ): Promise<PatientTreatmentSummary[]> {
+    const patientIds = await this.command<string[]>([
+      "SMEMBERS",
+      this.patientTreatmentsIndexKey,
+    ]);
     if (!Array.isArray(patientIds) || patientIds.length === 0) return [];
 
     const asMap = new Map<number, Map<number, PatientTreatmentRecord>>();
     await Promise.all(
       patientIds.map(async (pid) => {
         const hashKey = `${this.stateKey}:patient-treatments:${pid}`;
-        const raw = await this.command<Record<string, string> | null>(["HGETALL", hashKey]);
+        const raw = await this.command<Record<string, string> | null>([
+          "HGETALL",
+          hashKey,
+        ]);
         if (!raw || typeof raw !== "object") return;
         const inner = new Map<number, PatientTreatmentRecord>();
         for (const [tid, json] of Object.entries(raw)) {
@@ -533,7 +626,9 @@ function buildSummaries(
   for (const [patientId, byTreatment] of map.entries()) {
     const treatments = Array.from(byTreatment.values());
     if (treatments.length < minTreatments) continue;
-    const sorted = [...treatments].sort((a, b) => a.firstPaymentAt.localeCompare(b.firstPaymentAt));
+    const sorted = [...treatments].sort((a, b) =>
+      a.firstPaymentAt.localeCompare(b.firstPaymentAt),
+    );
     summaries.push({
       patientId,
       patientName: treatments[0].patientName,
@@ -542,13 +637,21 @@ function buildSummaries(
       treatmentCount: treatments.length,
       totalBudget: treatments.reduce((sum, t) => sum + t.budgetTotal, 0),
       firstPaymentAt: sorted[0].firstPaymentAt,
-      lastPaymentAt: treatments.reduce((max, t) => t.lastPaymentAt > max ? t.lastPaymentAt : max, ""),
+      lastPaymentAt: treatments.reduce(
+        (max, t) => (t.lastPaymentAt > max ? t.lastPaymentAt : max),
+        "",
+      ),
     });
   }
-  return summaries.sort((a, b) => b.treatmentCount - a.treatmentCount || b.totalBudget - a.totalBudget);
+  return summaries.sort(
+    (a, b) =>
+      b.treatmentCount - a.treatmentCount || b.totalBudget - a.totalBudget,
+  );
 }
 
-function parsePaymentSyncState(value: string | null): Pick<PaymentSyncState, "lastCheckIso"> {
+function parsePaymentSyncState(
+  value: string | null,
+): Pick<PaymentSyncState, "lastCheckIso"> {
   if (!value) {
     return {};
   }

@@ -47,25 +47,43 @@ export function getDentalinkConfig(): DentalinkConfig {
     ),
     apiToken: getEnv("DENTALINK_API_TOKEN"),
     apiAuthScheme: getEnv("DENTALINK_API_AUTH_SCHEME", "Token"),
-    patientsPathTemplate: getEnv("DENTALINK_PATIENTS_PATH_TEMPLATE", "/pacientes/{id}"),
+    patientsPathTemplate: getEnv(
+      "DENTALINK_PATIENTS_PATH_TEMPLATE",
+      "/pacientes/{id}",
+    ),
     paymentsPath: getEnv("DENTALINK_PAYMENTS_PATH", "/pagos/"),
     treatmentsPathTemplate: getEnv(
       "DENTALINK_TREATMENTS_PATH_TEMPLATE",
       "/tratamientos/{id}",
     ),
-    treatmentsListPath: getEnv("DENTALINK_TREATMENTS_LIST_PATH", "/tratamientos/"),
-    treatmentPatientIdField: getEnv("DENTALINK_TREATMENT_PATIENT_ID_FIELD", "id_paciente"),
+    treatmentsListPath: getEnv(
+      "DENTALINK_TREATMENTS_LIST_PATH",
+      "/tratamientos/",
+    ),
+    treatmentPatientIdField: getEnv(
+      "DENTALINK_TREATMENT_PATIENT_ID_FIELD",
+      "id_paciente",
+    ),
     patientUpdatePathTemplate: getEnv(
       "DENTALINK_PATIENT_UPDATE_PATH_TEMPLATE",
       "/pacientes/{id}",
     ),
     patientIdField: getEnv("DENTALINK_PATIENT_ID_FIELD", "id"),
-    patientFirstNameField: getEnv("DENTALINK_PATIENT_FIRST_NAME_FIELD", "nombre"),
-    patientLastNameField: getEnv("DENTALINK_PATIENT_LAST_NAME_FIELD", "apellido"),
+    patientFirstNameField: getEnv(
+      "DENTALINK_PATIENT_FIRST_NAME_FIELD",
+      "nombre",
+    ),
+    patientLastNameField: getEnv(
+      "DENTALINK_PATIENT_LAST_NAME_FIELD",
+      "apellido",
+    ),
     patientPhoneField: getEnv("DENTALINK_PATIENT_PHONE_FIELD", "telefono"),
     patientEmailField: getEnv("DENTALINK_PATIENT_EMAIL_FIELD", "email"),
     patientBranchField: getEnv("DENTALINK_PATIENT_BRANCH_FIELD", "sucursal"),
-    patientReferenceField: getEnv("DENTALINK_PATIENT_REFERENCE_FIELD", "referencia"),
+    patientReferenceField: getEnv(
+      "DENTALINK_PATIENT_REFERENCE_FIELD",
+      "referencia",
+    ),
     paymentIdField: getEnv("DENTALINK_PAYMENT_ID_FIELD", "id"),
     paymentPatientIdField: getEnv(
       "DENTALINK_PAYMENT_PATIENT_ID_FIELD",

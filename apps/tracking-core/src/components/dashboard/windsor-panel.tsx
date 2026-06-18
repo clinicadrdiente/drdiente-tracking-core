@@ -22,7 +22,11 @@ function formatInteger(value: number) {
   }).format(value);
 }
 
-function WindsorAccountsCard({ accounts }: { accounts: WindsorAccountsResult }) {
+function WindsorAccountsCard({
+  accounts,
+}: {
+  accounts: WindsorAccountsResult;
+}) {
   const rows = accounts.accounts ?? [];
 
   return (
@@ -32,7 +36,8 @@ function WindsorAccountsCard({ accounts }: { accounts: WindsorAccountsResult }) 
           <p className="font-medium">Cuentas detectadas por Windsor</p>
         </div>
         <Badge variant="secondary">
-          {formatInteger(rows.length)} cuentas · {formatInteger(accounts.rowCount ?? 0)} filas
+          {formatInteger(rows.length)} cuentas ·{" "}
+          {formatInteger(accounts.rowCount ?? 0)} filas
         </Badge>
       </div>
       {rows.length > 0 ? (
@@ -43,11 +48,17 @@ function WindsorAccountsCard({ accounts }: { accounts: WindsorAccountsResult }) 
                 <th className="px-4 py-3 text-left font-medium">Cuenta</th>
                 <th className="px-4 py-3 text-left font-medium">Account ID</th>
                 <th className="px-4 py-3 text-left font-medium">Ad Account</th>
-                <th className="px-4 py-3 text-left font-medium">Ad Account ID</th>
-                <th className="px-4 py-3 text-left font-medium">Business manager</th>
+                <th className="px-4 py-3 text-left font-medium">
+                  Ad Account ID
+                </th>
+                <th className="px-4 py-3 text-left font-medium">
+                  Business manager
+                </th>
                 <th className="px-4 py-3 text-right font-medium">Spend</th>
                 <th className="px-4 py-3 text-right font-medium">Filas</th>
-                <th className="px-4 py-3 text-left font-medium">Campanas muestra</th>
+                <th className="px-4 py-3 text-left font-medium">
+                  Campanas muestra
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -84,8 +95,8 @@ function WindsorAccountsCard({ accounts }: { accounts: WindsorAccountsResult }) 
         </div>
       ) : (
         <p className="p-4 text-muted-foreground text-sm">
-          Windsor respondio, pero no devolvio campos de cuenta. Necesitamos ajustar
-          WINDSOR_DEFAULT_FIELDS segun el nombre real del campo.
+          Windsor respondio, pero no devolvio campos de cuenta. Necesitamos
+          ajustar WINDSOR_DEFAULT_FIELDS segun el nombre real del campo.
         </p>
       )}
     </div>
@@ -174,8 +185,14 @@ export function WindsorMarketingCard({
                   {summary?.configured === false ? "Pendiente" : "Conectado"}
                 </p>
                 <p className="mt-1 text-muted-foreground text-xs">
-                  {formatInteger(summary?.filteredRowCount ?? summary?.rows?.length ?? 0)} de{" "}
-                  {formatInteger(summary?.rawRowCount ?? summary?.rows?.length ?? 0)} filas
+                  {formatInteger(
+                    summary?.filteredRowCount ?? summary?.rows?.length ?? 0,
+                  )}{" "}
+                  de{" "}
+                  {formatInteger(
+                    summary?.rawRowCount ?? summary?.rows?.length ?? 0,
+                  )}{" "}
+                  filas
                 </p>
               </div>
               <div className="rounded-xl border bg-background/50 p-4">
@@ -238,19 +255,38 @@ export function WindsorMarketingCard({
                   <table className="w-full min-w-[860px] text-sm">
                     <thead className="sticky top-0 bg-card text-muted-foreground">
                       <tr className="border-b">
-                        <th className="px-4 py-3 text-left font-medium">Fuente</th>
-                        <th className="px-4 py-3 text-right font-medium">Spend</th>
-                        <th className="px-4 py-3 text-right font-medium">Clicks</th>
-                        <th className="px-4 py-3 text-right font-medium">Impresiones</th>
-                        <th className="px-4 py-3 text-right font-medium">Reach</th>
-                        <th className="px-4 py-3 text-right font-medium">Video views</th>
-                        <th className="px-4 py-3 text-right font-medium">Campanas</th>
+                        <th className="px-4 py-3 text-left font-medium">
+                          Fuente
+                        </th>
+                        <th className="px-4 py-3 text-right font-medium">
+                          Spend
+                        </th>
+                        <th className="px-4 py-3 text-right font-medium">
+                          Clicks
+                        </th>
+                        <th className="px-4 py-3 text-right font-medium">
+                          Impresiones
+                        </th>
+                        <th className="px-4 py-3 text-right font-medium">
+                          Reach
+                        </th>
+                        <th className="px-4 py-3 text-right font-medium">
+                          Video views
+                        </th>
+                        <th className="px-4 py-3 text-right font-medium">
+                          Campanas
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
                       {bySource.map((source) => (
-                        <tr className="border-b last:border-b-0" key={source.source}>
-                          <td className="px-4 py-3 font-medium">{source.source}</td>
+                        <tr
+                          className="border-b last:border-b-0"
+                          key={source.source}
+                        >
+                          <td className="px-4 py-3 font-medium">
+                            {source.source}
+                          </td>
                           <td className="px-4 py-3 text-right text-brand">
                             {formatMoney(source.spend)}
                           </td>

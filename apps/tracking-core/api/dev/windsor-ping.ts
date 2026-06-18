@@ -6,7 +6,10 @@ import {
   type VercelResponse,
 } from "../_lib/http.js";
 import { requireTrackingSecret } from "../../src/http/auth.js";
-import { createWindsorClient, WindsorRequestError } from "../../src/modules/windsor/client.js";
+import {
+  createWindsorClient,
+  WindsorRequestError,
+} from "../../src/modules/windsor/client.js";
 import { getWindsorConfig } from "../../src/modules/windsor/config.js";
 
 export default async function handler(

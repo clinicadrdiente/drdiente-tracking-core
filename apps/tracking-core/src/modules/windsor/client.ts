@@ -117,7 +117,10 @@ export class WindsorClient {
   }
 
   async listConnectors(): Promise<unknown> {
-    const url = new URL("list_connectors", normalizeBaseUrl(this.config.baseUrl));
+    const url = new URL(
+      "list_connectors",
+      normalizeBaseUrl(this.config.baseUrl),
+    );
     if (this.config.apiKey) {
       url.searchParams.set("api_key", this.config.apiKey);
     }
@@ -130,7 +133,8 @@ export class WindsorClient {
   ): Promise<WindsorMarketingSummary> {
     const dateOptions = normalizeDateOptions(options);
     const connector = this.config.defaultConnector;
-    const resolvedDatePreset = dateOptions.datePreset ?? this.config.defaultDatePreset;
+    const resolvedDatePreset =
+      dateOptions.datePreset ?? this.config.defaultDatePreset;
     const url = new URL(connector, normalizeBaseUrl(this.config.baseUrl));
     url.searchParams.set("api_key", this.config.apiKey);
     url.searchParams.set("fields", this.config.defaultFields.join(","));
@@ -139,7 +143,9 @@ export class WindsorClient {
 
     const body = await this.request(url);
     const rawRows = readRows(body).map(normalizeMarketingRow);
-    const rows = rawRows.filter((row) => rowMatchesTextFilters(row, this.config));
+    const rows = rawRows.filter((row) =>
+      rowMatchesTextFilters(row, this.config),
+    );
 
     return {
       connector,
@@ -201,7 +207,8 @@ export class WindsorClient {
   ): Promise<WindsorSearchConsoleReport> {
     const connector = "searchconsole";
     const dateOptions = normalizeDateOptions(options);
-    const resolvedDatePreset = dateOptions.datePreset ?? this.config.defaultDatePreset;
+    const resolvedDatePreset =
+      dateOptions.datePreset ?? this.config.defaultDatePreset;
     const url = new URL(connector, normalizeBaseUrl(this.config.baseUrl));
     url.searchParams.set("api_key", this.config.apiKey);
     url.searchParams.set(
@@ -219,7 +226,8 @@ export class WindsorClient {
       dimension: options.dimension,
       dateFrom: dateOptions.dateFrom ?? null,
       dateTo: dateOptions.dateTo ?? null,
-      datePreset: dateOptions.dateFrom && dateOptions.dateTo ? null : resolvedDatePreset,
+      datePreset:
+        dateOptions.dateFrom && dateOptions.dateTo ? null : resolvedDatePreset,
       rowCount: rows.length,
       rows,
       totals: {
@@ -300,7 +308,12 @@ function aggregateSearchConsoleRows(
 ): WindsorSearchConsoleRow[] {
   const groups = new Map<
     string,
-    { clicks: number; impressions: number; positionSum: number; positionCount: number }
+    {
+      clicks: number;
+      impressions: number;
+      positionSum: number;
+      positionCount: number;
+    }
   >();
 
   for (const raw of rawRows) {
@@ -348,7 +361,9 @@ function readRows(body: unknown): Record<string, unknown>[] {
   return [];
 }
 
-function normalizeMarketingRow(row: Record<string, unknown>): WindsorMarketingRow {
+function normalizeMarketingRow(
+  row: Record<string, unknown>,
+): WindsorMarketingRow {
   return {
     date: readString(row, "date"),
     datasource: readString(row, "datasource"),
@@ -405,7 +420,9 @@ function rowMatchesTextFilters(
   return hasIncludeMatch && !hasExcludeMatch;
 }
 
-function summarizeBySource(rows: WindsorMarketingRow[]): WindsorSourceSummary[] {
+function summarizeBySource(
+  rows: WindsorMarketingRow[],
+): WindsorSourceSummary[] {
   const groups = new Map<string, WindsorMarketingRow[]>();
 
   for (const row of rows) {
@@ -420,35 +437,41 @@ function summarizeBySource(rows: WindsorMarketingRow[]): WindsorSourceSummary[] 
       source,
       spend: sourceRows.reduce((sum, row) => sum + (row.spend ?? 0), 0),
       clicks: sourceRows.reduce((sum, row) => sum + (row.clicks ?? 0), 0),
-      impressions: sourceRows.reduce((sum, row) => sum + (row.impressions ?? 0), 0),
+      impressions: sourceRows.reduce(
+        (sum, row) => sum + (row.impressions ?? 0),
+        0,
+      ),
       reach: sourceRows.reduce((sum, row) => sum + (row.reach ?? 0), 0),
       videoTrueviewViews: sourceRows.reduce(
         (sum, row) => sum + (row.videoTrueviewViews ?? 0),
         0,
       ),
       campaigns: new Set(
-        sourceRows.map((row) => row.campaign).filter((campaign): campaign is string =>
-          Boolean(campaign),
-        ),
+        sourceRows
+          .map((row) => row.campaign)
+          .filter((campaign): campaign is string => Boolean(campaign)),
       ).size,
     }))
     .sort((a, b) => b.spend - a.spend);
 }
 
-function summarizeAccounts(rows: WindsorMarketingRow[]): WindsorAccountSummary[] {
+function summarizeAccounts(
+  rows: WindsorMarketingRow[],
+): WindsorAccountSummary[] {
   const groups = new Map<string, WindsorMarketingRow[]>();
 
   for (const row of rows) {
-    const key = [
-      row.accountId,
-      row.adAccountId,
-      row.businessManager,
-      row.accountName,
-      row.adAccountName,
-      row.source,
-    ]
-      .filter((value): value is string => Boolean(value))
-      .join(" | ") || "Sin cuenta detectada";
+    const key =
+      [
+        row.accountId,
+        row.adAccountId,
+        row.businessManager,
+        row.accountName,
+        row.adAccountName,
+        row.source,
+      ]
+        .filter((value): value is string => Boolean(value))
+        .join(" | ") || "Sin cuenta detectada";
     const accountRows = groups.get(key) ?? [];
     accountRows.push(row);
     groups.set(key, accountRows);
@@ -464,12 +487,21 @@ function summarizeAccounts(rows: WindsorMarketingRow[]): WindsorAccountSummary[]
         adAccountName: first.adAccountName ?? null,
         adAccountId: first.adAccountId ?? null,
         businessManager: first.businessManager ?? null,
-        sources: uniqueStrings(accountRows.map((row) => row.source)).slice(0, 10),
-        campaigns: uniqueStrings(accountRows.map((row) => row.campaign)).slice(0, 10),
+        sources: uniqueStrings(accountRows.map((row) => row.source)).slice(
+          0,
+          10,
+        ),
+        campaigns: uniqueStrings(accountRows.map((row) => row.campaign)).slice(
+          0,
+          10,
+        ),
         rows: accountRows.length,
         spend: accountRows.reduce((sum, row) => sum + (row.spend ?? 0), 0),
         clicks: accountRows.reduce((sum, row) => sum + (row.clicks ?? 0), 0),
-        impressions: accountRows.reduce((sum, row) => sum + (row.impressions ?? 0), 0),
+        impressions: accountRows.reduce(
+          (sum, row) => sum + (row.impressions ?? 0),
+          0,
+        ),
         reach: accountRows.reduce((sum, row) => sum + (row.reach ?? 0), 0),
         videoTrueviewViews: accountRows.reduce(
           (sum, row) => sum + (row.videoTrueviewViews ?? 0),
@@ -481,10 +513,15 @@ function summarizeAccounts(rows: WindsorMarketingRow[]): WindsorAccountSummary[]
 }
 
 function uniqueStrings(values: Array<string | null | undefined>): string[] {
-  return [...new Set(values.filter((value): value is string => Boolean(value)))];
+  return [
+    ...new Set(values.filter((value): value is string => Boolean(value))),
+  ];
 }
 
-function readString(record: Record<string, unknown>, key: string): string | null {
+function readString(
+  record: Record<string, unknown>,
+  key: string,
+): string | null {
   const value = record[key];
   return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
 }

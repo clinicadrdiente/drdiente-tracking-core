@@ -36,7 +36,11 @@ import { Badge } from "@/components/ui/badge";
 import { Delta, DeltaIcon, DeltaValue } from "@/components/delta";
 import { ModuleFrame } from "./module-frame";
 import { percentDelta } from "@/lib/date-ranges";
-import type { MonthlyDashboard, PaymentBlock, DayBlock } from "@/types/dashboard";
+import type {
+  MonthlyDashboard,
+  PaymentBlock,
+  DayBlock,
+} from "@/types/dashboard";
 
 const chartConfig = {
   revenue: {
@@ -65,18 +69,14 @@ function formatInteger(value: number) {
 }
 
 function formatPercent(value: number) {
-  return new Intl.NumberFormat("es-MX", {
-    maximumFractionDigits: 1,
-  }).format(value) + "%";
+  return (
+    new Intl.NumberFormat("es-MX", {
+      maximumFractionDigits: 1,
+    }).format(value) + "%"
+  );
 }
 
-export function HeroMetric({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+export function HeroMetric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border bg-background/55 p-4 backdrop-blur">
       <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
@@ -106,7 +106,9 @@ export function StatCard({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="font-semibold text-3xl tabular-nums tracking-tight">{value}</p>
+        <p className="font-semibold text-3xl tabular-nums tracking-tight">
+          {value}
+        </p>
       </CardContent>
       <CardFooter className="gap-1.5 text-xs">
         <Delta value={delta} variant="default">
@@ -119,7 +121,13 @@ export function StatCard({
   );
 }
 
-function KpiDelta({ current, previous }: { current: number; previous: number | undefined }) {
+function KpiDelta({
+  current,
+  previous,
+}: {
+  current: number;
+  previous: number | undefined;
+}) {
   if (previous === undefined) return null;
   const delta = percentDelta(current, previous);
   if (delta === null) {
@@ -148,7 +156,10 @@ export function StatsGrid({
         hint={
           <span className="flex items-center gap-1">
             {data?.month?.label ?? "Mes actual"}
-            <KpiDelta current={data?.revenueTotal ?? 0} previous={cmp?.revenueTotal} />
+            <KpiDelta
+              current={data?.revenueTotal ?? 0}
+              previous={cmp?.revenueTotal}
+            />
           </span>
         }
         label="Revenue total"
@@ -159,7 +170,10 @@ export function StatsGrid({
         hint={
           <span className="flex items-center gap-1">
             Pagos Dentalink
-            <KpiDelta current={data?.paymentsTotal ?? 0} previous={cmp?.paymentsTotal} />
+            <KpiDelta
+              current={data?.paymentsTotal ?? 0}
+              previous={cmp?.paymentsTotal}
+            />
           </span>
         }
         label="Pagos"
@@ -170,7 +184,10 @@ export function StatsGrid({
         hint={
           <span className="flex items-center gap-1">
             Pacientes unicos
-            <KpiDelta current={data?.uniquePatientsTotal ?? 0} previous={cmp?.uniquePatientsTotal} />
+            <KpiDelta
+              current={data?.uniquePatientsTotal ?? 0}
+              previous={cmp?.uniquePatientsTotal}
+            />
           </span>
         }
         label="Pacientes"
@@ -181,7 +198,10 @@ export function StatsGrid({
         hint={
           <span className="flex items-center gap-1">
             Promedio por pago
-            <KpiDelta current={data?.averagePaymentValue ?? 0} previous={cmp?.averagePaymentValue} />
+            <KpiDelta
+              current={data?.averagePaymentValue ?? 0}
+              previous={cmp?.averagePaymentValue}
+            />
           </span>
         }
         label="Ticket promedio"
@@ -207,7 +227,10 @@ export function RevenueChart({
         <Badge variant="secondary">{data?.month?.label ?? "Sin datos"}</Badge>
       </CardHeader>
       <CardContent>
-        <ChartContainer className="aspect-auto h-72 w-full" config={chartConfig}>
+        <ChartContainer
+          className="aspect-auto h-72 w-full"
+          config={chartConfig}
+        >
           <AreaChart
             accessibilityLayer
             data={chartRows}
@@ -215,8 +238,16 @@ export function RevenueChart({
           >
             <defs>
               <linearGradient id="revenue-area" x1="0" x2="0" y1="0" y2="1">
-                <stop offset="0%" stopColor="var(--color-revenue)" stopOpacity={0.25} />
-                <stop offset="100%" stopColor="var(--color-revenue)" stopOpacity={0} />
+                <stop
+                  offset="0%"
+                  stopColor="var(--color-revenue)"
+                  stopOpacity={0.25}
+                />
+                <stop
+                  offset="100%"
+                  stopColor="var(--color-revenue)"
+                  stopOpacity={0}
+                />
               </linearGradient>
             </defs>
             <CartesianGrid horizontal={false} strokeDasharray="2 2" />
@@ -345,7 +376,9 @@ export function TreatmentListCard({ data }: { data: MonthlyDashboard | null }) {
                   key={treatment.category}
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <span className="truncate font-medium">{treatment.category}</span>
+                    <span className="truncate font-medium">
+                      {treatment.category}
+                    </span>
                     <span className="font-semibold text-brand">
                       {formatMoney(treatment.revenue)}
                     </span>
@@ -382,7 +415,7 @@ export function BranchRevenueCard({
 }) {
   const branches = data?.branchShare ?? [];
   const cmpBranchMap = new Map(
-    (comparison?.branchShare ?? []).map((b) => [b.branch, b])
+    (comparison?.branchShare ?? []).map((b) => [b.branch, b]),
   );
 
   return (
@@ -394,14 +427,17 @@ export function BranchRevenueCard({
         <div className="flex flex-col gap-3">
           {branches.length > 0 ? (
             branches.map((branch) => (
-              <div className="rounded-xl border bg-background/50 p-4" key={branch.branch}>
+              <div
+                className="rounded-xl border bg-background/50 p-4"
+                key={branch.branch}
+              >
                 <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                   <div>
                     <p className="font-semibold text-lg">{branch.branch}</p>
                     <p className="text-muted-foreground text-sm">
                       {formatInteger(branch.payments)} pagos ·{" "}
-                      {formatInteger(branch.uniquePatients)} pacientes · promedio{" "}
-                      {formatMoney(branch.averagePaymentValue)}
+                      {formatInteger(branch.uniquePatients)} pacientes ·
+                      promedio {formatMoney(branch.averagePaymentValue)}
                     </p>
                   </div>
                   <div className="text-left md:text-right">
@@ -413,29 +449,34 @@ export function BranchRevenueCard({
                     </p>
                   </div>
                 </div>
-                {cmpBranchMap.size > 0 && (() => {
-                  const cmpBranch = cmpBranchMap.get(branch.branch);
-                  const delta = cmpBranch ? percentDelta(branch.revenue, cmpBranch.revenue) : null;
-                  return (
-                    <div className="mt-2 flex items-center gap-2 text-muted-foreground text-xs">
-                      {cmpBranch !== undefined ? (
-                        <>
-                          <span>Anterior: {formatMoney(cmpBranch.revenue)}</span>
-                          {delta !== null ? (
-                            <Delta value={delta} variant="default">
-                              <DeltaIcon />
-                              <DeltaValue suffix="%" />
-                            </Delta>
-                          ) : (
-                            <span>nuevo</span>
-                          )}
-                        </>
-                      ) : (
-                        <span>Sin datos periodo anterior</span>
-                      )}
-                    </div>
-                  );
-                })()}
+                {cmpBranchMap.size > 0 &&
+                  (() => {
+                    const cmpBranch = cmpBranchMap.get(branch.branch);
+                    const delta = cmpBranch
+                      ? percentDelta(branch.revenue, cmpBranch.revenue)
+                      : null;
+                    return (
+                      <div className="mt-2 flex items-center gap-2 text-muted-foreground text-xs">
+                        {cmpBranch !== undefined ? (
+                          <>
+                            <span>
+                              Anterior: {formatMoney(cmpBranch.revenue)}
+                            </span>
+                            {delta !== null ? (
+                              <Delta value={delta} variant="default">
+                                <DeltaIcon />
+                                <DeltaValue suffix="%" />
+                              </Delta>
+                            ) : (
+                              <span>nuevo</span>
+                            )}
+                          </>
+                        ) : (
+                          <span>Sin datos periodo anterior</span>
+                        )}
+                      </div>
+                    );
+                  })()}
                 <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
                   <div
                     className="h-full rounded-full bg-brand"
@@ -451,7 +492,10 @@ export function BranchRevenueCard({
                       <span className="truncate capitalize">
                         {(payment.patientName ?? "Paciente").toLowerCase()}
                         {payment.patientReference ? (
-                          <span className="text-muted-foreground"> · {payment.patientReference}</span>
+                          <span className="text-muted-foreground">
+                            {" "}
+                            · {payment.patientReference}
+                          </span>
                         ) : null}
                       </span>
                       <span className="shrink-0 font-medium">
@@ -481,7 +525,9 @@ export function DayRevenueBlock({ day }: { day: DayBlock }) {
           <p className="font-medium text-muted-foreground text-xs uppercase tracking-[0.2em]">
             Dia {day.day}
           </p>
-          <p className="mt-1 font-semibold text-xl">{formatMoney(day.revenue)}</p>
+          <p className="mt-1 font-semibold text-xl">
+            {formatMoney(day.revenue)}
+          </p>
         </div>
         <Badge variant={day.payments > 0 ? "default" : "secondary"}>
           {day.payments} pagos
@@ -510,7 +556,9 @@ export function DayRevenueBlock({ day }: { day: DayBlock }) {
                   .filter(Boolean)
                   .join(" · ");
                 return meta ? (
-                  <p className="mt-1 truncate text-muted-foreground text-xs">{meta}</p>
+                  <p className="mt-1 truncate text-muted-foreground text-xs">
+                    {meta}
+                  </p>
                 ) : null;
               })()}
             </div>
@@ -549,7 +597,9 @@ export function DayBlocksCard({ data }: { data: MonthlyDashboard | null }) {
             {skippedCount > 0 && (
               <p className="mt-3 text-center text-muted-foreground text-xs">
                 {skippedCount}{" "}
-                {skippedCount === 1 ? "día sin pagos omitido" : "días sin pagos omitidos"}
+                {skippedCount === 1
+                  ? "día sin pagos omitido"
+                  : "días sin pagos omitidos"}
               </p>
             )}
           </>
@@ -582,7 +632,10 @@ export function QuickPanel({ data }: { data: MonthlyDashboard | null }) {
               <ItemDescription>Dia 1 al ultimo dia del mes.</ItemDescription>
             </ItemContent>
             <ItemActions>
-              <ArrowRightIcon aria-hidden="true" className="size-4 text-muted-foreground" />
+              <ArrowRightIcon
+                aria-hidden="true"
+                className="size-4 text-muted-foreground"
+              />
             </ItemActions>
           </Item>
           <Item size="sm">
@@ -600,7 +653,9 @@ export function QuickPanel({ data }: { data: MonthlyDashboard | null }) {
             </ItemMedia>
             <ItemContent>
               <ItemTitle>Stape payload</ItemTitle>
-              <ItemDescription>Valor real, tratamiento e IDs internos.</ItemDescription>
+              <ItemDescription>
+                Valor real, tratamiento e IDs internos.
+              </ItemDescription>
             </ItemContent>
           </Item>
         </ItemGroup>
@@ -609,7 +664,10 @@ export function QuickPanel({ data }: { data: MonthlyDashboard | null }) {
             Tratamientos top
           </p>
           {topTreatments.map((treatment) => (
-            <div className="flex items-center justify-between gap-3 text-sm" key={treatment.category}>
+            <div
+              className="flex items-center justify-between gap-3 text-sm"
+              key={treatment.category}
+            >
               <span className="truncate">{treatment.category}</span>
               <span className="font-medium text-brand">
                 {formatMoney(treatment.revenue)}

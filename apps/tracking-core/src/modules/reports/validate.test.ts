@@ -25,7 +25,10 @@ describe("validateDailyReportInput", () => {
   });
 
   it("rejects bad date format", () => {
-    const result = validateDailyReportInput({ ...VALID_BODY, date: "10/06/2026" });
+    const result = validateDailyReportInput({
+      ...VALID_BODY,
+      date: "10/06/2026",
+    });
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error).toMatch(/date/);
@@ -33,7 +36,10 @@ describe("validateDailyReportInput", () => {
   });
 
   it("rejects negative counter", () => {
-    const result = validateDailyReportInput({ ...VALID_BODY, leadsReceived: -1 });
+    const result = validateDailyReportInput({
+      ...VALID_BODY,
+      leadsReceived: -1,
+    });
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error).toMatch(/leadsReceived/);
@@ -60,7 +66,10 @@ describe("validateDailyReportInput", () => {
   });
 
   it("trims branch whitespace", () => {
-    const result = validateDailyReportInput({ ...VALID_BODY, branch: "  Centro  " });
+    const result = validateDailyReportInput({
+      ...VALID_BODY,
+      branch: "  Centro  ",
+    });
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.input.branch).toBe("Centro");

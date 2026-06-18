@@ -38,7 +38,9 @@ function makePayment(overrides: Partial<PaymentEvent> = {}): PaymentEvent {
   };
 }
 
-function makePatient(overrides: Partial<DentalinkPatient> = {}): DentalinkPatient {
+function makePatient(
+  overrides: Partial<DentalinkPatient> = {},
+): DentalinkPatient {
   return {
     patientId: 700,
     firstName: "Paciente",
@@ -65,18 +67,29 @@ function makeLead(overrides: Partial<CanonicalLead> = {}): CanonicalLead {
   };
 }
 
-function makeDentalinkClient(payment: PaymentEvent, patient: DentalinkPatient): DentalinkClient {
+function makeDentalinkClient(
+  payment: PaymentEvent,
+  patient: DentalinkPatient,
+): DentalinkClient {
   return {
     async getPatient(_patientId: number): Promise<DentalinkPatient> {
       return patient;
     },
-    async setPatientElevatorId(_patientId: number, _elevatorId: string): Promise<void> {
+    async setPatientElevatorId(
+      _patientId: number,
+      _elevatorId: string,
+    ): Promise<void> {
       // no-op
     },
-    async listRecentPayments(_sinceIso: string, _limit?: number): Promise<PaymentEvent[]> {
+    async listRecentPayments(
+      _sinceIso: string,
+      _limit?: number,
+    ): Promise<PaymentEvent[]> {
       return [payment];
     },
-    async getPatientTreatments(_patientId: number): Promise<DentalinkTreatment[]> {
+    async getPatientTreatments(
+      _patientId: number,
+    ): Promise<DentalinkTreatment[]> {
       return [];
     },
   };
@@ -123,7 +136,9 @@ interface RecordingElevatorEvents extends ElevatorEventsDispatcher {
   received: ConversionEvent[];
 }
 
-function makeElevatorEvents(shouldThrow: () => boolean): RecordingElevatorEvents {
+function makeElevatorEvents(
+  shouldThrow: () => boolean,
+): RecordingElevatorEvents {
   const received: ConversionEvent[] = [];
   return {
     received,
@@ -157,9 +172,15 @@ describe("handlePaymentsSync purchase claim release", () => {
     expect(result.dispatched).toBe(1);
     expect(stape.received).toHaveLength(1);
     // Treatment claim remains held (re-claim attempt returns false).
-    expect(await stateStore.claimPaymentProcessed(`treatment_${payment.treatmentId}`)).toBe(false);
+    expect(
+      await stateStore.claimPaymentProcessed(
+        `treatment_${payment.treatmentId}`,
+      ),
+    ).toBe(false);
     // Payment row is marked processed.
-    expect(await stateStore.hasProcessedPayment(`payment_${payment.paymentId}`)).toBe(true);
+    expect(
+      await stateStore.hasProcessedPayment(`payment_${payment.paymentId}`),
+    ).toBe(true);
   });
 
   it("regression: total dispatch failure releases the claim and retries on the next sync", async () => {
@@ -188,9 +209,15 @@ describe("handlePaymentsSync purchase claim release", () => {
     expect(firstResult.elevatorEventsFailed).toBe(1);
     expect(failingStape.received).toHaveLength(0);
     // Payment row stays retryable (not marked processed).
-    expect(await stateStore.hasProcessedPayment(`payment_${payment.paymentId}`)).toBe(false);
+    expect(
+      await stateStore.hasProcessedPayment(`payment_${payment.paymentId}`),
+    ).toBe(false);
     // The purchase claim was released, so it can be re-claimed.
-    expect(await stateStore.claimPaymentProcessed(`treatment_${payment.treatmentId}`)).toBe(true);
+    expect(
+      await stateStore.claimPaymentProcessed(
+        `treatment_${payment.treatmentId}`,
+      ),
+    ).toBe(true);
     // Release it again so the retry sync can re-claim it itself.
     await stateStore.releasePaymentClaim(`treatment_${payment.treatmentId}`);
 
@@ -210,7 +237,9 @@ describe("handlePaymentsSync purchase claim release", () => {
 
     expect(secondResult.dispatched).toBe(1);
     expect(okStape.received).toHaveLength(1);
-    expect(await stateStore.hasProcessedPayment(`payment_${payment.paymentId}`)).toBe(true);
+    expect(
+      await stateStore.hasProcessedPayment(`payment_${payment.paymentId}`),
+    ).toBe(true);
   });
 
   it("voided path: total dispatch failure does not release a claim that was never made", async () => {
@@ -231,9 +260,11 @@ describe("handlePaymentsSync purchase claim release", () => {
       readHeartbeat: (key) => inner.readHeartbeat(key),
       saveDailyReport: (report) => inner.saveDailyReport(report),
       listDailyReports: (from, to) => inner.listDailyReports(from, to),
-      setContactLeadSource: (contact, source) => inner.setContactLeadSource(contact, source),
+      setContactLeadSource: (contact, source) =>
+        inner.setContactLeadSource(contact, source),
       getContactLeadSource: (contact) => inner.getContactLeadSource(contact),
-      batchGetContactLeadSources: (contacts) => inner.batchGetContactLeadSources(contacts),
+      batchGetContactLeadSources: (contacts) =>
+        inner.batchGetContactLeadSources(contacts),
       recordPatientTreatment: (record) => inner.recordPatientTreatment(record),
       listRecurringPatients: (min) => inner.listRecurringPatients(min),
     };

@@ -108,7 +108,9 @@ function normalizeReference(value: string): string {
     .trim();
 }
 
-export function classifyReference(reference: string | null): ReferenceClassification {
+export function classifyReference(
+  reference: string | null,
+): ReferenceClassification {
   const normalized = reference ? normalizeReference(reference) : "";
   if (!normalized) {
     return { channel: "desconocido", matchedKeyword: null };
@@ -170,7 +172,10 @@ export function buildMarketingAttribution(
 ): MarketingAttributionSummary {
   const totalRevenue = payments.reduce((sum, p) => sum + p.amount, 0);
 
-  const buckets: Record<ReferenceChannel, { patientIds: Set<number>; payments: number; revenue: number }> = {
+  const buckets: Record<
+    ReferenceChannel,
+    { patientIds: Set<number>; payments: number; revenue: number }
+  > = {
     marketing: { patientIds: new Set(), payments: 0, revenue: 0 },
     organico: { patientIds: new Set(), payments: 0, revenue: 0 },
     desconocido: { patientIds: new Set(), payments: 0, revenue: 0 },
@@ -194,7 +199,8 @@ export function buildMarketingAttribution(
     }
 
     if (channel === "marketing") {
-      const key = payment.digitalSource ?? payment.patientReference?.trim() ?? "";
+      const key =
+        payment.digitalSource ?? payment.patientReference?.trim() ?? "";
       const entry = marketingRefs.get(key) ?? {
         patientIds: new Set<number>(),
         payments: 0,

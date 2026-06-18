@@ -73,7 +73,11 @@ export const navGroups: SidebarNavGroup[] = [
         icon: <UsersIcon />,
         subItems: [
           { title: "Todos", path: "#/patients" },
-          { title: "Recurrentes", path: "#/pacientes-recurrentes", icon: <RepeatIcon /> },
+          {
+            title: "Recurrentes",
+            path: "#/pacientes-recurrentes",
+            icon: <RepeatIcon />,
+          },
         ],
       },
       {
@@ -92,7 +96,11 @@ export const navGroups: SidebarNavGroup[] = [
         icon: <CalendarDaysIcon />,
         subItems: [
           { title: "Pagos", path: "#/dentalink" },
-          { title: "Sin match", path: "#/dentalink/sin-match", icon: <UserXIcon /> },
+          {
+            title: "Sin match",
+            path: "#/dentalink/sin-match",
+            icon: <UserXIcon />,
+          },
         ],
       },
       {

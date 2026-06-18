@@ -1,4 +1,7 @@
-import { requireTrackingSecret, trackingHttpHandlers } from "../../src/index.js";
+import {
+  requireTrackingSecret,
+  trackingHttpHandlers,
+} from "../../src/index.js";
 import {
   methodNotAllowed,
   send,

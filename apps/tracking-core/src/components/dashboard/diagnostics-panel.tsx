@@ -10,13 +10,7 @@ import type {
   StapeTestResult,
 } from "@/types/dashboard";
 
-function FlowStep({
-  label,
-  title,
-}: {
-  label: string;
-  title: string;
-}) {
+function FlowStep({ label, title }: { label: string; title: string }) {
   return (
     <div className="rounded-xl border bg-background/50 p-4">
       <div className="flex items-center gap-3">
@@ -83,7 +77,9 @@ export function ReferenceDiagnosticCard({
                   <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
                     Campo configurado
                   </p>
-                  <p className="mt-2 font-semibold">{diagnostic.configuredPatientReferenceField}</p>
+                  <p className="mt-2 font-semibold">
+                    {diagnostic.configuredPatientReferenceField}
+                  </p>
                 </div>
                 <div className="rounded-xl border bg-background/50 p-4">
                   <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
@@ -99,7 +95,9 @@ export function ReferenceDiagnosticCard({
                   <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
                     Recomendacion
                   </p>
-                  <p className="mt-2 font-semibold">{diagnostic.recommendation}</p>
+                  <p className="mt-2 font-semibold">
+                    {diagnostic.recommendation}
+                  </p>
                 </div>
               </div>
 
@@ -112,7 +110,9 @@ export function ReferenceDiagnosticCard({
                     {detectedFields.join("\n")}
                   </pre>
                 ) : (
-                  <p className="text-muted-foreground text-sm">Sin candidatos.</p>
+                  <p className="text-muted-foreground text-sm">
+                    Sin candidatos.
+                  </p>
                 )}
               </div>
 
@@ -179,49 +179,49 @@ export function StapeTestCard({
 
         {error || result || realFlowError || realFlowResult ? (
           <div className="space-y-4">
-          {error ? (
-            <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-destructive text-sm">
-              {error}
-            </div>
-          ) : null}
-
-          {realFlowError ? (
-            <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-destructive text-sm">
-              {realFlowError}
-            </div>
-          ) : null}
-
-          {realFlowResult ? <RealFlowResult result={realFlowResult} /> : null}
-
-          {result ? (
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              <div className="rounded-xl border bg-background/50 p-4">
-                <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
-                  Stape demo
-                </p>
-                <p className="mt-2 font-semibold text-brand">
-                  Conexion activa
-                </p>
-                <details className="mt-3">
-                  <summary className="cursor-pointer text-sm">JSON</summary>
-                  <pre className="mt-3 max-h-44 overflow-auto whitespace-pre-wrap text-xs">
-                    {JSON.stringify(result.event, null, 2)}
-                  </pre>
-                </details>
+            {error ? (
+              <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-destructive text-sm">
+                {error}
               </div>
-              <div className="rounded-xl border bg-background/50 p-4">
-                <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
-                  Configuracion
-                </p>
-                <details className="mt-3">
-                  <summary className="cursor-pointer text-sm">JSON</summary>
-                  <pre className="mt-3 max-h-44 overflow-auto whitespace-pre-wrap text-xs">
-                    {JSON.stringify(result.ping, null, 2)}
-                  </pre>
-                </details>
+            ) : null}
+
+            {realFlowError ? (
+              <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-destructive text-sm">
+                {realFlowError}
               </div>
-            </div>
-          ) : null}
+            ) : null}
+
+            {realFlowResult ? <RealFlowResult result={realFlowResult} /> : null}
+
+            {result ? (
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div className="rounded-xl border bg-background/50 p-4">
+                  <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
+                    Stape demo
+                  </p>
+                  <p className="mt-2 font-semibold text-brand">
+                    Conexion activa
+                  </p>
+                  <details className="mt-3">
+                    <summary className="cursor-pointer text-sm">JSON</summary>
+                    <pre className="mt-3 max-h-44 overflow-auto whitespace-pre-wrap text-xs">
+                      {JSON.stringify(result.event, null, 2)}
+                    </pre>
+                  </details>
+                </div>
+                <div className="rounded-xl border bg-background/50 p-4">
+                  <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
+                    Configuracion
+                  </p>
+                  <details className="mt-3">
+                    <summary className="cursor-pointer text-sm">JSON</summary>
+                    <pre className="mt-3 max-h-44 overflow-auto whitespace-pre-wrap text-xs">
+                      {JSON.stringify(result.ping, null, 2)}
+                    </pre>
+                  </details>
+                </div>
+              </div>
+            ) : null}
           </div>
         ) : (
           <p className="text-muted-foreground text-sm">Sin prueba ejecutada.</p>
@@ -266,7 +266,13 @@ export function DiagnosticsPanel({
           ["Dentalink", "api"],
           ["Elevator", "api"],
           ["Stape", "stub"],
-          ["Secret local", typeof window !== "undefined" && window.localStorage.getItem("trackingSecret") ? "configurado" : "pendiente"],
+          [
+            "Secret local",
+            typeof window !== "undefined" &&
+            window.localStorage.getItem("trackingSecret")
+              ? "configurado"
+              : "pendiente",
+          ],
         ]}
         title="Configuracion"
       />

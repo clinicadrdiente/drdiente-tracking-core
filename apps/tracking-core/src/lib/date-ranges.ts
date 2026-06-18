@@ -4,7 +4,10 @@ export type RangeDays = 7 | 30 | 180;
  * The equal-length window immediately before {fromIso,toIso} (no overlap, no gap).
  * The returned window ends 1 ms before the given window starts and spans the same duration.
  */
-export function previousRange(range: { fromIso: string; toIso: string }): { fromIso: string; toIso: string } {
+export function previousRange(range: { fromIso: string; toIso: string }): {
+  fromIso: string;
+  toIso: string;
+} {
   const from = new Date(range.fromIso).getTime();
   const to = new Date(range.toIso).getTime();
   const durationMs = to - from;
@@ -35,11 +38,27 @@ export function trailingRange(
 ): { fromIso: string; toIso: string } {
   // toIso = end of today UTC
   const toDate = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999),
+    Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate(),
+      23,
+      59,
+      59,
+      999,
+    ),
   );
   // fromIso = start of (today - (days - 1)) UTC, so that the range spans exactly N days
   const fromDate = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - (days - 1), 0, 0, 0, 0),
+    Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate() - (days - 1),
+      0,
+      0,
+      0,
+      0,
+    ),
   );
   return {
     fromIso: fromDate.toISOString(),

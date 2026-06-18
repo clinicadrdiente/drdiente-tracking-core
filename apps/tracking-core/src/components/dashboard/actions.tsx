@@ -1,9 +1,5 @@
 import type { ReactNode } from "react";
-import {
-  CheckCircle2Icon,
-  RefreshCwIcon,
-  SendIcon,
-} from "lucide-react";
+import { CheckCircle2Icon, RefreshCwIcon, SendIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -113,7 +109,11 @@ function GuidedAction({
             <p className="mt-2 font-semibold">{title}</p>
           </div>
         </div>
-        <Button disabled={disabled} onClick={onClick} variant={tone === "done" ? "secondary" : "default"}>
+        <Button
+          disabled={disabled}
+          onClick={onClick}
+          variant={tone === "done" ? "secondary" : "default"}
+        >
           {actionLabel}
         </Button>
       </div>
@@ -203,7 +203,10 @@ export function OperationsResultCard({
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <SyncMetric label="Pagos" value={syncResult.paymentsFound} />
             <SyncMetric label="Creados" value={syncResult.createdLeads} />
-            <SyncMetric label="Existentes" value={syncResult.existingLeads ?? syncResult.alreadyProcessed} />
+            <SyncMetric
+              label="Existentes"
+              value={syncResult.existingLeads ?? syncResult.alreadyProcessed}
+            />
             <SyncMetric label="Listos Stape" value={syncResult.dispatched} />
           </div>
         ) : null}
@@ -244,7 +247,7 @@ export function ActionsPanel({
         onSendToElevator={onSendToElevator}
         syncResult={syncResult}
       />
-      {(syncError || realFlowError || syncResult || realFlowResult) ? (
+      {syncError || realFlowError || syncResult || realFlowResult ? (
         <OperationsResultCard
           realFlowError={realFlowError}
           realFlowResult={realFlowResult}

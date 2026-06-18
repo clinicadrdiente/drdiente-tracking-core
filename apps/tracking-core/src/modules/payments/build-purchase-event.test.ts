@@ -42,26 +42,46 @@ describe("buildPurchaseEvent", () => {
   });
 
   it("sets eventName to Purchase for a normal payment", () => {
-    const event = buildPurchaseEvent(makeLead(), makePayment({ isVoided: false }), "standard");
+    const event = buildPurchaseEvent(
+      makeLead(),
+      makePayment({ isVoided: false }),
+      "standard",
+    );
     expect(event.eventName).toBe("Purchase");
   });
 
   it("sets eventName to Refund for a voided payment", () => {
-    const event = buildPurchaseEvent(makeLead(), makePayment({ isVoided: true }), "standard");
+    const event = buildPurchaseEvent(
+      makeLead(),
+      makePayment({ isVoided: true }),
+      "standard",
+    );
     expect(event.eventName).toBe("Refund");
   });
 
   it("sets currency and value from payment", () => {
-    const event = buildPurchaseEvent(makeLead(), makePayment({ currency: "MXN", budgetTotal: 5000 }), "standard");
+    const event = buildPurchaseEvent(
+      makeLead(),
+      makePayment({ currency: "MXN", budgetTotal: 5000 }),
+      "standard",
+    );
     expect(event.customData.currency).toBe("MXN");
     expect(event.customData.value).toBe(5000);
   });
 
   it("passes tier through to customData", () => {
-    const eventStandard = buildPurchaseEvent(makeLead(), makePayment(), "standard");
+    const eventStandard = buildPurchaseEvent(
+      makeLead(),
+      makePayment(),
+      "standard",
+    );
     expect(eventStandard.customData.tier).toBe("standard");
 
-    const eventAlto = buildPurchaseEvent(makeLead(), makePayment(), "alto_ticket");
+    const eventAlto = buildPurchaseEvent(
+      makeLead(),
+      makePayment(),
+      "alto_ticket",
+    );
     expect(eventAlto.customData.tier).toBe("alto_ticket");
   });
 
@@ -71,14 +91,23 @@ describe("buildPurchaseEvent", () => {
   });
 
   it("populates userData from lead", () => {
-    const lead = makeLead({ emailNormalized: "ana@example.com", phoneNormalized: "525512345678" });
+    const lead = makeLead({
+      emailNormalized: "ana@example.com",
+      phoneNormalized: "525512345678",
+    });
     const event = buildPurchaseEvent(lead, makePayment(), "standard");
     expect(event.userData.em).toBe("ana@example.com");
     expect(event.userData.ph).toBe("525512345678");
   });
 
   it("sets eventTime as unix timestamp from paidAt", () => {
-    const event = buildPurchaseEvent(makeLead(), makePayment({ paidAt: "2026-06-10T10:00:00Z" }), "standard");
-    expect(event.eventTime).toBe(Math.floor(new Date("2026-06-10T10:00:00Z").getTime() / 1000));
+    const event = buildPurchaseEvent(
+      makeLead(),
+      makePayment({ paidAt: "2026-06-10T10:00:00Z" }),
+      "standard",
+    );
+    expect(event.eventTime).toBe(
+      Math.floor(new Date("2026-06-10T10:00:00Z").getTime() / 1000),
+    );
   });
 });

@@ -8,7 +8,9 @@ const STORAGE_KEY = "drdiente-theme";
 type Theme = "light" | "dark";
 
 function getInitialTheme(): Theme {
-  return window.localStorage.getItem(STORAGE_KEY) === "light" ? "light" : "dark";
+  return window.localStorage.getItem(STORAGE_KEY) === "light"
+    ? "light"
+    : "dark";
 }
 
 export function ThemeToggle() {
@@ -21,8 +23,12 @@ export function ThemeToggle() {
 
   return (
     <Button
-      aria-label={theme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
-      onClick={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}
+      aria-label={
+        theme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"
+      }
+      onClick={() =>
+        setTheme((current) => (current === "dark" ? "light" : "dark"))
+      }
       size="icon"
       title={theme === "dark" ? "Modo claro" : "Modo oscuro"}
       variant="ghost"

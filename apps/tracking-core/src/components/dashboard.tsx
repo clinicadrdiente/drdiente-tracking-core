@@ -2,10 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { RefreshCwIcon } from "lucide-react";
-import {
-  Card,
-  CardContent,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type {
@@ -21,20 +18,21 @@ import type {
 import { DashboardRoute } from "@/components/dashboard/dashboard-route";
 import { type ChartRow } from "@/components/dashboard/attribution-panel";
 
-
 const DASHBOARD_BROWSER_CACHE_KEY = "drdienteMonthlyDashboardCache";
 const DASHBOARD_BROWSER_CACHE_TTL_MS = 5 * 60 * 1000;
 
 export function Dashboard() {
-  const [secret, setSecret] = useState(() =>
-    window.localStorage.getItem("trackingSecret") ?? "",
+  const [secret, setSecret] = useState(
+    () => window.localStorage.getItem("trackingSecret") ?? "",
   );
   const [data, setData] = useState<MonthlyDashboard | null>(null);
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [route, setRoute] = useState(() => normalizeRoute(window.location.hash));
+  const [route, setRoute] = useState(() =>
+    normalizeRoute(window.location.hash),
+  );
   const [isSyncingToElevator, setIsSyncingToElevator] = useState(false);
   const [syncResult, setSyncResult] = useState<PaymentsSyncResult | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
@@ -45,26 +43,36 @@ export function Dashboard() {
     string | null
   >(null);
   const [isTestingStape, setIsTestingStape] = useState(false);
-  const [stapeTestResult, setStapeTestResult] = useState<StapeTestResult | null>(null);
+  const [stapeTestResult, setStapeTestResult] =
+    useState<StapeTestResult | null>(null);
   const [stapeTestError, setStapeTestError] = useState<string | null>(null);
   const [isTestingRealFlow, setIsTestingRealFlow] = useState(false);
-  const [realFlowResult, setRealFlowResult] = useState<PaymentsSyncResult | null>(null);
+  const [realFlowResult, setRealFlowResult] =
+    useState<PaymentsSyncResult | null>(null);
   const [realFlowError, setRealFlowError] = useState<string | null>(null);
   const [isTestingWindsor, setIsTestingWindsor] = useState(false);
-  const [windsorResult, setWindsorResult] = useState<WindsorTestResult | null>(null);
-  const [windsorError, setWindsorError] = useState<string | null>(null);
-  const [isDetectingWindsorAccounts, setIsDetectingWindsorAccounts] = useState(false);
-  const [windsorAccounts, setWindsorAccounts] =
-    useState<WindsorAccountsResult | null>(null);
-  const [windsorAccountsError, setWindsorAccountsError] = useState<string | null>(
+  const [windsorResult, setWindsorResult] = useState<WindsorTestResult | null>(
     null,
   );
-  const [cronHeartbeatStatus, setCronHeartbeatStatus] = useState<"ok" | "stale" | "unknown" | null>(null);
+  const [windsorError, setWindsorError] = useState<string | null>(null);
+  const [isDetectingWindsorAccounts, setIsDetectingWindsorAccounts] =
+    useState(false);
+  const [windsorAccounts, setWindsorAccounts] =
+    useState<WindsorAccountsResult | null>(null);
+  const [windsorAccountsError, setWindsorAccountsError] = useState<
+    string | null
+  >(null);
+  const [cronHeartbeatStatus, setCronHeartbeatStatus] = useState<
+    "ok" | "stale" | "unknown" | null
+  >(null);
   const [rangeDays, setRangeDays] = useState<7 | 30 | 180 | null>(null);
 
   async function loadDashboard(
     nextSecret = secret,
-    options: { skipBrowserCache?: boolean; rangeDaysOverride?: 7 | 30 | 180 | null } = {},
+    options: {
+      skipBrowserCache?: boolean;
+      rangeDaysOverride?: 7 | 30 | 180 | null;
+    } = {},
   ) {
     if (!nextSecret.trim()) {
       setError("Pega el TRACKING_API_SECRET para cargar datos reales.");
@@ -72,7 +80,9 @@ export function Dashboard() {
     }
 
     const activeRange: 7 | 30 | 180 | null =
-      "rangeDaysOverride" in options ? (options.rangeDaysOverride ?? null) : rangeDays;
+      "rangeDaysOverride" in options
+        ? (options.rangeDaysOverride ?? null)
+        : rangeDays;
 
     const cachedDashboard = options.skipBrowserCache
       ? null
@@ -96,10 +106,14 @@ export function Dashboard() {
           "x-tracking-secret": nextSecret.trim(),
         },
       });
-      const body = (await response.json()) as MonthlyDashboard | { error?: string };
+      const body = (await response.json()) as
+        | MonthlyDashboard
+        | { error?: string };
 
       if (!response.ok || !("days" in body)) {
-        throw new Error("error" in body ? body.error : "No se pudo cargar Dentalink.");
+        throw new Error(
+          "error" in body ? body.error : "No se pudo cargar Dentalink.",
+        );
       }
 
       window.localStorage.setItem("trackingSecret", nextSecret.trim());
@@ -107,7 +121,11 @@ export function Dashboard() {
       setData(body);
       void loadSystemStatus(nextSecret);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Error desconocido.");
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Error desconocido.",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -129,13 +147,17 @@ export function Dashboard() {
       const body = (await response.json()) as SystemStatus | { error?: string };
 
       if (!response.ok || !("config" in body)) {
-        throw new Error("error" in body ? body.error : "No se pudo cargar estado.");
+        throw new Error(
+          "error" in body ? body.error : "No se pudo cargar estado.",
+        );
       }
 
       setSystemStatus(body);
     } catch (requestError) {
       setStatusError(
-        requestError instanceof Error ? requestError.message : "Error desconocido.",
+        requestError instanceof Error
+          ? requestError.message
+          : "Error desconocido.",
       );
     }
   }
@@ -147,7 +169,9 @@ export function Dashboard() {
     }
 
     if (!data?.patients.length) {
-      setSyncError("Primero presiona Actualizar para cargar pacientes de Dentalink.");
+      setSyncError(
+        "Primero presiona Actualizar para cargar pacientes de Dentalink.",
+      );
       return;
     }
 
@@ -182,7 +206,9 @@ export function Dashboard() {
       window.localStorage.setItem("trackingSecret", secret.trim());
     } catch (requestError) {
       setSyncError(
-        requestError instanceof Error ? requestError.message : "Error desconocido.",
+        requestError instanceof Error
+          ? requestError.message
+          : "Error desconocido.",
       );
     } finally {
       setIsSyncingToElevator(false);
@@ -191,7 +217,9 @@ export function Dashboard() {
 
   async function diagnoseReferences() {
     if (!secret.trim()) {
-      setReferenceDiagnosticError("Pega el TRACKING_API_SECRET antes de diagnosticar.");
+      setReferenceDiagnosticError(
+        "Pega el TRACKING_API_SECRET antes de diagnosticar.",
+      );
       return;
     }
 
@@ -204,17 +232,23 @@ export function Dashboard() {
           "x-tracking-secret": secret.trim(),
         },
       });
-      const body = (await response.json()) as ReferenceDiagnostic | { error?: string };
+      const body = (await response.json()) as
+        | ReferenceDiagnostic
+        | { error?: string };
 
       if (!response.ok || !("catalogProbes" in body)) {
-        throw new Error("error" in body ? body.error : "No se pudo diagnosticar referencias.");
+        throw new Error(
+          "error" in body ? body.error : "No se pudo diagnosticar referencias.",
+        );
       }
 
       setReferenceDiagnostic(body);
       window.localStorage.setItem("trackingSecret", secret.trim());
     } catch (requestError) {
       setReferenceDiagnosticError(
-        requestError instanceof Error ? requestError.message : "Error desconocido.",
+        requestError instanceof Error
+          ? requestError.message
+          : "Error desconocido.",
       );
     } finally {
       setIsDiagnosingReferences(false);
@@ -239,7 +273,9 @@ export function Dashboard() {
       const pingBody = (await pingResponse.json()) as unknown;
 
       if (!pingResponse.ok) {
-        throw new Error(readErrorMessage(pingBody, "No se pudo validar Stape."));
+        throw new Error(
+          readErrorMessage(pingBody, "No se pudo validar Stape."),
+        );
       }
 
       const eventResponse = await fetch("/api/dev/test-stape", {
@@ -249,7 +285,9 @@ export function Dashboard() {
       const eventBody = (await eventResponse.json()) as unknown;
 
       if (!eventResponse.ok) {
-        throw new Error(readErrorMessage(eventBody, "No se pudo enviar evento demo."));
+        throw new Error(
+          readErrorMessage(eventBody, "No se pudo enviar evento demo."),
+        );
       }
 
       setStapeTestResult({
@@ -259,7 +297,9 @@ export function Dashboard() {
       window.localStorage.setItem("trackingSecret", secret.trim());
     } catch (requestError) {
       setStapeTestError(
-        requestError instanceof Error ? requestError.message : "Error desconocido.",
+        requestError instanceof Error
+          ? requestError.message
+          : "Error desconocido.",
       );
     } finally {
       setIsTestingStape(false);
@@ -268,7 +308,9 @@ export function Dashboard() {
 
   async function testRealConversionFlow() {
     if (!secret.trim()) {
-      setRealFlowError("Pega el TRACKING_API_SECRET antes de probar el flujo real.");
+      setRealFlowError(
+        "Pega el TRACKING_API_SECRET antes de probar el flujo real.",
+      );
       return;
     }
 
@@ -288,14 +330,18 @@ export function Dashboard() {
         | { error?: string; details?: { message?: string } };
 
       if (!response.ok || !("processed" in body)) {
-        throw new Error(readErrorMessage(body, "No se pudo probar el flujo real."));
+        throw new Error(
+          readErrorMessage(body, "No se pudo probar el flujo real."),
+        );
       }
 
       setRealFlowResult(body);
       window.localStorage.setItem("trackingSecret", secret.trim());
     } catch (requestError) {
       setRealFlowError(
-        requestError instanceof Error ? requestError.message : "Error desconocido.",
+        requestError instanceof Error
+          ? requestError.message
+          : "Error desconocido.",
       );
     } finally {
       setIsTestingRealFlow(false);
@@ -320,17 +366,26 @@ export function Dashboard() {
       const pingBody = (await pingResponse.json()) as unknown;
 
       if (!pingResponse.ok) {
-        throw new Error(readErrorMessage(pingBody, "No se pudo validar Windsor."));
+        throw new Error(
+          readErrorMessage(pingBody, "No se pudo validar Windsor."),
+        );
       }
 
-      const summaryResponse = await fetch("/api/dev/windsor-marketing-summary", {
-        headers,
-      });
-      const summaryBody = (await summaryResponse.json()) as WindsorMarketingSummary;
+      const summaryResponse = await fetch(
+        "/api/dev/windsor-marketing-summary",
+        {
+          headers,
+        },
+      );
+      const summaryBody =
+        (await summaryResponse.json()) as WindsorMarketingSummary;
 
       if (!summaryResponse.ok) {
         throw new Error(
-          readErrorMessage(summaryBody, "No se pudo leer el resumen de Windsor."),
+          readErrorMessage(
+            summaryBody,
+            "No se pudo leer el resumen de Windsor.",
+          ),
         );
       }
 
@@ -341,7 +396,9 @@ export function Dashboard() {
       window.localStorage.setItem("trackingSecret", secret.trim());
     } catch (requestError) {
       setWindsorError(
-        requestError instanceof Error ? requestError.message : "Error desconocido.",
+        requestError instanceof Error
+          ? requestError.message
+          : "Error desconocido.",
       );
     } finally {
       setIsTestingWindsor(false);
@@ -378,7 +435,9 @@ export function Dashboard() {
       window.localStorage.setItem("trackingSecret", secret.trim());
     } catch (requestError) {
       setWindsorAccountsError(
-        requestError instanceof Error ? requestError.message : "Error desconocido.",
+        requestError instanceof Error
+          ? requestError.message
+          : "Error desconocido.",
       );
     } finally {
       setIsDetectingWindsorAccounts(false);
@@ -407,7 +466,10 @@ export function Dashboard() {
 
     return () => {
       window.removeEventListener("hashchange", handleHashChange);
-      window.removeEventListener("drdiente:refresh-dashboard", handleRefreshRequest);
+      window.removeEventListener(
+        "drdiente:refresh-dashboard",
+        handleRefreshRequest,
+      );
     };
   }, [secret]);
 
@@ -457,7 +519,10 @@ export function Dashboard() {
           <CardContent className="py-4 text-muted-foreground text-sm">
             Configura el{" "}
             <code className="font-mono text-xs">TRACKING_API_SECRET</code> en{" "}
-            <a className="text-brand underline-offset-4 hover:underline" href="#/settings">
+            <a
+              className="text-brand underline-offset-4 hover:underline"
+              href="#/settings"
+            >
               Configuración
             </a>{" "}
             para cargar datos.
@@ -468,14 +533,17 @@ export function Dashboard() {
       {data?.cache ? (
         <div className="flex">
           <Badge variant="secondary">
-            {data.cache.hit ? "Cache" : "Actualizado"} · {formatCacheTime(data.cache.cachedAt)}
+            {data.cache.hit ? "Cache" : "Actualizado"} ·{" "}
+            {formatCacheTime(data.cache.cachedAt)}
           </Badge>
         </div>
       ) : null}
 
       {error ? (
         <Card className="border-destructive/40">
-          <CardContent className="py-4 text-destructive text-sm">{error}</CardContent>
+          <CardContent className="py-4 text-destructive text-sm">
+            {error}
+          </CardContent>
         </Card>
       ) : null}
 
@@ -504,9 +572,14 @@ export function Dashboard() {
         onRefresh={() => void loadDashboard(secret, { skipBrowserCache: true })}
         onRangeChange={(days) => {
           setRangeDays(days);
-          void loadDashboard(secret, { skipBrowserCache: true, rangeDaysOverride: days });
+          void loadDashboard(secret, {
+            skipBrowserCache: true,
+            rangeDaysOverride: days,
+          });
         }}
-        onSaveSecret={() => void loadDashboard(secret, { skipBrowserCache: true })}
+        onSaveSecret={() =>
+          void loadDashboard(secret, { skipBrowserCache: true })
+        }
         onSecretChange={(value) => setSecret(value)}
         onSendToElevator={() => void sendMonthToElevator()}
         onTestRealFlow={() => void testRealConversionFlow()}
@@ -532,8 +605,6 @@ export function Dashboard() {
     </div>
   );
 }
-
-
 
 function readErrorMessage(value: unknown, fallback: string): string {
   if (typeof value !== "object" || value === null) {
@@ -563,10 +634,14 @@ function normalizeRoute(path = "") {
 }
 
 function rangeCacheKey(range: 7 | 30 | 180 | null): string {
-  return range !== null ? `${DASHBOARD_BROWSER_CACHE_KEY}:range${range}` : DASHBOARD_BROWSER_CACHE_KEY;
+  return range !== null
+    ? `${DASHBOARD_BROWSER_CACHE_KEY}:range${range}`
+    : DASHBOARD_BROWSER_CACHE_KEY;
 }
 
-function readBrowserDashboardCache(range: 7 | 30 | 180 | null = null): MonthlyDashboard | null {
+function readBrowserDashboardCache(
+  range: 7 | 30 | 180 | null = null,
+): MonthlyDashboard | null {
   const key = rangeCacheKey(range);
   try {
     const rawCache = window.localStorage.getItem(key);
@@ -591,7 +666,10 @@ function readBrowserDashboardCache(range: 7 | 30 | 180 | null = null): MonthlyDa
   }
 }
 
-function writeBrowserDashboardCache(data: MonthlyDashboard, range: 7 | 30 | 180 | null = null) {
+function writeBrowserDashboardCache(
+  data: MonthlyDashboard,
+  range: 7 | 30 | 180 | null = null,
+) {
   window.localStorage.setItem(
     rangeCacheKey(range),
     JSON.stringify({
