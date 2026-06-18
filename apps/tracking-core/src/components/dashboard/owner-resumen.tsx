@@ -132,6 +132,29 @@ const MONTH_NAMES = [
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
 ];
 
+type Clinic = "all" | "polanco" | "roma";
+const CLINICS: Array<{ key: Clinic; label: string }> = [
+  { key: "all", label: "Ambas" },
+  { key: "polanco", label: "Polanco" },
+  { key: "roma", label: "Roma Norte" },
+];
+
+// Mapea el nombre de sucursal de Dentalink a clínica. "Carlos Enrique Ariza
+// Torcat" = Roma Norte; "Drdiente S.A de C.V" (y el resto) = Polanco.
+function clinicOf(branch: string | null | undefined): "polanco" | "roma" {
+  const b = (branch ?? "").toLowerCase();
+  if (b.includes("ariza") || b.includes("torcat") || b.includes("roma")) return "roma";
+  return "polanco";
+}
+
+function filterByClinic<T extends { branch: string | null }>(
+  arr: T[] | null,
+  clinic: Clinic,
+): T[] | null {
+  if (!arr || clinic === "all") return arr;
+  return arr.filter((x) => clinicOf(x.branch) === clinic);
+}
+
 function monthsInRange(min: string, max: string): MonthDef[] {
   const res: MonthDef[] = [];
   let y = Number(min.slice(0, 4));
@@ -170,6 +193,7 @@ export function OwnerResumen({ secret }: { secret: string }) {
   const [preset, setPreset] = useState<Preset>("all");
   const [from, setFrom] = useState<string>("");
   const [to, setTo] = useState<string>("");
+  const [clinic, setClinic] = useState<Clinic>("all");
   const [windsorDaily, setWindsorDaily] = useState<WindsorDailyRow[] | null>(null);
   const [carteraBaked, setCarteraBaked] = useState<CarteraSummary | null>(null);
   const [demoLoading, setDemoLoading] = useState(true);
@@ -188,15 +212,22 @@ export function OwnerResumen({ secret }: { secret: string }) {
     return { from: start.toISOString().slice(0, 10), to: bounds.max };
   }, [preset, from, to, bounds, customInvalid]);
 
-  const summary = useMemo(() => (pagos ? buildFinancialSummary(pagos, range) : null), [pagos, range]);
-  const margins = useMemo(() => (acciones ? buildTreatmentMargin(acciones, range) : null), [acciones, range]);
+  // Filtro por clínica (Polanco / Roma / Ambas). El gasto de Windsor NO viene
+  // separado por clínica, así que ROAS/CAC solo aplican en "Ambas".
+  const spendApplies = clinic === "all";
+  const cPagos = useMemo(() => filterByClinic(pagos, clinic), [pagos, clinic]);
+  const cAcciones = useMemo(() => filterByClinic(acciones, clinic), [acciones, clinic]);
+  const cPresupuestos = useMemo(() => filterByClinic(presupuestos, clinic), [presupuestos, clinic]);
+
+  const summary = useMemo(() => (cPagos ? buildFinancialSummary(cPagos, range) : null), [cPagos, range]);
+  const margins = useMemo(() => (cAcciones ? buildTreatmentMargin(cAcciones, range) : null), [cAcciones, range]);
   const totalMargin = margins?.reduce((s, m) => s + m.margin, 0) ?? null;
   const marginRevenue = margins?.reduce((s, m) => s + m.revenue, 0) ?? 0;
 
   // Gasto por canal derivado de la data de Windsor precargada (sin secret),
   // filtrado por el mismo rango que el ingreso.
   const { spendByChannel, totalSpend, windsorState } = useMemo(() => {
-    if (!windsorDaily) {
+    if (!windsorDaily || !spendApplies) {
       return {
         spendByChannel: new Map<MarketingChannel, number>(),
         totalSpend: 0,
@@ -215,7 +246,7 @@ export function OwnerResumen({ secret }: { secret: string }) {
       total += spend;
     }
     return { spendByChannel: map, totalSpend: total, windsorState: "ready" as const };
-  }, [windsorDaily, range]);
+  }, [windsorDaily, range, spendApplies]);
 
   // Precarga los datos de los Excel ya trabajados (asset estático) para que el
   // panel muestre todo sin subir nada. La subida manual lo sobreescribe.
@@ -268,7 +299,7 @@ export function OwnerResumen({ secret }: { secret: string }) {
     () => (saldos ? buildCartera(saldos, today) : carteraBaked),
     [saldos, today, carteraBaked],
   );
-  const pipeline = useMemo(() => (presupuestos ? buildPipeline(presupuestos, range) : null), [presupuestos, range]);
+  const pipeline = useMemo(() => (cPresupuestos ? buildPipeline(cPresupuestos, range) : null), [cPresupuestos, range]);
 
   const months = useMemo(() => (bounds ? monthsInRange(bounds.min, bounds.max) : []), [bounds]);
   const selectMonth = (m: MonthDef) => {
@@ -286,25 +317,25 @@ export function OwnerResumen({ secret }: { secret: string }) {
     return total;
   };
   const monthlyComparison = useMemo(() => {
-    if (!pagos) return [];
+    if (!cPagos) return [];
     return months.map((m) => {
       const r = { from: m.from, to: m.to };
-      const s = buildFinancialSummary(pagos, r);
-      const spend = spendInRange(m.from, m.to);
-      const presup = presupuestos ? buildPipeline(presupuestos, r).montoPresupuestado : 0;
+      const s = buildFinancialSummary(cPagos, r);
+      const spend = spendApplies ? spendInRange(m.from, m.to) : 0;
+      const presup = cPresupuestos ? buildPipeline(cPresupuestos, r).montoPresupuestado : 0;
       return {
         ...m,
         ingreso: s.totals.revenue,
         marketing: s.marketing.revenue,
         spend,
-        roas: spend > 0 ? s.marketing.revenue / spend : null,
+        roas: spendApplies && spend > 0 ? s.marketing.revenue / spend : null,
         pacientes: s.totals.payingPatients,
         ticket: s.totals.payingPatients > 0 ? s.totals.revenue / s.totals.payingPatients : 0,
         presupuestado: presup,
       };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pagos, presupuestos, windsorDaily, months]);
+  }, [cPagos, cPresupuestos, windsorDaily, months, spendApplies]);
 
   // Periodo inmediatamente anterior, misma longitud → "de dónde vengo".
   const priorRange = useMemo(() => {
@@ -317,8 +348,8 @@ export function OwnerResumen({ secret }: { secret: string }) {
     return { from: pFrom.toISOString().slice(0, 10), to: pTo.toISOString().slice(0, 10) };
   }, [range]);
   const priorSummary = useMemo(
-    () => (pagos && priorRange ? buildFinancialSummary(pagos, priorRange) : null),
-    [pagos, priorRange],
+    () => (cPagos && priorRange ? buildFinancialSummary(cPagos, priorRange) : null),
+    [cPagos, priorRange],
   );
 
   const mktPaying = summary ? summary.byChannel.filter((c) => c.isMarketing).reduce((s, c) => s + c.payingPatients, 0) : 0;
@@ -446,6 +477,28 @@ export function OwnerResumen({ secret }: { secret: string }) {
 
       {summary && (
         <>
+          <div className="flex items-center gap-2 flex-wrap" role="group" aria-label="Clínica">
+            <span className="text-xs text-muted-foreground">Clínica:</span>
+            {CLINICS.map((c) => (
+              <Button
+                key={c.key}
+                size="sm"
+                variant={clinic === c.key ? "default" : "outline"}
+                aria-pressed={clinic === c.key}
+                onClick={() => setClinic(c.key)}
+              >
+                {c.label}
+              </Button>
+            ))}
+          </div>
+
+          {clinic !== "all" && (
+            <p className="text-muted-foreground text-xs">
+              Viendo <strong>{CLINICS.find((c) => c.key === clinic)?.label}</strong>. La inversión de Windsor
+              no viene separada por clínica, así que <strong>ROAS/CAC y la cartera se muestran a nivel global</strong>.
+            </p>
+          )}
+
           <div className="flex items-center gap-2 flex-wrap" role="group" aria-label="Rango de fechas">
             {(["all", "30", "90", "custom"] as Preset[]).map((p) => (
               <Button
@@ -593,7 +646,7 @@ export function OwnerResumen({ secret }: { secret: string }) {
 
           {(cartera || pipeline) && (
             <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              {cartera && <CarteraCard cartera={cartera} />}
+              {cartera && <CarteraCard cartera={cartera} global={clinic !== "all"} />}
               {pipeline && <PipelineCard pipeline={pipeline} />}
             </section>
           )}
@@ -652,10 +705,10 @@ function roasText(v: number | null): string {
   return v === null ? "—" : `${v.toFixed(1)}x`;
 }
 
-function CarteraCard({ cartera }: { cartera: CarteraSummary }) {
+function CarteraCard({ cartera, global }: { cartera: CarteraSummary; global?: boolean }) {
   return (
     <Card>
-      <CardHeader className="pb-2"><CardTitle className="text-base">Cartera (revenue ya vendido, pendiente de cobro)</CardTitle></CardHeader>
+      <CardHeader className="pb-2"><CardTitle className="text-base">Cartera (revenue ya vendido, pendiente de cobro){global ? " · global" : ""}</CardTitle></CardHeader>
       <CardContent className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
           <Metric label="Saldo pendiente" value={moneyFull(cartera.saldoPendiente)} accent />

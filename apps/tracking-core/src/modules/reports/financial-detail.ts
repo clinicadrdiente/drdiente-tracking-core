@@ -42,6 +42,7 @@ export interface AccionRecord {
   professionalCost: number;
   margin: number;
   date: string | null;
+  branch: string | null;
 }
 
 export interface DateRange {
@@ -247,6 +248,7 @@ export function parseAccionesRealizadas(
       (n) => n.includes("fecha") && n.includes("recepcion"),
     ]),
     patientId: resolveColumn(headers, [(n) => n === "paciente", (n) => n === "n paciente"]),
+    branch: resolveColumn(headers, [(n) => n.includes("sucursal")]),
   };
 
   return rows.map((row): AccionRecord => {
@@ -262,6 +264,7 @@ export function parseAccionesRealizadas(
       professionalCost,
       margin: price - labCost - professionalCost,
       date: col.date ? toIsoDate(row[col.date]) : null,
+      branch: col.branch ? toStringValue(row[col.branch]) : null,
     };
   });
 }
