@@ -1,9 +1,21 @@
-import type { VercelRequest, VercelResponse } from "../_lib/http.js";
+import { requireTrackingSecret } from "../../src/index.js";
+import {
+  send,
+  toHttpRequest,
+  type VercelRequest,
+  type VercelResponse,
+} from "../_lib/http.js";
 
 export default async function handler(
-  _request: VercelRequest,
+  request: VercelRequest,
   response: VercelResponse,
 ): Promise<void> {
+  const authError = requireTrackingSecret(toHttpRequest(request));
+  if (authError) {
+    send(response, authError);
+    return;
+  }
+
   try {
     const { createTrackingHttpHandlers } = await import("../../src/http/handlers.js");
     const handlers = createTrackingHttpHandlers();

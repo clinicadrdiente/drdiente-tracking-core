@@ -1,3 +1,5 @@
+import { getEnv } from "../../config/env.js";
+
 export type DentalinkMode = "stub" | "api";
 
 export interface DentalinkConfig {
@@ -34,10 +36,6 @@ export interface DentalinkConfig {
   treatmentNameField: string;
   additionalFieldsContainer: string;
   elevatorIdField: string;
-}
-
-function getEnv(name: string, fallback = ""): string {
-  return process.env[name] ?? fallback;
 }
 
 export function getDentalinkConfig(): DentalinkConfig {

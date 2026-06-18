@@ -4,6 +4,7 @@ import type {
   DentalinkTreatment,
   PaymentEvent,
 } from "../../types/domain.js";
+import { HttpRequestError, jsonRequest } from "../../http/json-client.js";
 import { getDentalinkConfig, type DentalinkConfig } from "./config.js";
 import {
   buildPatientElevatorIdPayload,
@@ -162,23 +163,27 @@ export class ApiDentalinkClient implements DentalinkClient {
     body?: Record<string, unknown>,
   ): Promise<unknown> {
     const url = new URL(path.replace(/^\/+/, ""), this.config.baseUrl);
-    const response = await this.fetchImpl(url, {
-      method,
-      headers: {
-        Authorization: `${this.config.apiAuthScheme} ${this.config.apiToken}`,
-        "Content-Type": "application/json",
-      },
-      body: body ? JSON.stringify(body) : undefined,
-    });
+    try {
+      return await jsonRequest({
+        url,
+        method,
+        headers: {
+          Authorization: `${this.config.apiAuthScheme} ${this.config.apiToken}`,
+          "Content-Type": "application/json",
+        },
+        body,
+        fetchImpl: this.fetchImpl,
+      });
+    } catch (error) {
+      if (error instanceof HttpRequestError) {
+        throw new DentalinkRequestError(
+          error.status,
+          `Dentalink API request failed with status ${error.status} for ${url.pathname}`,
+        );
+      }
 
-    if (!response.ok) {
-      throw new DentalinkRequestError(
-        response.status,
-        `Dentalink API request failed with status ${response.status} for ${url.pathname}`,
-      );
+      throw error;
     }
-
-    return (await response.json()) as unknown;
   }
 }
 

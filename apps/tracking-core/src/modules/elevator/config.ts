@@ -1,3 +1,5 @@
+import { getEnv } from "../../config/env.js";
+
 export type ElevatorMode = "stub" | "api";
 
 export interface ElevatorConfig {
@@ -22,10 +24,6 @@ export interface ElevatorConfig {
   // to / reading from the contact (e.g. GoHighLevel's `customFields`). When
   // empty, attribution fields are written/read flat at the contact root.
   attributionContainer: string;
-}
-
-function getEnv(name: string, fallback = ""): string {
-  return process.env[name] ?? fallback;
 }
 
 export function getElevatorConfig(): ElevatorConfig {

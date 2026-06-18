@@ -1,4 +1,5 @@
 import type { ConversionEvent } from "../../types/domain.js";
+import { HttpRequestError, jsonRequest } from "../../http/json-client.js";
 import { getStapeConfig, type StapeConfig } from "./config.js";
 
 export interface StapeClient {
@@ -25,17 +26,22 @@ export class ApiStapeClient implements StapeClient {
 
   async dispatch(event: ConversionEvent): Promise<void> {
     const url = buildStapeUrl(this.config);
-    const response = await fetch(url, {
-      method: "POST",
-      headers: buildHeaders(this.config),
-      body: JSON.stringify(buildStapePayload(event, this.config)),
-    });
+    try {
+      await jsonRequest({
+        url,
+        method: "POST",
+        headers: buildHeaders(this.config),
+        body: buildStapePayload(event, this.config),
+        parseResponse: false,
+      });
+    } catch (error) {
+      if (error instanceof HttpRequestError) {
+        throw new Error(
+          `Stape request failed with status ${error.status}: ${error.bodyText.slice(0, 300)}`,
+        );
+      }
 
-    if (!response.ok) {
-      const body = await response.text();
-      throw new Error(
-        `Stape request failed with status ${response.status}: ${body.slice(0, 300)}`,
-      );
+      throw error;
     }
   }
 }
@@ -59,7 +65,7 @@ function buildStapeUrl(config: StapeConfig): URL {
   return new URL(path, serverUrl);
 }
 
-function buildHeaders(config: StapeConfig): HeadersInit {
+function buildHeaders(config: StapeConfig): Record<string, string> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     Accept: "application/json",

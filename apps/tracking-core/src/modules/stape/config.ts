@@ -1,3 +1,5 @@
+import { getEnv } from "../../config/env.js";
+
 export type StapeMode = "stub" | "api";
 
 export interface StapeConfig {
@@ -9,10 +11,6 @@ export interface StapeConfig {
   apiKey: string;
   apiKeyHeader: string;
   targetPlatforms: string[];
-}
-
-function getEnv(name: string, fallback = ""): string {
-  return process.env[name] ?? fallback;
 }
 
 export function getStapeConfig(): StapeConfig {

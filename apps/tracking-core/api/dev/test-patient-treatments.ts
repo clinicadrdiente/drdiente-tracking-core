@@ -1,7 +1,9 @@
 import { InMemoryStateStore } from "../../src/modules/state/state-store.js";
+import { requireTrackingSecret } from "../../src/index.js";
 import {
   methodNotAllowed,
   send,
+  toHttpRequest,
   type VercelRequest,
   type VercelResponse,
 } from "../_lib/http.js";
@@ -27,6 +29,12 @@ export default async function handler(
 ): Promise<void> {
   if (request.method !== "GET") {
     methodNotAllowed(response);
+    return;
+  }
+
+  const authError = requireTrackingSecret(toHttpRequest(request));
+  if (authError) {
+    send(response, authError);
     return;
   }
 

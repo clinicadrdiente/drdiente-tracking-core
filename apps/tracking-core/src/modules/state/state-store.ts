@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, resolve } from "node:path";
+import { getAppConfig } from "../../config/app-config.js";
 import type { DailyBranchReport, PatientTreatmentRecord, PatientTreatmentSummary } from "../../types/domain.js";
 
 export interface PaymentSyncState {
@@ -15,6 +16,8 @@ export interface StateStore {
   markPaymentProcessed(paymentId: string): Promise<void>;
   /** Atomically marks as processed. Returns true if this call claimed it (first time), false if already existed. */
   claimPaymentProcessed(paymentId: string): Promise<boolean>;
+  /** Removes a claimed key so it can be re-claimed (used to roll back a failed dispatch). No-op if absent. */
+  releasePaymentClaim(paymentId: string): Promise<void>;
   writeHeartbeat(key: string, isoTimestamp: string): Promise<void>;
   readHeartbeat(key: string): Promise<string | null>;
   /** Upsert by reportId (same branch+date overwrites). */
@@ -48,9 +51,15 @@ export class InMemoryStateStore implements StateStore {
   }
 
   async savePaymentSyncState(state: PaymentSyncState): Promise<void> {
+    // An empty processedPaymentIds is a no-op for the dedupe set: ids are
+    // persisted per-key by claim/mark, so an empty save only updates the cursor
+    // (mirrors RedisStateStore, which guards its SADD on length > 0).
     this.paymentSyncState = {
       lastCheckIso: state.lastCheckIso,
-      processedPaymentIds: [...state.processedPaymentIds],
+      processedPaymentIds:
+        state.processedPaymentIds.length > 0
+          ? [...state.processedPaymentIds]
+          : this.paymentSyncState.processedPaymentIds,
     };
   }
 
@@ -70,6 +79,11 @@ export class InMemoryStateStore implements StateStore {
     }
     this.paymentSyncState.processedPaymentIds.push(paymentId);
     return true;
+  }
+
+  async releasePaymentClaim(paymentId: string): Promise<void> {
+    this.paymentSyncState.processedPaymentIds =
+      this.paymentSyncState.processedPaymentIds.filter((id) => id !== paymentId);
   }
 
   async writeHeartbeat(key: string, isoTimestamp: string): Promise<void> {
@@ -134,6 +148,17 @@ export class FileStateStore implements StateStore {
   }
 
   async savePaymentSyncState(state: PaymentSyncState): Promise<void> {
+    // An empty processedPaymentIds is a no-op for the dedupe set: ids are
+    // persisted per-key by claim/mark, so an empty save only updates the cursor
+    // (mirrors RedisStateStore, which guards its SADD on length > 0).
+    if (state.processedPaymentIds.length === 0) {
+      const existing = await this.readState();
+      await this.writeState({
+        lastCheckIso: state.lastCheckIso,
+        processedPaymentIds: existing.processedPaymentIds,
+      });
+      return;
+    }
     await this.writeState(state);
   }
 
@@ -158,6 +183,15 @@ export class FileStateStore implements StateStore {
     state.processedPaymentIds.push(paymentId);
     await this.writeState(state);
     return true;
+  }
+
+  async releasePaymentClaim(paymentId: string): Promise<void> {
+    const state = await this.readState();
+    const next = state.processedPaymentIds.filter((id) => id !== paymentId);
+    if (next.length !== state.processedPaymentIds.length) {
+      state.processedPaymentIds = next;
+      await this.writeState(state);
+    }
   }
 
   async writeHeartbeat(key: string, isoTimestamp: string): Promise<void> {
@@ -306,17 +340,14 @@ export class RedisStateStore implements StateStore {
   }
 
   async getPaymentSyncState(): Promise<PaymentSyncState> {
-    const [stateJson, processedPaymentIds] = await Promise.all([
-      this.command<string | null>(["GET", this.stateKey]),
-      this.command<string[]>(["SMEMBERS", this.processedSetKey]),
-    ]);
+    const stateJson = await this.command<string | null>(["GET", this.stateKey]);
     const parsedState = parsePaymentSyncState(stateJson);
 
     return {
       lastCheckIso: parsedState.lastCheckIso,
-      processedPaymentIds: Array.isArray(processedPaymentIds)
-        ? processedPaymentIds
-        : [],
+      // processed ids are stored as per-key TTL strings (no cheap "list all"),
+      // and only the cursor (lastCheckIso) is consumed downstream.
+      processedPaymentIds: [],
     };
   }
 
@@ -325,30 +356,59 @@ export class RedisStateStore implements StateStore {
     await this.command(["SET", this.stateKey, payload]);
 
     if (state.processedPaymentIds.length > 0) {
-      await this.command([
-        "SADD",
-        this.processedSetKey,
-        ...state.processedPaymentIds,
-      ]);
+      await Promise.all(
+        state.processedPaymentIds.map((id) =>
+          this.command([
+            "SET",
+            this.processedKey(id),
+            "1",
+            "EX",
+            this.processedTtlSeconds(),
+          ]),
+        ),
+      );
     }
   }
 
+  private processedKey(id: string): string {
+    return `${this.processedSetKey}:k:${id}`;
+  }
+
+  private processedTtlSeconds(): number {
+    const lookbackSec = getAppConfig().paymentsSyncLookbackMinutes * 60;
+    return Math.max(7 * 24 * 60 * 60, lookbackSec * 2);
+  }
+
   async hasProcessedPayment(paymentId: string): Promise<boolean> {
-    const result = await this.command<number>([
-      "SISMEMBER",
-      this.processedSetKey,
-      paymentId,
-    ]);
-    return result === 1;
+    const r = await this.command<number>(["EXISTS", this.processedKey(paymentId)]);
+    return r === 1;
   }
 
   async markPaymentProcessed(paymentId: string): Promise<void> {
-    await this.command(["SADD", this.processedSetKey, paymentId]);
+    await this.command([
+      "SET",
+      this.processedKey(paymentId),
+      "1",
+      "EX",
+      this.processedTtlSeconds(),
+    ]);
   }
 
   async claimPaymentProcessed(paymentId: string): Promise<boolean> {
-    const added = await this.command<number>(["SADD", this.processedSetKey, paymentId]);
-    return added === 1;
+    // SET NX returns "OK" when it set the key, null when it already existed.
+    const r = await this.command<string | null>([
+      "SET",
+      this.processedKey(paymentId),
+      "1",
+      "NX",
+      "EX",
+      this.processedTtlSeconds(),
+    ]);
+    return r === "OK";
+  }
+
+  async releasePaymentClaim(paymentId: string): Promise<void> {
+    await this.command(["DEL", this.processedKey(paymentId)]);
   }
 
   async writeHeartbeat(key: string, isoTimestamp: string): Promise<void> {

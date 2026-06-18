@@ -1,3 +1,5 @@
+import { getEnv } from "../../config/env.js";
+
 export interface WindsorConfig {
   apiKey: string;
   baseUrl: string;
@@ -32,10 +34,6 @@ const DEPRECATED_WINDSOR_FIELDS = new Set([
   "total_pageview",
   "all_conversions",
 ]);
-
-function getEnv(name: string, fallback = ""): string {
-  return process.env[name] ?? fallback;
-}
 
 export function getWindsorConfig(): WindsorConfig {
   return {

@@ -1,5 +1,6 @@
 import type { CanonicalLead, LeadInput } from "../../types/domain.js";
 import { normalizeEmail, normalizePhone } from "../../lib/normalize.js";
+import { HttpRequestError, jsonRequest } from "../../http/json-client.js";
 import { getElevatorConfig, type ElevatorConfig } from "./config.js";
 import {
   buildCreateLeadPayload,
@@ -154,22 +155,25 @@ export class ApiElevatorClient implements ElevatorClient {
       url.searchParams.set(key, value);
     }
 
-    const response = await this.fetchImpl(url, {
-      method,
-      headers: {
-        Authorization: `Bearer ${this.config.apiKey}`,
-        "Content-Type": "application/json",
-        Version: this.config.apiVersion,
-      },
-      body: body && method !== "GET" ? JSON.stringify(body) : undefined,
-    });
+    try {
+      return await jsonRequest({
+        url,
+        method,
+        headers: {
+          Authorization: `Bearer ${this.config.apiKey}`,
+          "Content-Type": "application/json",
+          Version: this.config.apiVersion,
+        },
+        body,
+        fetchImpl: this.fetchImpl,
+      });
+    } catch (error) {
+      if (error instanceof HttpRequestError) {
+        throw new ElevatorApiError(error.status, error.bodyText);
+      }
 
-    if (!response.ok) {
-      const bodyText = await readResponseText(response);
-      throw new ElevatorApiError(response.status, bodyText);
+      throw error;
     }
-
-    return (await response.json()) as unknown;
   }
 }
 
@@ -317,14 +321,6 @@ function parseJson(value: string): unknown {
     return JSON.parse(value) as unknown;
   } catch {
     return null;
-  }
-}
-
-async function readResponseText(response: Response): Promise<string> {
-  try {
-    return await response.text();
-  } catch {
-    return "";
   }
 }
 

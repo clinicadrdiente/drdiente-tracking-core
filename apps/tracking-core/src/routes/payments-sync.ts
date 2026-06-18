@@ -125,7 +125,11 @@ export async function handlePaymentsSync(
     if (!elevatorOk && elevatorEvents) elevatorEventsFailed += 1;
 
     if (!stapeOk && (!elevatorEvents || !elevatorOk)) {
-      // Both failed — do not mark processed; retry on next sync
+      // Both dispatch targets failed — roll back the purchase claim so the next
+      // sync re-claims and retries. Without this the event is lost permanently.
+      if (!payment.isVoided) {
+        await stateStore.releasePaymentClaim(purchaseDedupeKey);
+      }
       continue;
     }
 
@@ -136,9 +140,7 @@ export async function handlePaymentsSync(
   await markPaymentsProcessed(stateStore, safeToMarkProcessed);
   await stateStore.savePaymentSyncState({
     lastCheckIso: new Date().toISOString(),
-    processedPaymentIds: (
-      await stateStore.getPaymentSyncState()
-    ).processedPaymentIds,
+    processedPaymentIds: [], // ids are already persisted per-key by claim/mark
   });
 
   return {

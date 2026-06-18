@@ -1,4 +1,4 @@
-import { trackingHttpHandlers } from "../../src/index.js";
+import { requireTrackingSecret, trackingHttpHandlers } from "../../src/index.js";
 import {
   methodNotAllowed,
   send,
@@ -13,6 +13,12 @@ export default async function handler(
 ): Promise<void> {
   if (request.method !== "POST") {
     methodNotAllowed(response);
+    return;
+  }
+
+  const authError = requireTrackingSecret(toHttpRequest(request));
+  if (authError) {
+    send(response, authError);
     return;
   }
 

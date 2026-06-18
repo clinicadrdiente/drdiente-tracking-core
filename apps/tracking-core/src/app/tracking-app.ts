@@ -58,6 +58,7 @@ export class TrackingApp {
     return handleDentalinkAppointment(
       this.services.dentalinkClient,
       this.services.elevatorClient,
+      this.services.stateStore,
       event,
     );
   }
