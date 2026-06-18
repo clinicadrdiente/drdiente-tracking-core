@@ -106,7 +106,6 @@ const AI_SEARCH_TOKENS = new Set([
   "BARD",
   "CLAUDE",
   "IA",
-  "AI",
 ]);
 
 const WALK_IN_TOKENS = new Set([
@@ -122,6 +121,8 @@ const WALK_IN_TOKENS = new Set([
   "CERCA",
 ]);
 
+// Nota: ANUNCIO/PUBLICIDAD se EXCLUYEN a propósito — son ambiguos con
+// espectacular/letrero (walk_in). ADS sí es inequívocamente digital.
 const OTHER_DIGITAL_TOKENS = new Set([
   "INTERNET",
   "WEB",
@@ -134,10 +135,9 @@ const OTHER_DIGITAL_TOKENS = new Set([
   "WAZE",
   "ELEVATOR",
   "ELEVADOR",
+  "TWITTER",
+  "CAMPANA",
   "ADS",
-  "ANUNCIO",
-  "ANUNCIOS",
-  "PUBLICIDAD",
   "HUBSPOT",
 ]);
 

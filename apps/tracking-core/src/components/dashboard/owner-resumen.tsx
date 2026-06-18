@@ -14,13 +14,14 @@ import {
   type AccionRecord,
   type PagoDetalleRecord,
 } from "@/modules/reports/financial-detail";
-import { windsorSourceToChannel, type MarketingChannel } from "@/modules/reports/marketing-channels";
+import { CHANNEL_LABELS, windsorSourceToChannel, type MarketingChannel } from "@/modules/reports/marketing-channels";
 
 interface WindsorSource {
   source: string;
   spend?: number;
 }
 interface WindsorSummary {
+  ok?: boolean;
   configured?: boolean;
   bySource?: WindsorSource[];
   totals?: { spend?: number };
@@ -66,10 +67,23 @@ function parseCsv(text: string): Record<string, unknown>[] {
 }
 
 async function parseFile(file: File): Promise<Record<string, unknown>[]> {
-  if (file.name.toLowerCase().endsWith(".csv")) return parseCsv(await file.text());
-  const specifier = "https://esm.sh/xlsx@0.18.5";
-  const XLSX = await import(/* @vite-ignore */ specifier);
-  const wb = XLSX.read(await file.arrayBuffer(), { type: "array" });
+  const name = file.name.toLowerCase();
+  if (name.endsWith(".csv")) return parseCsv(await file.text());
+  if (!name.endsWith(".xlsx")) {
+    throw new Error("Formato no soportado. Sube el reporte en .xlsx o .csv.");
+  }
+  let XLSX: {
+    read: (data: ArrayBuffer, opts: Record<string, unknown>) => { SheetNames: string[]; Sheets: Record<string, unknown> };
+    utils: { sheet_to_json: (sheet: unknown, opts: Record<string, unknown>) => Record<string, unknown>[] };
+  };
+  try {
+    const specifier = "https://esm.sh/xlsx@0.18.5";
+    XLSX = await import(/* @vite-ignore */ specifier);
+  } catch {
+    throw new Error("No se pudo cargar el lector de Excel (revisa tu conexión) — o sube el archivo en CSV.");
+  }
+  const wb = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
+  // cellDates: las fechas llegan como Date (no seriales) para no perder la fecha.
   return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: null });
 }
 
@@ -85,48 +99,76 @@ export function OwnerResumen({ secret }: { secret: string }) {
   const [to, setTo] = useState<string>("");
   const [spendByChannel, setSpendByChannel] = useState<Map<MarketingChannel, number>>(new Map());
   const [totalSpend, setTotalSpend] = useState<number>(0);
+  const [windsorState, setWindsorState] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const customInvalid = preset === "custom" && (!from || !to || from > to);
+
   const range = useMemo(() => {
     if (preset === "all") return {};
-    if (preset === "custom") return { from: from || undefined, to: to || undefined };
+    if (preset === "custom") return customInvalid ? {} : { from, to };
     if (!bounds) return {};
     const days = Number(preset);
     const end = new Date(`${bounds.max}T00:00:00`);
     const start = new Date(end.getTime() - days * 86400000);
     return { from: start.toISOString().slice(0, 10), to: bounds.max };
-  }, [preset, from, to, bounds]);
+  }, [preset, from, to, bounds, customInvalid]);
+
+  // El gasto de Windsor se pide para el MISMO periodo que el ingreso. En "Todo"
+  // se usa el rango completo de los datos del archivo (bounds).
+  const windsorRange = useMemo(() => {
+    if (range.from && range.to) return { from: range.from, to: range.to };
+    if (bounds) return { from: bounds.min, to: bounds.max };
+    return null;
+  }, [range, bounds]);
 
   const summary = useMemo(() => (pagos ? buildFinancialSummary(pagos, range) : null), [pagos, range]);
   const margins = useMemo(() => (acciones ? buildTreatmentMargin(acciones, range) : null), [acciones, range]);
   const totalMargin = margins?.reduce((s, m) => s + m.margin, 0) ?? null;
   const marginRevenue = margins?.reduce((s, m) => s + m.revenue, 0) ?? 0;
 
-  async function loadWindsor() {
-    if (!secret.trim() || !range.from || !range.to) return;
-    try {
-      const res = await fetch(`/api/dev/windsor-marketing-summary?from=${range.from}&to=${range.to}`, {
-        headers: { "x-tracking-secret": secret.trim() },
-      });
-      const body = (await res.json()) as WindsorSummary;
-      if (body.configured === false) return;
-      const map = new Map<MarketingChannel, number>();
-      for (const s of body.bySource ?? []) {
-        const ch = windsorSourceToChannel(s.source);
-        map.set(ch, (map.get(ch) ?? 0) + (s.spend ?? 0));
-      }
-      setSpendByChannel(map);
-      setTotalSpend(body.totals?.spend ?? 0);
-    } catch {
-      /* spend opcional */
-    }
-  }
-
   useEffect(() => {
-    void loadWindsor();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [range.from, range.to, secret]);
+    if (!secret.trim() || !windsorRange) return;
+    let cancelled = false;
+    setWindsorState("loading");
+    setSpendByChannel(new Map());
+    setTotalSpend(0);
+    (async () => {
+      try {
+        const res = await fetch(`/api/dev/windsor-marketing-summary?from=${windsorRange.from}&to=${windsorRange.to}`, {
+          headers: { "x-tracking-secret": secret.trim() },
+        });
+        const body = (await res.json()) as WindsorSummary;
+        if (cancelled) return;
+        if (!res.ok || body.ok === false || body.configured === false) {
+          setWindsorState("error");
+          return;
+        }
+        const map = new Map<MarketingChannel, number>();
+        for (const s of body.bySource ?? []) {
+          const ch = windsorSourceToChannel(s.source);
+          map.set(ch, (map.get(ch) ?? 0) + (s.spend ?? 0));
+        }
+        setSpendByChannel(map);
+        setTotalSpend(body.totals?.spend ?? 0);
+        setWindsorState("ready");
+      } catch {
+        if (!cancelled) setWindsorState("error");
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [windsorRange, secret]);
+
+  const revenueButZero = summary !== null && pagos !== null && pagos.length > 0 && summary.totals.revenue === 0;
+
+  // Canales con gasto en Windsor pero sin ingreso atribuido: se muestran igual
+  // para que la suma de inversiones cuadre con el total de cabecera.
+  const orphanSpend = useMemo(() => {
+    if (!summary) return [] as Array<[MarketingChannel, number]>;
+    const shown = new Set(summary.byChannel.map((c) => c.channel));
+    return [...spendByChannel.entries()].filter(([ch, s]) => s > 0 && !shown.has(ch));
+  }, [summary, spendByChannel]);
 
   async function handleFile(file: File, kind: "pagos" | "acciones") {
     setLoading(true);
@@ -182,23 +224,41 @@ export function OwnerResumen({ secret }: { secret: string }) {
         </CardContent></Card>
       )}
 
+      {revenueButZero && (
+        <Card className="border-warn/40"><CardContent className="py-3 text-warn text-sm">
+          El ingreso del periodo salió en $0. Probablemente no reconocí la columna de monto del reporte —
+          confirma que subiste "finanzas / pagos detalle por acción".
+        </CardContent></Card>
+      )}
+
       {summary && (
         <>
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap" role="group" aria-label="Rango de fechas">
             {(["all", "30", "90", "custom"] as Preset[]).map((p) => (
-              <Button key={p} size="sm" variant={preset === p ? "default" : "outline"} onClick={() => setPreset(p)}>
+              <Button
+                key={p}
+                size="sm"
+                variant={preset === p ? "default" : "outline"}
+                aria-pressed={preset === p}
+                aria-label={p === "all" ? "Todo el periodo" : p === "custom" ? "Rango personalizado" : `Últimos ${p} días`}
+                onClick={() => setPreset(p)}
+              >
                 {p === "all" ? "Todo" : p === "custom" ? "Personalizado" : `${p}d`}
               </Button>
             ))}
             {preset === "custom" && (
               <span className="flex items-center gap-1">
-                <Input type="date" className="h-8 w-36" min={bounds?.min} max={bounds?.max} value={from} onChange={(e) => setFrom(e.target.value)} />
+                <Input type="date" aria-label="Desde" className="h-8 w-36" min={bounds?.min} max={to || bounds?.max} value={from} onChange={(e) => setFrom(e.target.value)} />
                 <span className="text-muted-foreground text-sm">→</span>
-                <Input type="date" className="h-8 w-36" min={bounds?.min} max={bounds?.max} value={to} onChange={(e) => setTo(e.target.value)} />
+                <Input type="date" aria-label="Hasta" className="h-8 w-36" min={from || bounds?.min} max={bounds?.max} value={to} onChange={(e) => setTo(e.target.value)} />
               </span>
             )}
             {bounds && <Badge variant="secondary">datos: {bounds.min} → {bounds.max}</Badge>}
           </div>
+
+          {customInvalid && (
+            <p className="text-warn text-xs -mt-1">Elige fecha de inicio y fin (inicio ≤ fin). Mientras tanto se muestra todo el periodo.</p>
+          )}
 
           <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <Metric label="Ingreso cobrado" value={moneyFull(summary.totals.revenue)} />
@@ -212,13 +272,14 @@ export function OwnerResumen({ secret }: { secret: string }) {
             <CardContent>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
+                  <caption className="sr-only">Ingreso, inversión, ROAS y CAC por canal de origen del paciente.</caption>
                   <thead><tr className="text-muted-foreground text-xs border-b">
-                    <th className="text-left font-medium py-2 pr-2">Canal</th>
-                    <th className="text-right font-medium py-2 px-2">Pac.</th>
-                    <th className="text-right font-medium py-2 px-2">Ingreso</th>
-                    <th className="text-right font-medium py-2 px-2 hidden sm:table-cell">Inversión</th>
-                    <th className="text-right font-medium py-2 px-2">ROAS</th>
-                    <th className="text-right font-medium py-2 pl-2 hidden md:table-cell">CAC</th>
+                    <th scope="col" className="text-left font-medium py-2 pr-2">Canal</th>
+                    <th scope="col" className="text-right font-medium py-2 px-2"><abbr title="Pacientes">Pac.</abbr></th>
+                    <th scope="col" className="text-right font-medium py-2 px-2">Ingreso</th>
+                    <th scope="col" className="text-right font-medium py-2 px-2 hidden sm:table-cell">Inversión</th>
+                    <th scope="col" className="text-right font-medium py-2 px-2">ROAS</th>
+                    <th scope="col" className="text-right font-medium py-2 pl-2 hidden md:table-cell"><abbr title="Costo por paciente que pagó">CAC</abbr></th>
                   </tr></thead>
                   <tbody>
                     {summary.byChannel.map((c) => {
@@ -227,19 +288,35 @@ export function OwnerResumen({ secret }: { secret: string }) {
                       const cac = spend > 0 && c.payingPatients > 0 ? spend / c.payingPatients : null;
                       return (
                         <tr key={c.channel} className="border-b last:border-0">
-                          <td className="py-2 pr-2 font-medium">{c.label}{!c.isMarketing && <span className="text-muted-foreground text-xs"> · no-mkt</span>}</td>
+                          <td className="py-2 pr-2 font-medium">{c.label}{!c.isMarketing && <span className="text-muted-foreground text-xs"> · sin marketing</span>}</td>
                           <td className="py-2 px-2 text-right tabular-nums">{c.patients}</td>
                           <td className="py-2 px-2 text-right tabular-nums">{money(c.revenue)}</td>
                           <td className="py-2 px-2 text-right tabular-nums text-muted-foreground hidden sm:table-cell">{spend > 0 ? money(spend) : "—"}</td>
                           <td className="py-2 px-2 text-right tabular-nums font-medium">{roas !== null ? `${roas.toFixed(1)}x` : "—"}</td>
-                          <td className="py-2 pl-2 text-right tabular-nums text-muted-foreground hidden md:table-cell">{cac !== null ? money(cac) : "—"}</td>
+                          <td className="py-2 pl-2 text-right tabular-nums text-muted-foreground hidden md:table-cell">{cac !== null ? moneyFull(cac) : "—"}</td>
                         </tr>
                       );
                     })}
+                    {orphanSpend.map(([ch, spend]) => (
+                      <tr key={`spend-${ch}`} className="border-b last:border-0 text-muted-foreground">
+                        <td className="py-2 pr-2">{CHANNEL_LABELS[ch]}<span className="text-xs"> · gasto sin pacientes</span></td>
+                        <td className="py-2 px-2 text-right tabular-nums">0</td>
+                        <td className="py-2 px-2 text-right tabular-nums">—</td>
+                        <td className="py-2 px-2 text-right tabular-nums hidden sm:table-cell">{money(spend)}</td>
+                        <td className="py-2 px-2 text-right tabular-nums">0.0x</td>
+                        <td className="py-2 pl-2 text-right tabular-nums hidden md:table-cell">—</td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
-              <p className="text-muted-foreground text-xs mt-2">Inversión = gasto de Windsor en el mismo rango. "Google" mezcla Ads + búsqueda orgánica (ROAS = techo).</p>
+              <p className="text-muted-foreground text-xs mt-2">
+                {windsorState === "error"
+                  ? "No se pudo leer el gasto de Windsor (revisa el secret/credenciales): el ROAS/CAC quedan vacíos por falta de dato, no por falta de inversión."
+                  : windsorState === "loading"
+                    ? "Cargando inversión de Windsor…"
+                    : `Inversión = gasto de Windsor${windsorRange ? ` (${windsorRange.from} → ${windsorRange.to})` : ""}. "Google" mezcla Ads + búsqueda orgánica (ROAS = techo).`}
+              </p>
             </CardContent>
           </Card>
 
@@ -256,7 +333,7 @@ export function OwnerResumen({ secret }: { secret: string }) {
                         <span className="truncate">{t.category}{m ? <span className="text-muted-foreground text-xs"> · margen {pct(m.marginPct)}</span> : null}</span>
                         <span className="font-medium tabular-nums">{money(t.revenue)}</span>
                       </div>
-                      <div className="h-1.5 rounded-full bg-muted overflow-hidden"><div className="h-full rounded-full bg-primary" style={{ width: `${Math.max(3, (t.revenue / max) * 100)}%` }} /></div>
+                      <div className="h-1.5 rounded-full bg-muted overflow-hidden" aria-hidden="true"><div className="h-full rounded-full bg-primary" style={{ width: `${Math.max(3, (t.revenue / max) * 100)}%` }} /></div>
                     </div>
                   );
                 })}

@@ -33,12 +33,36 @@ describe("parsePagosDetalle", () => {
     expect(records[1].channel).toBe("ai_search");
   });
 
-  it("limpia montos con formato '2,000.00' y fechas con hora", () => {
+  it("limpia montos US '2,000.00' y fechas con hora", () => {
     const [r] = parsePagosDetalle([
       pagoRow({ "Pagado Prestación": "2,000.00", "Fecha de recepción del pago": "2026-05-10 10:37:44" }),
     ]);
     expect(r.amount).toBe(2000);
     expect(r.date).toBe("2026-05-10");
+  });
+
+  it("parsea montos en formato es-MX y negativos contables", () => {
+    const rows = parsePagosDetalle([
+      pagoRow({ "# Paciente": 1, "Pagado Prestación": "2.000,00" }),
+      pagoRow({ "# Paciente": 2, "Pagado Prestación": "1.234,56" }),
+      pagoRow({ "# Paciente": 3, "Pagado Prestación": "2,5" }),
+      pagoRow({ "# Paciente": 4, "Pagado Prestación": "(500.00)" }),
+      pagoRow({ "# Paciente": 5, "Pagado Prestación": "1,234" }),
+    ]);
+    expect(rows[0].amount).toBe(2000);
+    expect(rows[1].amount).toBeCloseTo(1234.56, 2);
+    expect(rows[2].amount).toBe(2.5);
+    expect(rows[3].amount).toBe(-500); // contable () → negativo
+    expect(rows[4].amount).toBe(1234); // 3 dígitos tras la coma → miles
+  });
+
+  it("convierte fechas seriales de Excel y objetos Date", () => {
+    const [r1, r2] = parsePagosDetalle([
+      pagoRow({ "# Paciente": 1, "Fecha de recepción del pago": 46082 }),
+      pagoRow({ "# Paciente": 2, "Fecha de recepción del pago": new Date("2026-04-15T12:00:00Z") }),
+    ]);
+    expect(r1.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(r2.date).toBe("2026-04-15");
   });
 });
 
@@ -75,6 +99,19 @@ describe("buildFinancialSummary", () => {
     const s = buildFinancialSummary(payments, { from: "2026-04-01", to: "2026-04-30" });
     expect(s.totals.revenue).toBe(100000); // solo abril: tiktok 60k + recom 40k
     expect(s.totals.payingPatients).toBe(2);
+  });
+
+  it("normaliza límites de rango con hora/T y no rompe el borde inferior", () => {
+    const s = buildFinancialSummary(payments, { from: "2026-04-01T00:00:00", to: "2026-04-30 23:59:59" });
+    expect(s.totals.revenue).toBe(100000);
+  });
+
+  it("filas sin fecha cuentan en 'todo' pero NO en un rango acotado", () => {
+    const withNull = parsePagosDetalle([
+      pagoRow({ "# Paciente": 9, "Referencia Paciente": "GOOGLE", "Pagado Prestación": 7000, "Fecha de recepción del pago": null }),
+    ]);
+    expect(buildFinancialSummary(withNull).totals.revenue).toBe(7000);
+    expect(buildFinancialSummary(withNull, { from: "2026-03-01", to: "2026-06-30" }).totals.revenue).toBe(0);
   });
 });
 

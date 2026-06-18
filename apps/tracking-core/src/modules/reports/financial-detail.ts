@@ -75,15 +75,50 @@ function resolveColumn(
   return undefined;
 }
 
+// Parsea montos tolerando formato es-MX ("2.000,50"), US ("2,000.50"),
+// negativos con signo o contables "(500)". Detecta el separador decimal por el
+// último que aparece; un único separador con exactamente 3 dígitos detrás se
+// trata como miles (ej. "1,234" / "2.000" → 1234 / 2000).
 function toNumber(value: unknown): number {
   if (typeof value === "number") return Number.isFinite(value) ? value : 0;
-  if (typeof value === "string") {
-    const cleaned = value.replace(/[^0-9.-]/g, "");
-    if (cleaned === "" || cleaned === "-") return 0;
-    const parsed = Number(cleaned);
-    return Number.isFinite(parsed) ? parsed : 0;
+  if (typeof value !== "string") return 0;
+
+  let s = value.trim();
+  if (s === "" || s === "-") return 0;
+
+  let negative = false;
+  if (/^\(.*\)$/.test(s)) {
+    negative = true;
+    s = s.slice(1, -1);
   }
-  return 0;
+  if (s.includes("-")) negative = true;
+
+  s = s.replace(/[^0-9.,]/g, "");
+  if (s === "") return 0;
+
+  const lastComma = s.lastIndexOf(",");
+  const lastDot = s.lastIndexOf(".");
+  let decimalSep: "," | "." | null = null;
+
+  if (lastComma !== -1 && lastDot !== -1) {
+    decimalSep = lastComma > lastDot ? "," : ".";
+  } else if (lastComma !== -1 || lastDot !== -1) {
+    const sep = lastComma !== -1 ? "," : ".";
+    const occurrences = s.split(sep).length - 1;
+    const digitsAfter = s.length - 1 - (lastComma !== -1 ? lastComma : lastDot);
+    decimalSep = occurrences > 1 || digitsAfter === 3 ? null : sep;
+  }
+
+  if (decimalSep === null) {
+    s = s.replace(/[.,]/g, "");
+  } else {
+    const thousandSep = decimalSep === "," ? "." : ",";
+    s = s.split(thousandSep).join("").replace(decimalSep, ".");
+  }
+
+  const parsed = Number(s);
+  if (!Number.isFinite(parsed)) return 0;
+  return negative ? -Math.abs(parsed) : parsed;
 }
 
 function toStringValue(value: unknown): string | null {
@@ -105,14 +140,33 @@ function toPatientId(value: unknown): number {
 }
 
 function toIsoDate(value: unknown): string | null {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString().slice(0, 10);
+  }
+  // Serial de Excel (días desde 1899-12-30) si llega como número crudo.
+  if (typeof value === "number" && value > 20000 && value < 80000) {
+    const ms = Math.round((value - 25569) * 86400000);
+    const d = new Date(ms);
+    return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+  }
   const raw = toStringValue(value);
   if (!raw) return null;
   const match = raw.match(/\d{4}-\d{2}-\d{2}/);
   return match ? match[0] : null;
 }
 
+function normalizeRange(range: DateRange): DateRange {
+  return {
+    from: range.from ? range.from.slice(0, 10) : range.from,
+    to: range.to ? range.to.slice(0, 10) : range.to,
+  };
+}
+
+// Filas sin fecha sólo cuentan cuando NO hay ventana acotada: así no se filtran
+// hacia todos los periodos consultados (evita inflar revenue por fecha nula).
 function inRange(date: string | null, range: DateRange): boolean {
-  if (!date) return true;
+  const bounded = Boolean(range.from || range.to);
+  if (!date) return !bounded;
   if (range.from && date < range.from) return false;
   if (range.to && date > range.to) return false;
   return true;
@@ -254,8 +308,9 @@ const TOP_TREATMENTS_PER_CHANNEL = 3;
 
 export function buildFinancialSummary(
   payments: PagoDetalleRecord[],
-  range: DateRange = {},
+  rawRange: DateRange = {},
 ): FinancialSummary {
+  const range = normalizeRange(rawRange);
   const inWindow = payments.filter((p) => inRange(p.date, range));
 
   const channelAgg = new Map<
@@ -381,8 +436,9 @@ export interface TreatmentMarginRow {
 
 export function buildTreatmentMargin(
   actions: AccionRecord[],
-  range: DateRange = {},
+  rawRange: DateRange = {},
 ): TreatmentMarginRow[] {
+  const range = normalizeRange(rawRange);
   const inWindow = actions.filter((a) => inRange(a.date, range));
   const agg = new Map<
     string,
