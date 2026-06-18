@@ -111,6 +111,50 @@ async function parseFile(file: File): Promise<Record<string, unknown>[]> {
 
 type Preset = "all" | "30" | "90" | "custom";
 
+interface MonthDef {
+  key: string;
+  label: string;
+  from: string;
+  to: string;
+}
+type MonthRow = MonthDef & {
+  ingreso: number;
+  marketing: number;
+  spend: number;
+  roas: number | null;
+  pacientes: number;
+  ticket: number;
+  presupuestado: number;
+};
+
+const MONTH_NAMES = [
+  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+];
+
+function monthsInRange(min: string, max: string): MonthDef[] {
+  const res: MonthDef[] = [];
+  let y = Number(min.slice(0, 4));
+  let m = Number(min.slice(5, 7));
+  const ey = Number(max.slice(0, 4));
+  const em = Number(max.slice(5, 7));
+  let guard = 0;
+  while ((y < ey || (y === ey && m <= em)) && guard < 60) {
+    const mm = String(m).padStart(2, "0");
+    const lastDay = new Date(y, m, 0).getDate();
+    res.push({
+      key: `${y}-${mm}`,
+      label: MONTH_NAMES[m - 1],
+      from: `${y}-${mm}-01`,
+      to: `${y}-${mm}-${String(lastDay).padStart(2, "0")}`,
+    });
+    m += 1;
+    if (m > 12) { m = 1; y += 1; }
+    guard += 1;
+  }
+  return res;
+}
+
 export function OwnerResumen({ secret }: { secret: string }) {
   const [pagos, setPagos] = useState<PagoDetalleRecord[] | null>(null);
   const [acciones, setAcciones] = useState<AccionRecord[] | null>(null);
@@ -225,6 +269,42 @@ export function OwnerResumen({ secret }: { secret: string }) {
     [saldos, today, carteraBaked],
   );
   const pipeline = useMemo(() => (presupuestos ? buildPipeline(presupuestos, range) : null), [presupuestos, range]);
+
+  const months = useMemo(() => (bounds ? monthsInRange(bounds.min, bounds.max) : []), [bounds]);
+  const selectMonth = (m: MonthDef) => {
+    setFrom(m.from);
+    setTo(m.to);
+    setPreset("custom");
+  };
+  const spendInRange = (from: string, to: string) => {
+    if (!windsorDaily) return 0;
+    let total = 0;
+    for (const row of windsorDaily) {
+      const d = (row.date || "").slice(0, 10);
+      if (d >= from && d <= to) total += row.spend || 0;
+    }
+    return total;
+  };
+  const monthlyComparison = useMemo(() => {
+    if (!pagos) return [];
+    return months.map((m) => {
+      const r = { from: m.from, to: m.to };
+      const s = buildFinancialSummary(pagos, r);
+      const spend = spendInRange(m.from, m.to);
+      const presup = presupuestos ? buildPipeline(presupuestos, r).montoPresupuestado : 0;
+      return {
+        ...m,
+        ingreso: s.totals.revenue,
+        marketing: s.marketing.revenue,
+        spend,
+        roas: spend > 0 ? s.marketing.revenue / spend : null,
+        pacientes: s.totals.payingPatients,
+        ticket: s.totals.payingPatients > 0 ? s.totals.revenue / s.totals.payingPatients : 0,
+        presupuestado: presup,
+      };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pagos, presupuestos, windsorDaily, months]);
 
   // Periodo inmediatamente anterior, misma longitud → "de dónde vengo".
   const priorRange = useMemo(() => {
@@ -389,6 +469,20 @@ export function OwnerResumen({ secret }: { secret: string }) {
             {bounds && <Badge variant="secondary">datos: {bounds.min} → {bounds.max}</Badge>}
           </div>
 
+          {months.length > 1 && (
+            <div className="flex items-center gap-2 flex-wrap -mt-1" role="group" aria-label="Mes">
+              <span className="text-xs text-muted-foreground">Mes:</span>
+              {months.map((m) => {
+                const active = preset === "custom" && from === m.from && to === m.to;
+                return (
+                  <Button key={m.key} size="sm" variant={active ? "default" : "outline"} aria-pressed={active} onClick={() => selectMonth(m)}>
+                    {m.label}
+                  </Button>
+                );
+              })}
+            </div>
+          )}
+
           {customInvalid && (
             <p className="text-warn text-xs -mt-1">Elige fecha de inicio y fin (inicio ≤ fin). Mientras tanto se muestra todo el periodo.</p>
           )}
@@ -399,6 +493,14 @@ export function OwnerResumen({ secret }: { secret: string }) {
             <Metric label="No-marketing" value={moneyFull(summary.nonMarketing.revenue)} hint={`${summary.nonMarketing.patients} pacientes`} />
             <Metric label={totalMargin !== null ? "Margen de contribución" : "Inversión"} value={totalMargin !== null ? moneyFull(totalMargin) : moneyFull(totalSpend)} hint={totalMargin !== null ? `${pct(marginRevenue ? (totalMargin / marginRevenue) * 100 : 0)} sobre lo realizado` : "Windsor"} />
           </section>
+
+          {monthlyComparison.length > 1 && (
+            <ComparativaMensual
+              rows={monthlyComparison}
+              activeKey={preset === "custom" ? months.find((m) => m.from === from && m.to === to)?.key : undefined}
+              onSelect={selectMonth}
+            />
+          )}
 
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-base">De dónde viene el dinero (por canal)</CardTitle></CardHeader>
@@ -696,6 +798,62 @@ function Calculadora(props: {
             <Input id="recompra" type="number" min={1} max={10} step={0.1} className="h-8 w-20" value={props.repurchase} onChange={(e) => props.setRepurchase(Math.min(10, Math.max(1, Number(e.target.value) || 1)))} />
           </div>
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ComparativaMensual({
+  rows,
+  activeKey,
+  onSelect,
+}: {
+  rows: MonthRow[];
+  activeKey?: string;
+  onSelect: (m: MonthDef) => void;
+}) {
+  return (
+    <Card>
+      <CardHeader className="pb-2"><CardTitle className="text-base">Comparativa mes vs mes</CardTitle></CardHeader>
+      <CardContent>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <caption className="sr-only">Métricas clave por mes; clic en un mes para filtrar el panel.</caption>
+            <thead><tr className="text-muted-foreground text-xs border-b">
+              <th scope="col" className="text-left font-medium py-2 pr-2">Mes</th>
+              <th scope="col" className="text-right font-medium py-2 px-2">Ingreso</th>
+              <th scope="col" className="text-right font-medium py-2 px-2">Marketing</th>
+              <th scope="col" className="text-right font-medium py-2 px-2 hidden sm:table-cell">Inversión</th>
+              <th scope="col" className="text-right font-medium py-2 px-2">ROAS</th>
+              <th scope="col" className="text-right font-medium py-2 px-2 hidden md:table-cell"><abbr title="Pacientes que pagaron">Pac.</abbr></th>
+              <th scope="col" className="text-right font-medium py-2 pl-2 hidden md:table-cell">Ticket</th>
+            </tr></thead>
+            <tbody>
+              {rows.map((r, i) => {
+                const prev = i > 0 ? rows[i - 1] : null;
+                const active = r.key === activeKey;
+                return (
+                  <tr
+                    key={r.key}
+                    onClick={() => onSelect(r)}
+                    className={`border-b last:border-0 cursor-pointer hover:bg-muted/50 ${active ? "bg-muted/60" : ""}`}
+                  >
+                    <td className="py-2 pr-2 font-medium">{r.label}</td>
+                    <td className="py-2 px-2 text-right tabular-nums">
+                      <span className="inline-flex items-center gap-1.5 justify-end">{money(r.ingreso)}{prev ? <Delta cur={r.ingreso} prev={prev.ingreso} /> : null}</span>
+                    </td>
+                    <td className="py-2 px-2 text-right tabular-nums">{money(r.marketing)}</td>
+                    <td className="py-2 px-2 text-right tabular-nums text-muted-foreground hidden sm:table-cell">{r.spend > 0 ? money(r.spend) : "—"}</td>
+                    <td className="py-2 px-2 text-right tabular-nums font-medium">{r.roas === null ? "—" : `${r.roas.toFixed(1)}x`}</td>
+                    <td className="py-2 px-2 text-right tabular-nums text-muted-foreground hidden md:table-cell">{r.pacientes}</td>
+                    <td className="py-2 pl-2 text-right tabular-nums text-muted-foreground hidden md:table-cell">{moneyFull(r.ticket)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <p className="text-muted-foreground text-xs mt-2">Clic en un mes filtra todo el panel a ese periodo. ▲▼ = vs mes anterior (ingreso).</p>
       </CardContent>
     </Card>
   );
