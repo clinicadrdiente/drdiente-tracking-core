@@ -39,10 +39,15 @@ export const navGroups: SidebarNavGroup[] = [
     label: "Operar",
     items: [
       {
+        title: "Dueños",
+        path: "#/duenos",
+        icon: <BriefcaseIcon />,
+        isActive: true,
+      },
+      {
         title: "Resumen",
         path: "#/resumen",
         icon: <GaugeIcon />,
-        isActive: true,
       },
       {
         title: "Control",
@@ -77,11 +82,6 @@ export const navGroups: SidebarNavGroup[] = [
           { title: "Todos", path: "#/patients" },
           { title: "Recurrentes", path: "#/pacientes-recurrentes", icon: <RepeatIcon /> },
         ],
-      },
-      {
-        title: "Dueños",
-        path: "#/duenos",
-        icon: <BriefcaseIcon />,
       },
       {
         title: "ROAS por canal",

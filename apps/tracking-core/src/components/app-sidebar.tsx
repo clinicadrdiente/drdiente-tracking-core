@@ -112,5 +112,5 @@ export function AppSidebar() {
 }
 
 function normalizeRoute(path = "") {
-	return path.replace(/^#\/?/, "").split("?")[0] || "dashboard";
+	return path.replace(/^#\/?/, "").split("?")[0] || "duenos";
 }
