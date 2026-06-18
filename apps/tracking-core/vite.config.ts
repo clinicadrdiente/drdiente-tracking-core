@@ -10,7 +10,9 @@ export default defineConfig({
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
-  publicDir: false,
+  // Sirve assets estáticos (p.ej. owner-demo-data.json) sin usar public/ (que
+  // contiene un index.html que no debe pisar el build).
+  publicDir: "static",
   build: {
     outDir: "dist",
     emptyOutDir: true,

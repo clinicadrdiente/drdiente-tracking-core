@@ -27,15 +27,12 @@ import {
 } from "@/modules/reports/cartera";
 import { computeKpis, project, type Kpis, type ProjectionMode, type ProjectionResult } from "@/modules/reports/projections";
 
-interface WindsorSource {
+interface WindsorDailyRow {
+  date: string;
   source: string;
-  spend?: number;
-}
-interface WindsorSummary {
-  ok?: boolean;
-  configured?: boolean;
-  bySource?: WindsorSource[];
-  totals?: { spend?: number };
+  spend: number;
+  clicks?: number;
+  impressions?: number;
 }
 
 function money(value: number): string {
@@ -129,9 +126,9 @@ export function OwnerResumen({ secret }: { secret: string }) {
   const [preset, setPreset] = useState<Preset>("all");
   const [from, setFrom] = useState<string>("");
   const [to, setTo] = useState<string>("");
-  const [spendByChannel, setSpendByChannel] = useState<Map<MarketingChannel, number>>(new Map());
-  const [totalSpend, setTotalSpend] = useState<number>(0);
-  const [windsorState, setWindsorState] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [windsorDaily, setWindsorDaily] = useState<WindsorDailyRow[] | null>(null);
+  const [carteraBaked, setCarteraBaked] = useState<CarteraSummary | null>(null);
+  const [demoLoading, setDemoLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -147,50 +144,70 @@ export function OwnerResumen({ secret }: { secret: string }) {
     return { from: start.toISOString().slice(0, 10), to: bounds.max };
   }, [preset, from, to, bounds, customInvalid]);
 
-  // El gasto de Windsor se pide para el MISMO periodo que el ingreso. En "Todo"
-  // se usa el rango completo de los datos del archivo (bounds).
-  const windsorRange = useMemo(() => {
-    if (range.from && range.to) return { from: range.from, to: range.to };
-    if (bounds) return { from: bounds.min, to: bounds.max };
-    return null;
-  }, [range, bounds]);
-
   const summary = useMemo(() => (pagos ? buildFinancialSummary(pagos, range) : null), [pagos, range]);
   const margins = useMemo(() => (acciones ? buildTreatmentMargin(acciones, range) : null), [acciones, range]);
   const totalMargin = margins?.reduce((s, m) => s + m.margin, 0) ?? null;
   const marginRevenue = margins?.reduce((s, m) => s + m.revenue, 0) ?? 0;
 
+  // Gasto por canal derivado de la data de Windsor precargada (sin secret),
+  // filtrado por el mismo rango que el ingreso.
+  const { spendByChannel, totalSpend, windsorState } = useMemo(() => {
+    if (!windsorDaily) {
+      return {
+        spendByChannel: new Map<MarketingChannel, number>(),
+        totalSpend: 0,
+        windsorState: "idle" as const,
+      };
+    }
+    const map = new Map<MarketingChannel, number>();
+    let total = 0;
+    for (const row of windsorDaily) {
+      const d = (row.date || "").slice(0, 10);
+      if (range.from && d < range.from) continue;
+      if (range.to && d > range.to) continue;
+      const ch = windsorSourceToChannel(row.source);
+      const spend = row.spend || 0;
+      map.set(ch, (map.get(ch) ?? 0) + spend);
+      total += spend;
+    }
+    return { spendByChannel: map, totalSpend: total, windsorState: "ready" as const };
+  }, [windsorDaily, range]);
+
+  // Precarga los datos de los Excel ya trabajados (asset estático) para que el
+  // panel muestre todo sin subir nada. La subida manual lo sobreescribe.
   useEffect(() => {
-    if (!secret.trim() || !windsorRange) return;
     let cancelled = false;
-    setWindsorState("loading");
-    setSpendByChannel(new Map());
-    setTotalSpend(0);
     (async () => {
       try {
-        const res = await fetch(`/api/dev/windsor-marketing-summary?from=${windsorRange.from}&to=${windsorRange.to}`, {
-          headers: { "x-tracking-secret": secret.trim() },
-        });
-        const body = (await res.json()) as WindsorSummary;
+        const res = await fetch("/owner-demo-data.json");
+        if (!res.ok || cancelled) return;
+        const j = (await res.json()) as {
+          pagos?: Record<string, unknown>[];
+          acciones?: Record<string, unknown>[];
+          presupuestos?: Record<string, unknown>[];
+          cartera?: CarteraSummary;
+          windsorDaily?: WindsorDailyRow[];
+        };
         if (cancelled) return;
-        if (!res.ok || body.ok === false || body.configured === false) {
-          setWindsorState("error");
-          return;
-        }
-        const map = new Map<MarketingChannel, number>();
-        for (const s of body.bySource ?? []) {
-          const ch = windsorSourceToChannel(s.source);
-          map.set(ch, (map.get(ch) ?? 0) + (s.spend ?? 0));
-        }
-        setSpendByChannel(map);
-        setTotalSpend(body.totals?.spend ?? 0);
-        setWindsorState("ready");
+        const parsedPagos = parsePagosDetalle(j.pagos ?? []);
+        setPagos((cur) => cur ?? parsedPagos);
+        setAcciones((cur) => cur ?? parseAccionesRealizadas(j.acciones ?? []));
+        setPresupuestos((cur) => cur ?? parsePresupuestos(j.presupuestos ?? []));
+        setCarteraBaked(j.cartera ?? null);
+        setWindsorDaily((cur) => cur ?? (j.windsorDaily ?? []));
+        const dates = parsedPagos.map((p) => p.date).filter((d): d is string => Boolean(d)).sort();
+        if (dates.length) setBounds((cur) => cur ?? { min: dates[0], max: dates[dates.length - 1] });
+        setNames((n) => ({ ...n, pagos: n.pagos ?? "datos precargados" }));
       } catch {
-        if (!cancelled) setWindsorState("error");
+        /* sin datos precargados */
+      } finally {
+        if (!cancelled) setDemoLoading(false);
       }
     })();
-    return () => { cancelled = true; };
-  }, [windsorRange, secret]);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const revenueButZero = summary !== null && pagos !== null && pagos.length > 0 && summary.totals.revenue === 0;
 
@@ -203,7 +220,10 @@ export function OwnerResumen({ secret }: { secret: string }) {
   }, [summary, spendByChannel]);
 
   const today = new Date().toISOString().slice(0, 10);
-  const cartera = useMemo(() => (saldos ? buildCartera(saldos, today) : null), [saldos, today]);
+  const cartera = useMemo(
+    () => (saldos ? buildCartera(saldos, today) : carteraBaked),
+    [saldos, today, carteraBaked],
+  );
   const pipeline = useMemo(() => (presupuestos ? buildPipeline(presupuestos, range) : null), [presupuestos, range]);
 
   // Periodo inmediatamente anterior, misma longitud → "de dónde vengo".
@@ -310,8 +330,8 @@ export function OwnerResumen({ secret }: { secret: string }) {
             Resumen para dueños
           </h2>
           <p className="text-muted-foreground text-sm mt-0.5">
-            Sube los reportes de Dentalink (pagos por acción + acciones realizadas). El dinero, los
-            canales, los tratamientos y el margen se calculan al instante y filtran por fecha.
+            Datos ya cargados de Dentalink (mar–jun 2026): dinero, canales, tratamientos, margen,
+            cartera y proyección. Filtra por fecha; o sube tus propios reportes para actualizar.
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap justify-end">
@@ -328,8 +348,12 @@ export function OwnerResumen({ secret }: { secret: string }) {
 
       {!summary && !error && (
         <Card className="border-dashed"><CardContent className="py-10 text-center text-muted-foreground text-sm">
-          <UploadIcon className="size-8 mx-auto mb-3 opacity-50" aria-hidden="true" />
-          Sube el reporte "finanzas / pagos detalle por acción" para empezar. Opcional: "tratamientos / acciones realizadas" para ver el margen.
+          {demoLoading ? (
+            <><RefreshCwIcon className="size-8 mx-auto mb-3 opacity-50 animate-spin" aria-hidden="true" />Cargando datos…</>
+          ) : (
+            <><UploadIcon className="size-8 mx-auto mb-3 opacity-50" aria-hidden="true" />
+            Sube el reporte "finanzas / pagos detalle por acción" para empezar. Opcional: "tratamientos / acciones realizadas" para ver el margen.</>
+          )}
         </CardContent></Card>
       )}
 
@@ -420,11 +444,7 @@ export function OwnerResumen({ secret }: { secret: string }) {
                 </table>
               </div>
               <p className="text-muted-foreground text-xs mt-2">
-                {windsorState === "error"
-                  ? "No se pudo leer el gasto de Windsor (revisa el secret/credenciales): el ROAS/CAC quedan vacíos por falta de dato, no por falta de inversión."
-                  : windsorState === "loading"
-                    ? "Cargando inversión de Windsor…"
-                    : `Inversión = gasto de Windsor${windsorRange ? ` (${windsorRange.from} → ${windsorRange.to})` : ""}. "Google" mezcla Ads + búsqueda orgánica (ROAS = techo).`}
+                Inversión = gasto de Windsor del mismo rango. "Google" mezcla Ads + búsqueda orgánica (ROAS = techo).
               </p>
             </CardContent>
           </Card>

@@ -559,7 +559,7 @@ function readErrorMessage(value: unknown, fallback: string): string {
 }
 
 function normalizeRoute(path = "") {
-  return path.replace(/^#\/?/, "").split("?")[0] || "dashboard";
+  return path.replace(/^#\/?/, "").split("?")[0] || "duenos";
 }
 
 function rangeCacheKey(range: 7 | 30 | 180 | null): string {
