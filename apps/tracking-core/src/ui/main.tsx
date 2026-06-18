@@ -1,5 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { Analytics } from "@vercel/analytics/react";
 import { AppShell } from "@/components/app-shell";
 import { Dashboard } from "@/components/dashboard";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -11,6 +12,7 @@ function App() {
       <AppShell>
         <Dashboard />
       </AppShell>
+      <Analytics />
     </TooltipProvider>
   );
 }
