@@ -105,7 +105,6 @@ const REFERENCE_CATALOG_PATHS = [
   "/origenes/",
   "/fuentes/",
 ];
-const PATIENT_ADDITIONAL_FIELDS_PATH_TEMPLATE = "/pacientes/{id}/adicionales";
 
 let monthlyDashboardCache: {
   key: string;
@@ -117,8 +116,6 @@ let referenceCatalogCache: {
   cachedAtMs: number;
   catalog: ReferenceCatalog;
 } | null = null;
-
-const patientAdditionalReferenceCache = new Map<number, string | null>();
 
 export default async function handler(
   request: VercelRequest,
@@ -614,15 +611,12 @@ async function getCachedPatient(
         "telefono_fijo",
         "fono",
       ]),
+      // La Referencia se rellena después vía enrichWithReportReferences (reporte
+      // subido); el endpoint /pacientes/{id}/adicionales viene vacío en este
+      // Dentalink, así que NO se consulta (evita una llamada por paciente).
       reference: readPatientReference(
         record,
         fields.referenceField,
-        fields.referenceCatalog,
-      ) ?? await fetchPatientAdditionalReference(
-        baseUrl,
-        apiAuthScheme,
-        apiToken,
-        patientId,
         fields.referenceCatalog,
       ),
       fullName: [firstName, lastName].filter(Boolean).join(" ") || null,
@@ -633,31 +627,6 @@ async function getCachedPatient(
     const patient = emptyPatient();
     cache.set(patientId, patient);
     return patient;
-  }
-}
-
-async function fetchPatientAdditionalReference(
-  baseUrl: string,
-  apiAuthScheme: string,
-  apiToken: string,
-  patientId: number,
-  catalog: ReferenceCatalog,
-): Promise<string | null> {
-  if (patientAdditionalReferenceCache.has(patientId)) {
-    return patientAdditionalReferenceCache.get(patientId) ?? null;
-  }
-
-  const path = PATIENT_ADDITIONAL_FIELDS_PATH_TEMPLATE.replace("{id}", String(patientId));
-  const url = new URL(path.replace(/^\/+/, ""), baseUrl);
-
-  try {
-    const body = await requestDentalink(url, apiAuthScheme, apiToken);
-    const reference = readReferenceFromAdditionalFields(body, catalog);
-    patientAdditionalReferenceCache.set(patientId, reference);
-    return reference;
-  } catch {
-    patientAdditionalReferenceCache.set(patientId, null);
-    return null;
   }
 }
 
