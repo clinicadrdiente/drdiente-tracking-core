@@ -75,3 +75,29 @@ describe("InMemoryStateStore daily reports", () => {
     expect(results.map((r) => r.date)).toEqual(["2026-06-10", "2026-06-09", "2026-06-08"]);
   });
 });
+
+describe("InMemoryStateStore patient references", () => {
+  it("set and batch-get round-trip by patientId", async () => {
+    const store = new InMemoryStateStore();
+    await store.setPatientReference(2716, "REDES SOCIALES");
+    await store.setPatientReference(2351, "GOOGLE");
+    const result = await store.batchGetPatientReferences([2716, 2351, 9999]);
+    expect(result.get(2716)).toBe("REDES SOCIALES");
+    expect(result.get(2351)).toBe("GOOGLE");
+    expect(result.has(9999)).toBe(false);
+  });
+
+  it("last write wins for the same patient", async () => {
+    const store = new InMemoryStateStore();
+    await store.setPatientReference(1, "GOOGLE");
+    await store.setPatientReference(1, "RECOMENDACION");
+    const result = await store.batchGetPatientReferences([1]);
+    expect(result.get(1)).toBe("RECOMENDACION");
+  });
+
+  it("empty id list returns empty map", async () => {
+    const store = new InMemoryStateStore();
+    const result = await store.batchGetPatientReferences([]);
+    expect(result.size).toBe(0);
+  });
+});

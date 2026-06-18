@@ -44,9 +44,21 @@ const MARKETING_KEYWORDS = new Set([
   "HUBSPOT",
   "DOCTORALIA",
   "WAZE",
+  "ELEVATOR",
+  "ELEVADOR",
+  // Buscadores / agentes de IA — alineado con marketing-channels.ts (ai_search)
+  // para que el ROAS marketing del Resumen ejecutivo y el panel de Dueños
+  // cuenten estos pacientes igual.
+  "CHATGPT",
+  "GPT",
+  "OPENAI",
+  "PERPLEXITY",
+  "GEMINI",
+  "COPILOT",
+  "IA",
 ]);
 
-const MARKETING_PHRASES = ["TIK TOK", "RED SOCIAL"];
+const MARKETING_PHRASES = ["TIK TOK", "RED SOCIAL", "CHAT GPT"];
 
 const ORGANIC_KEYWORDS = new Set([
   "RECOMENDACION",

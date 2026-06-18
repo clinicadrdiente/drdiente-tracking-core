@@ -366,11 +366,17 @@ export default async function handler(
         uniquePatientsTotal: prevUnique,
         averagePaymentValue: prevPayments.length > 0 ? prevRevenue / prevPayments.length : 0,
         branchShare: prevBranchShare,
-        marketingAttribution: buildMarketingAttribution(await enrichWithDigitalSources(prevPayments)),
+        marketingAttribution: buildMarketingAttribution(
+          await enrichWithDigitalSources(
+            await enrichWithReportReferences(prevPayments),
+          ),
+        ),
       };
     }
 
-    const enrichedPayments = await enrichWithDigitalSources(payments);
+    const enrichedPayments = await enrichWithDigitalSources(
+      await enrichWithReportReferences(payments),
+    );
 
     const body: MonthlyDashboardBody = {
       ok: true,
@@ -1164,6 +1170,31 @@ function readReferenceLabel(record: Record<string, unknown>): string | null {
     "texto",
     "label",
   ]);
+}
+
+// La Referencia (origen) no la expone la API de Dentalink; se persiste por
+// patientId al subir el reporte "Pacientes nuevos" (ver api/dev/roas-by-channel).
+// Aquí se rellena patientReference cuando la API no la trajo, para que
+// buildMarketingAttribution atribuya la inversión sólo a pacientes de marketing.
+async function enrichWithReportReferences(
+  payments: MonthlyPaymentBlock[],
+): Promise<MonthlyPaymentBlock[]> {
+  try {
+    const patientIds = [
+      ...new Set(payments.map((p) => p.patientId).filter((id) => id > 0)),
+    ];
+    if (patientIds.length === 0) return payments;
+    const referenceMap =
+      await trackingHttpHandlers.stateStore.batchGetPatientReferences(patientIds);
+    if (referenceMap.size === 0) return payments;
+    return payments.map((p) =>
+      p.patientReference
+        ? p
+        : { ...p, patientReference: referenceMap.get(p.patientId) ?? null },
+    );
+  } catch {
+    return payments;
+  }
 }
 
 async function enrichWithDigitalSources(

@@ -25,6 +25,14 @@ export interface StateStore {
   setContactLeadSource(contact: string, source: string): Promise<void>;
   getContactLeadSource(contact: string): Promise<string | null>;
   batchGetContactLeadSources(contacts: string[]): Promise<Map<string, string>>;
+  /**
+   * Store the marketing "Referencia" (origin) of a patient by Dentalink id.
+   * Keyed by patientId (not phone/email) because that id is identical in the
+   * exported report and in payments — phone formatting differs between sources.
+   * TTL: 180 days.
+   */
+  setPatientReference(patientId: number, reference: string): Promise<void>;
+  batchGetPatientReferences(patientIds: number[]): Promise<Map<number, string>>;
   /** Upsert a treatment for a patient. Dedupes by treatmentId; updates lastPaymentAt on subsequent calls. */
   recordPatientTreatment(record: PatientTreatmentRecord): Promise<void>;
   /** Patients sorted by treatmentCount desc. minTreatments defaults to 1 (all). */
@@ -38,6 +46,7 @@ export class InMemoryStateStore implements StateStore {
   private heartbeats: Map<string, string> = new Map();
   private dailyReports: Map<string, DailyBranchReport> = new Map();
   private contactLeadSources: Map<string, string> = new Map();
+  private patientReferences: Map<number, string> = new Map();
   private patientTreatments: Map<number, Map<number, PatientTreatmentRecord>> = new Map();
 
   async getPaymentSyncState(): Promise<PaymentSyncState> {
@@ -103,6 +112,21 @@ export class InMemoryStateStore implements StateStore {
     for (const contact of contacts) {
       const source = this.contactLeadSources.get(contact);
       if (source) result.set(contact, source);
+    }
+    return result;
+  }
+
+  async setPatientReference(patientId: number, reference: string): Promise<void> {
+    this.patientReferences.set(patientId, reference);
+  }
+
+  async batchGetPatientReferences(
+    patientIds: number[],
+  ): Promise<Map<number, string>> {
+    const result = new Map<number, string>();
+    for (const patientId of patientIds) {
+      const reference = this.patientReferences.get(patientId);
+      if (reference) result.set(patientId, reference);
     }
     return result;
   }
@@ -213,6 +237,27 @@ export class FileStateStore implements StateStore {
     const result = new Map<string, string>();
     for (const contact of contacts) {
       if (map[contact]) result.set(contact, map[contact]);
+    }
+    return result;
+  }
+
+  async setPatientReference(patientId: number, reference: string): Promise<void> {
+    const state = await this.readRawState();
+    const existing = (state.patientReferences as Record<string, string> | undefined) ?? {};
+    existing[String(patientId)] = reference;
+    state.patientReferences = existing;
+    await this.writeRawState(state);
+  }
+
+  async batchGetPatientReferences(
+    patientIds: number[],
+  ): Promise<Map<number, string>> {
+    const state = await this.readRawState() as Record<string, unknown>;
+    const map = (state.patientReferences as Record<string, string> | undefined) ?? {};
+    const result = new Map<number, string>();
+    for (const patientId of patientIds) {
+      const reference = map[String(patientId)];
+      if (reference) result.set(patientId, reference);
     }
     return result;
   }
@@ -395,6 +440,29 @@ export class RedisStateStore implements StateStore {
       for (let i = 0; i < contacts.length; i++) {
         const v = values[i];
         if (v) result.set(contacts[i], v);
+      }
+    }
+    return result;
+  }
+
+  async setPatientReference(patientId: number, reference: string): Promise<void> {
+    const key = `${this.stateKey}:patient-reference:${patientId}`;
+    await this.command(["SET", key, reference, "EX", 15552000]); // 180 days
+  }
+
+  async batchGetPatientReferences(
+    patientIds: number[],
+  ): Promise<Map<number, string>> {
+    if (patientIds.length === 0) return new Map();
+    const keys = patientIds.map(
+      (id) => `${this.stateKey}:patient-reference:${id}`,
+    );
+    const values = await this.command<(string | null)[]>(["MGET", ...keys]);
+    const result = new Map<number, string>();
+    if (Array.isArray(values)) {
+      for (let i = 0; i < patientIds.length; i++) {
+        const value = values[i];
+        if (value) result.set(patientIds[i], value);
       }
     }
     return result;

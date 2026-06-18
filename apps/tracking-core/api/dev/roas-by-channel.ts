@@ -5,7 +5,11 @@ import {
   type VercelRequest,
   type VercelResponse,
 } from "../_lib/http.js";
-import { requireTrackingSecret, serverError } from "../../src/index.js";
+import {
+  requireTrackingSecret,
+  serverError,
+  trackingHttpHandlers,
+} from "../../src/index.js";
 import { getDentalinkConfig } from "../../src/modules/dentalink/config.js";
 import { parsePatientReferenceReport } from "../../src/modules/dentalink/patient-reference-report.js";
 import {
@@ -68,6 +72,20 @@ export default async function handler(
     const { dateFrom, dateTo } = resolveDateRange(payload, ingestion.records);
     const warnings: string[] = [];
 
+    // Persiste la Referencia por id de paciente para que el resto del dashboard
+    // (Resumen ejecutivo, Esfuerzos) pueda atribuir la inversión SOLO a pacientes
+    // de marketing — la API de Dentalink no expone este campo.
+    const persisted = await persistReferences(ingestion.records).catch(
+      (error: unknown) => {
+        warnings.push(
+          `No se pudieron guardar las referencias para el resumen: ${
+            error instanceof Error ? error.message : "error desconocido"
+          }`,
+        );
+        return 0;
+      },
+    );
+
     const revenueByPatient = await fetchRevenueByPatient(dateFrom).catch(
       (error: unknown) => {
         warnings.push(
@@ -112,6 +130,7 @@ export default async function handler(
           withReference: ingestion.withReference,
           coverage: ingestion.coverage,
           unresolvedColumns: ingestion.unresolvedColumns,
+          persistedReferences: persisted,
         },
         roas,
         warnings,
@@ -125,6 +144,30 @@ export default async function handler(
       }),
     );
   }
+}
+
+const PERSIST_CONCURRENCY = 25;
+
+async function persistReferences(
+  records: { patientId: number; reference: string | null }[],
+): Promise<number> {
+  const store = trackingHttpHandlers.stateStore;
+  const withReference = records.filter(
+    (record): record is { patientId: number; reference: string } =>
+      Boolean(record.reference),
+  );
+
+  let persisted = 0;
+  for (let i = 0; i < withReference.length; i += PERSIST_CONCURRENCY) {
+    const chunk = withReference.slice(i, i + PERSIST_CONCURRENCY);
+    await Promise.all(
+      chunk.map((record) =>
+        store.setPatientReference(record.patientId, record.reference),
+      ),
+    );
+    persisted += chunk.length;
+  }
+  return persisted;
 }
 
 interface RoasRequestPayload {

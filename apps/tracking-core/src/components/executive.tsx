@@ -498,7 +498,6 @@ function GlobalView({
         marketing={marketing}
         onSpendMonthChange={onSpendMonthChange}
         patch={patch}
-        revenue={globalRevenue}
         spendMonth={spendMonth}
         windsorSpend={windsorSpend}
         windsorState={windsorState}
@@ -686,7 +685,6 @@ function ReturnCard({
   marketing,
   onSpendMonthChange,
   patch,
-  revenue,
   spendMonth,
   windsorSpend,
   windsorState,
@@ -695,17 +693,20 @@ function ReturnCard({
   marketing: MarketingBucket | null;
   onSpendMonthChange: (month: string) => void;
   patch: (partial: Partial<ExecutiveInputs>) => void;
-  revenue: number;
   spendMonth: string;
   windsorSpend: number | null;
   windsorState: "idle" | "loading" | "ready" | "unconfigured" | "error";
 }) {
   const adSpend = inputs.adSpendOverride ?? windsorSpend ?? 0;
+  // "Cuánto ganó la inversión" cuenta SOLO el revenue de pacientes de origen
+  // digital (marketing). Atribuir a los anuncios el revenue de recomendación /
+  // orgánico / "pasando por la calle" sería un dato incorrecto.
+  const marketingRevenue = marketing?.revenue ?? 0;
+  const marketingPatients = marketing?.patients ?? 0;
+  const hasMarketingData = marketing !== null && marketingRevenue > 0;
   const totalCosts = adSpend + inputs.operatingCosts;
-  const profit = revenue - totalCosts;
-  const roas = adSpend > 0 ? revenue / adSpend : 0;
-  const roasMarketing =
-    marketing !== null && adSpend > 0 ? marketing.revenue / adSpend : null;
+  const profit = marketingRevenue - totalCosts;
+  const roasMarketing = adSpend > 0 ? marketingRevenue / adSpend : null;
   const roiComputed = totalCosts > 0 ? (profit / totalCosts) * 100 : 0;
   const roi = inputs.roiManualEnabled ? inputs.roiManual : roiComputed;
   const usingWindsor = inputs.adSpendOverride === null && windsorSpend !== null;
@@ -738,28 +739,37 @@ function ReturnCard({
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <MetricTile
-            hint="Por cada $1 invertido"
-            label="ROAS general"
-            tone={roas >= 1 ? "good" : "bad"}
-            value={`${formatRoas(roas)}`}
-          />
-          <MetricTile
-            hint={
-              marketing !== null
-                ? `${formatMoney(marketing.revenue)} de pacientes con origen digital`
-                : "Actualiza Dentalink para calcularlo"
-            }
+            hint="Por cada $1 invertido en anuncios"
             label="ROAS marketing"
             tone={roasMarketing !== null && roasMarketing >= 1 ? "good" : "bad"}
             value={roasMarketing !== null ? formatRoas(roasMarketing) : "—"}
           />
+          <MetricTile
+            hint={
+              hasMarketingData
+                ? `${formatInteger(marketingPatients)} pacientes de origen digital`
+                : "Sube el reporte en ROAS por canal"
+            }
+            label="Revenue de marketing"
+            tone={marketingRevenue > 0 ? "good" : "bad"}
+            value={formatMoney(marketingRevenue)}
+          />
           <MetricTile label="ROI" tone={roi >= 0 ? "good" : "bad"} value={formatPercent(roi)} />
           <MetricTile
+            hint="Revenue de marketing − inversión"
             label="Ganancia"
             tone={profit >= 0 ? "good" : "bad"}
             value={formatMoney(profit)}
           />
         </div>
+        {!hasMarketingData ? (
+          <p className="flex items-start gap-1.5 rounded-lg border border-warn/30 bg-warn/5 p-2.5 text-warn text-xs">
+            <InfoIcon aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
+            Aún no hay atribución de marketing. Sube el reporte "Pacientes nuevos"
+            en la sección <strong>ROAS por canal</strong> y vuelve a actualizar
+            para ver cuánto ganó la inversión.
+          </p>
+        ) : null}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field
             hint={usingWindsor ? "Auto desde Windsor. Escribe para cambiar." : "Inversion total en anuncios."}
@@ -816,10 +826,10 @@ function ReturnCard({
         </div>
         <p className="flex items-start gap-1.5 text-muted-foreground text-xs">
           <InfoIcon aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
-          ROAS general = todo el revenue / toda la inversion. ROAS marketing =
-          solo el revenue de pacientes cuyo campo "Referencia" en Dentalink
-          indica origen digital (Google, redes, internet). El detalle esta en
-          Esfuerzos.
+          Sólo cuenta pacientes de origen digital (Google, redes, TikTok,
+          internet) — NO recomendación, orgánico ni "pasando por la calle".
+          ROAS marketing = revenue de esos pacientes / inversión en anuncios. La
+          Referencia viene del reporte que subes en ROAS por canal.
         </p>
       </CardContent>
     </Card>

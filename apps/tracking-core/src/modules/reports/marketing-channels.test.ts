@@ -23,18 +23,31 @@ describe("referenceToChannel", () => {
     expect(referenceToChannel("GOOGLE")).toBe("google");
   });
 
-  it("clasifica orgánico/recomendación", () => {
+  it("clasifica IA / buscadores de IA (incl. 'CHAT GPT' e 'IA' exacto)", () => {
+    expect(referenceToChannel("CHAT GPT")).toBe("ai_search");
+    expect(referenceToChannel("ChatGPT")).toBe("ai_search");
+    expect(referenceToChannel("IA")).toBe("ai_search");
+    expect(referenceToChannel("Perplexity")).toBe("ai_search");
+    // token exacto: no debe matchear IA dentro de otras palabras
+    expect(referenceToChannel("MARIA")).not.toBe("ai_search");
+    expect(referenceToChannel("FAMILIA")).toBe("referral_organic");
+  });
+
+  it("clasifica recomendación vs pasando por la calle (walk_in)", () => {
     expect(referenceToChannel("Recomendación")).toBe("referral_organic");
-    expect(referenceToChannel("PASANDO POR CLÍNICA")).toBe("referral_organic");
     expect(referenceToChannel("REFERIDO SUCURSAL POLANCO")).toBe(
       "referral_organic",
     );
+    expect(referenceToChannel("PASANDO POR CLÍNICA")).toBe("walk_in");
+    expect(referenceToChannel("IBA PASANDO POR LA CLINICA")).toBe("walk_in");
+    // walk_in gana cuando mezcla con un referido
+    expect(referenceToChannel("PASANDO POR CLINICA VECINO")).toBe("walk_in");
   });
 
   it("vacío o desconocido cae en unknown", () => {
     expect(referenceToChannel("")).toBe("unknown");
     expect(referenceToChannel(null)).toBe("unknown");
-    expect(referenceToChannel("IA")).toBe("unknown");
+    expect(referenceToChannel("PRUEBA")).toBe("unknown");
   });
 
   it("una plataforma social gana cuando la cadena mezcla fuentes", () => {
