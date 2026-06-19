@@ -6,6 +6,7 @@ import type {
   ClientSummarySnapshot,
 } from "@/modules/reports/client-snapshot";
 import type { NamedCount, WebAnalytics } from "@/modules/analytics/ga4";
+import type { SearchTrafficSummary } from "@/modules/analytics/search-traffic";
 
 // Formato MXN (es-MX) — la clínica factura en pesos.
 function moneyFull(value: number | null | undefined): string {
@@ -376,25 +377,25 @@ function Recommendations({ snapshot }: { snapshot: ClientSummarySnapshot }) {
 /* ========================== TAB 2: TRÁFICO WEB ========================== */
 
 interface WebResponse {
-  analytics: WebAnalytics | null;
+  source?: "ga4" | "search_console" | null;
+  analytics?: WebAnalytics | null;
+  search?: SearchTrafficSummary | null;
   reason?: string;
   rangeDays?: number;
 }
 
 function WebTrafficView() {
   const [state, setState] = useState<LoadState>("loading");
-  const [data, setData] = useState<WebAnalytics | null>(null);
-  const [reason, setReason] = useState<string | undefined>(undefined);
+  const [res, setRes] = useState<WebResponse | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch("/api/client/web-analytics");
-        const body = (await res.json()) as WebResponse;
+        const r = await fetch("/api/client/web-analytics");
+        const body = (await r.json()) as WebResponse;
         if (cancelled) return;
-        setData(body.analytics);
-        setReason(body.reason);
+        setRes(body);
         setState("ready");
       } catch {
         if (!cancelled) setState("error");
@@ -408,18 +409,21 @@ function WebTrafficView() {
   if (state === "loading") return <Centered>Cargando analítica web…</Centered>;
   if (state === "error") return <Centered>No se pudo cargar la analítica web.</Centered>;
 
-  if (!data) {
-    return (
-      <Card className="border-dashed">
-        <CardContent className="py-10 text-center text-muted-foreground text-sm">
-          {reason === "not_configured"
-            ? "La analítica del sitio aún no está conectada. Tu equipo la activará en breve."
-            : "No hay datos de analítica web disponibles por ahora."}
-        </CardContent>
-      </Card>
-    );
-  }
+  if (res?.source === "ga4" && res.analytics) return <Ga4View data={res.analytics} />;
+  if (res?.source === "search_console" && res.search) return <SearchView data={res.search} />;
 
+  return (
+    <Card className="border-dashed">
+      <CardContent className="py-10 text-center text-muted-foreground text-sm">
+        {res?.reason === "not_configured"
+          ? "La analítica del sitio aún no está conectada. Tu equipo la activará en breve."
+          : "No hay datos de analítica web disponibles por ahora."}
+      </CardContent>
+    </Card>
+  );
+}
+
+function Ga4View({ data }: { data: WebAnalytics }) {
   return (
     <div className="flex flex-col gap-5">
       <p className="text-muted-foreground text-sm -mt-2">Tráfico del sitio · últimos {data.rangeDays} días</p>
@@ -471,6 +475,79 @@ function WebTrafficView() {
         <NamedCountCard title="Países" rows={data.countries} />
         <NamedCountCard title="Dispositivos" rows={data.devices} />
       </section>
+    </div>
+  );
+}
+
+function SearchView({ data }: { data: SearchTrafficSummary }) {
+  return (
+    <div className="flex flex-col gap-5">
+      <p className="text-muted-foreground text-sm -mt-2">
+        Tráfico orgánico de Google (Search Console) · últimos {data.rangeDays} días
+      </p>
+
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Metric label="Clics desde Google" value={intFmt(data.totals.clicks)} hint="visitas orgánicas" accent />
+        <Metric label="Impresiones" value={intFmt(data.totals.impressions)} hint="apariciones en Google" />
+        <Metric label="CTR" value={data.totals.ctrPct === null ? "—" : `${data.totals.ctrPct.toFixed(1)}%`} />
+        <Metric label="Posición prom." value={data.totals.avgPosition === null ? "—" : data.totals.avgPosition.toFixed(1)} />
+      </section>
+
+      <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-base">Páginas que más traen tráfico</CardTitle></CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead><tr className="text-muted-foreground text-xs border-b">
+                  <th scope="col" className="text-left font-medium py-2 pr-2">Página</th>
+                  <th scope="col" className="text-right font-medium py-2 px-2">Clics</th>
+                  <th scope="col" className="text-right font-medium py-2 px-2 hidden sm:table-cell">Impres.</th>
+                  <th scope="col" className="text-right font-medium py-2 pl-2 hidden md:table-cell">CTR</th>
+                </tr></thead>
+                <tbody>
+                  {data.topPages.map((p) => (
+                    <tr key={p.page} className="border-b last:border-0">
+                      <td className="py-2 pr-2 font-medium truncate max-w-[16rem]">{p.page}</td>
+                      <td className="py-2 px-2 text-right tabular-nums">{intFmt(p.clicks)}</td>
+                      <td className="py-2 px-2 text-right tabular-nums text-muted-foreground hidden sm:table-cell">{intFmt(p.impressions)}</td>
+                      <td className="py-2 pl-2 text-right tabular-nums text-muted-foreground hidden md:table-cell">{p.ctrPct === null ? "—" : `${p.ctrPct.toFixed(1)}%`}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-base">Búsquedas que te encuentran</CardTitle></CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead><tr className="text-muted-foreground text-xs border-b">
+                  <th scope="col" className="text-left font-medium py-2 pr-2">Búsqueda</th>
+                  <th scope="col" className="text-right font-medium py-2 px-2">Clics</th>
+                  <th scope="col" className="text-right font-medium py-2 pl-2 hidden sm:table-cell">Impres.</th>
+                </tr></thead>
+                <tbody>
+                  {data.topQueries.map((q) => (
+                    <tr key={q.query} className="border-b last:border-0">
+                      <td className="py-2 pr-2 font-medium truncate max-w-[16rem]">{q.query}</td>
+                      <td className="py-2 px-2 text-right tabular-nums">{intFmt(q.clicks)}</td>
+                      <td className="py-2 pl-2 text-right tabular-nums text-muted-foreground hidden sm:table-cell">{intFmt(q.impressions)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      </section>
+
+      <p className="text-muted-foreground text-xs">
+        Fuente: Google Search Console (tráfico orgánico de búsqueda). El tráfico total (directo, redes, pago,
+        países y dispositivos) se agrega cuando se conecta Google Analytics.
+      </p>
     </div>
   );
 }

@@ -5,19 +5,30 @@ import {
   type VercelRequest,
   type VercelResponse,
 } from "../_lib/http.js";
-import { serverError } from "../../src/index.js";
 import {
   fetchWebAnalytics,
   readGa4Config,
   type WebAnalytics,
 } from "../../src/modules/analytics/ga4.js";
+import {
+  buildSearchTrafficSummary,
+  toWindsorPreset,
+  type SearchTrafficSummary,
+} from "../../src/modules/analytics/search-traffic.js";
+import { createWindsorClient } from "../../src/modules/windsor/client.js";
 
-// Analítica web del sitio (Google Analytics 4) para el dashboard del cliente.
-// Acceso abierto por URL (sin PII a nivel persona). Cachea ~10 min para no
-// agotar la cuota del Data API. Si GA4 no está configurado, responde
-// analytics:null y la UI muestra un estado claro.
+// Analítica web para el dashboard del cliente. Prioridad de fuente:
+//   1. Google Analytics 4 (Data API) — completo (visitas/países/dispositivos),
+//      si están las env GA4_*.
+//   2. Google Search Console (vía Windsor, ya configurado) — tráfico orgánico
+//      de Google (clics/impresiones/páginas/búsquedas), sin necesitar Google Console.
+// Cachea ~10 min para no agotar cuotas. Acceso abierto por URL (sin PII).
+type CacheValue =
+  | { source: "ga4"; ga4: WebAnalytics }
+  | { source: "search_console"; search: SearchTrafficSummary };
+
 const CACHE_TTL_MS = 10 * 60 * 1000;
-let cache: { key: string; data: WebAnalytics; expMs: number } | undefined;
+let cache: { key: string; value: CacheValue; expMs: number } | undefined;
 
 export default async function handler(
   request: VercelRequest,
@@ -28,36 +39,62 @@ export default async function handler(
     return;
   }
 
-  const config = readGa4Config();
-  if (!config) {
-    send(response, { status: 200, body: { ok: true, analytics: null, reason: "not_configured" } });
-    return;
-  }
-
-  const req = toHttpRequest(request);
-  const rangeDays = clampDays(Number(req.query?.days));
-  const key = `${config.propertyId}:${rangeDays}`;
+  const rangeDays = clampDays(Number(toHttpRequest(request).query?.days));
+  const key = String(rangeDays);
 
   if (cache && cache.key === key && cache.expMs > Date.now()) {
-    send(response, { status: 200, body: { ok: true, analytics: cache.data, rangeDays } });
+    sendValue(response, cache.value, rangeDays);
     return;
   }
 
-  try {
-    const data = await fetchWebAnalytics(config, rangeDays);
-    cache = { key, data, expMs: Date.now() + CACHE_TTL_MS };
-    send(response, { status: 200, body: { ok: true, analytics: data, rangeDays } });
-  } catch (error) {
-    // No reventamos la UI: devolvemos null + motivo.
-    send(response, {
-      status: 200,
-      body: {
-        ok: true,
-        analytics: null,
-        reason: "error",
-        message: error instanceof Error ? error.message : "unknown error",
-      },
-    });
+  // 1 — Google Analytics 4 (si está configurado).
+  const ga = readGa4Config();
+  if (ga) {
+    try {
+      const ga4 = await fetchWebAnalytics(ga, rangeDays);
+      cache = { key, value: { source: "ga4", ga4 }, expMs: Date.now() + CACHE_TTL_MS };
+      sendValue(response, cache.value, rangeDays);
+      return;
+    } catch {
+      // GA4 configurado pero falló → caemos a Search Console.
+    }
+  }
+
+  // 2 — Google Search Console vía Windsor.
+  const windsor = createWindsorClient();
+  if (windsor.isConfigured()) {
+    try {
+      const datePreset = toWindsorPreset(rangeDays);
+      const [pageReport, queryReport] = await Promise.all([
+        windsor.getSearchConsoleReport({ dimension: "page", datePreset }),
+        windsor.getSearchConsoleReport({ dimension: "query", datePreset }),
+      ]);
+      const search = buildSearchTrafficSummary(pageReport, queryReport, rangeDays);
+      cache = { key, value: { source: "search_console", search }, expMs: Date.now() + CACHE_TTL_MS };
+      sendValue(response, cache.value, rangeDays);
+      return;
+    } catch (error) {
+      send(response, {
+        status: 200,
+        body: {
+          ok: true,
+          source: null,
+          reason: "error",
+          message: error instanceof Error ? error.message : "unknown error",
+        },
+      });
+      return;
+    }
+  }
+
+  send(response, { status: 200, body: { ok: true, source: null, reason: "not_configured" } });
+}
+
+function sendValue(response: VercelResponse, value: CacheValue, rangeDays: number): void {
+  if (value.source === "ga4") {
+    send(response, { status: 200, body: { ok: true, source: "ga4", analytics: value.ga4, rangeDays } });
+  } else {
+    send(response, { status: 200, body: { ok: true, source: "search_console", search: value.search, rangeDays } });
   }
 }
 
