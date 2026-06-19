@@ -1,9 +1,11 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type {
   ClientChannelRow,
   ClientSummarySnapshot,
 } from "@/modules/reports/client-snapshot";
+import type { NamedCount, WebAnalytics } from "@/modules/analytics/ga4";
 
 // Formato MXN (es-MX) — la clínica factura en pesos.
 function moneyFull(value: number | null | undefined): string {
@@ -31,9 +33,50 @@ function intFmt(value: number): string {
   return new Intl.NumberFormat("es-MX", { maximumFractionDigits: 0 }).format(value);
 }
 
-type LoadState = "loading" | "ready" | "error";
+type Tab = "resumen" | "web";
 
 export function ClientApp() {
+  const [tab, setTab] = useState<Tab>("resumen");
+  return (
+    <div className="mx-auto max-w-5xl px-4 py-6 flex flex-col gap-5">
+      <header className="flex items-center justify-between gap-4 flex-wrap">
+        <h1 className="text-2xl font-semibold tracking-tight">DrDiente</h1>
+        <div className="flex gap-2" role="tablist" aria-label="Secciones">
+          <Button size="sm" variant={tab === "resumen" ? "default" : "outline"} aria-pressed={tab === "resumen"} onClick={() => setTab("resumen")}>
+            Resumen
+          </Button>
+          <Button size="sm" variant={tab === "web" ? "default" : "outline"} aria-pressed={tab === "web"} onClick={() => setTab("web")}>
+            Tráfico web
+          </Button>
+        </div>
+      </header>
+
+      {tab === "resumen" ? <ResumenView /> : <WebTrafficView />}
+    </div>
+  );
+}
+
+function Centered({ children }: { children: ReactNode }) {
+  return (
+    <div className="py-16 text-center text-muted-foreground text-sm">{children}</div>
+  );
+}
+
+function Metric({ label, value, hint, accent }: { label: string; value: string; hint?: string; accent?: boolean }) {
+  return (
+    <div className="rounded-lg bg-muted/40 p-3">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className={`text-xl font-semibold mt-1 ${accent ? "text-primary" : ""}`}>{value}</p>
+      {hint ? <p className="text-xs text-muted-foreground mt-0.5">{hint}</p> : null}
+    </div>
+  );
+}
+
+/* ============================ TAB 1: RESUMEN ============================ */
+
+type LoadState = "loading" | "ready" | "error";
+
+function ResumenView() {
   const [state, setState] = useState<LoadState>("loading");
   const [snapshot, setSnapshot] = useState<ClientSummarySnapshot | null>(null);
 
@@ -42,10 +85,7 @@ export function ClientApp() {
     (async () => {
       try {
         const res = await fetch("/api/client/summary");
-        const body = (await res.json()) as {
-          ok?: boolean;
-          snapshot?: ClientSummarySnapshot | null;
-        };
+        const body = (await res.json()) as { snapshot?: ClientSummarySnapshot | null };
         if (cancelled) return;
         setSnapshot(body.snapshot ?? null);
         setState("ready");
@@ -61,60 +101,35 @@ export function ClientApp() {
   if (state === "loading") return <Centered>Cargando…</Centered>;
   if (state === "error") return <Centered>No se pudo cargar el resumen. Intenta recargar la página.</Centered>;
 
-  return (
-    <div className="mx-auto max-w-5xl px-4 py-6 flex flex-col gap-5">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Resumen · DrDiente</h1>
-        {snapshot?.bounds && (
-          <p className="text-muted-foreground text-sm mt-0.5">
-            Periodo {snapshot.bounds.min} → {snapshot.bounds.max}
-            {snapshot.generatedAt ? ` · actualizado ${snapshot.generatedAt.slice(0, 10)}` : ""}
-          </p>
-        )}
-      </header>
+  if (!snapshot) {
+    return (
+      <Card className="border-dashed">
+        <CardContent className="py-10 text-center text-muted-foreground text-sm">
+          Aún no hay un reporte publicado. Tu equipo de marketing lo publicará en breve.
+        </CardContent>
+      </Card>
+    );
+  }
 
-      {!snapshot && (
-        <Card className="border-dashed">
-          <CardContent className="py-10 text-center text-muted-foreground text-sm">
-            Aún no hay un reporte publicado. Tu equipo de marketing lo publicará en breve.
-          </CardContent>
-        </Card>
+  return (
+    <div className="flex flex-col gap-5">
+      {snapshot.bounds && (
+        <p className="text-muted-foreground text-sm -mt-2">
+          Periodo {snapshot.bounds.min} → {snapshot.bounds.max}
+          {snapshot.generatedAt ? ` · actualizado ${snapshot.generatedAt.slice(0, 10)}` : ""}
+        </p>
       )}
-
-      {snapshot && (
-        <>
-          <HeroSection snapshot={snapshot} />
-          <InvestmentByChannel snapshot={snapshot} />
-          <AdResultsByChannel snapshot={snapshot} />
-          <PatientResultsByChannel snapshot={snapshot} />
-          {(snapshot.cartera || snapshot.pipeline) && <CarteraPipeline snapshot={snapshot} />}
-          {snapshot.months.length > 1 && <MonthlyTable snapshot={snapshot} />}
-          <Recommendations snapshot={snapshot} />
-        </>
-      )}
+      <HeroSection snapshot={snapshot} />
+      <InvestmentByChannel snapshot={snapshot} />
+      <AdResultsByChannel snapshot={snapshot} />
+      <PatientResultsByChannel snapshot={snapshot} />
+      {(snapshot.cartera || snapshot.pipeline) && <CarteraPipeline snapshot={snapshot} />}
+      {snapshot.months.length > 1 && <MonthlyTable snapshot={snapshot} />}
+      <Recommendations snapshot={snapshot} />
     </div>
   );
 }
 
-function Centered({ children }: { children: ReactNode }) {
-  return (
-    <div className="min-h-screen flex items-center justify-center text-muted-foreground text-sm">
-      {children}
-    </div>
-  );
-}
-
-function Metric({ label, value, hint, accent }: { label: string; value: string; hint?: string; accent?: boolean }) {
-  return (
-    <div className="rounded-lg bg-muted/40 p-3">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className={`text-xl font-semibold mt-1 ${accent ? "text-primary" : ""}`}>{value}</p>
-      {hint ? <p className="text-xs text-muted-foreground mt-0.5">{hint}</p> : null}
-    </div>
-  );
-}
-
-// 1 — Hero: facturado vs invertido + ROI/ROAS/AOV/CAC/LTV.
 function HeroSection({ snapshot }: { snapshot: ClientSummarySnapshot }) {
   const { totals, kpis } = snapshot;
   return (
@@ -141,7 +156,6 @@ function HeroSection({ snapshot }: { snapshot: ClientSummarySnapshot }) {
   );
 }
 
-// 2 — ¿Cuánto se invirtió y en qué canales?
 function InvestmentByChannel({ snapshot }: { snapshot: ClientSummarySnapshot }) {
   return (
     <Card>
@@ -156,7 +170,6 @@ function InvestmentByChannel({ snapshot }: { snapshot: ClientSummarySnapshot }) 
   );
 }
 
-// 3 — Resultados de los anuncios (por canal).
 function AdResultsByChannel({ snapshot }: { snapshot: ClientSummarySnapshot }) {
   const withSpend = snapshot.channels.filter((c) => c.spend > 0);
   if (withSpend.length === 0) return null;
@@ -188,15 +201,11 @@ function AdResultsByChannel({ snapshot }: { snapshot: ClientSummarySnapshot }) {
             </tbody>
           </table>
         </div>
-        <p className="text-muted-foreground text-xs mt-2">
-          Métricas de anuncios por canal. El detalle por campaña individual se irá sumando conforme se capture el origen.
-        </p>
       </CardContent>
     </Card>
   );
 }
 
-// 4 — Resultados a nivel pacientes + tratamientos.
 function PatientResultsByChannel({ snapshot }: { snapshot: ClientSummarySnapshot }) {
   return (
     <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -330,7 +339,6 @@ function MonthlyTable({ snapshot }: { snapshot: ClientSummarySnapshot }) {
   );
 }
 
-// 5 — Qué se puede hacer para mejorar.
 const SEVERITY_STYLE: Record<string, string> = {
   alta: "border-l-destructive",
   media: "border-l-warn",
@@ -357,6 +365,150 @@ function Recommendations({ snapshot }: { snapshot: ClientSummarySnapshot }) {
                 <span className="text-muted-foreground text-xs font-normal"> · {SEVERITY_LABEL[r.severity] ?? r.severity}</span>
               </p>
               <p className="text-muted-foreground text-sm">{r.detail}</p>
+            </div>
+          ))
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ========================== TAB 2: TRÁFICO WEB ========================== */
+
+interface WebResponse {
+  analytics: WebAnalytics | null;
+  reason?: string;
+  rangeDays?: number;
+}
+
+function WebTrafficView() {
+  const [state, setState] = useState<LoadState>("loading");
+  const [data, setData] = useState<WebAnalytics | null>(null);
+  const [reason, setReason] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/client/web-analytics");
+        const body = (await res.json()) as WebResponse;
+        if (cancelled) return;
+        setData(body.analytics);
+        setReason(body.reason);
+        setState("ready");
+      } catch {
+        if (!cancelled) setState("error");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (state === "loading") return <Centered>Cargando analítica web…</Centered>;
+  if (state === "error") return <Centered>No se pudo cargar la analítica web.</Centered>;
+
+  if (!data) {
+    return (
+      <Card className="border-dashed">
+        <CardContent className="py-10 text-center text-muted-foreground text-sm">
+          {reason === "not_configured"
+            ? "La analítica del sitio aún no está conectada. Tu equipo la activará en breve."
+            : "No hay datos de analítica web disponibles por ahora."}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-5">
+      <p className="text-muted-foreground text-sm -mt-2">Tráfico del sitio · últimos {data.rangeDays} días</p>
+
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Metric label="Visitantes" value={intFmt(data.totals.visitors)} accent />
+        <Metric label="Páginas vistas" value={intFmt(data.totals.pageViews)} />
+        <Metric label="Sesiones" value={intFmt(data.totals.sessions)} />
+        <Metric label="Rebote" value={data.totals.bounceRatePct === null ? "—" : pct(data.totals.bounceRatePct)} />
+      </section>
+
+      {data.timeseries.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-base">Visitantes por día</CardTitle></CardHeader>
+          <CardContent>
+            <DayBars points={data.timeseries} />
+          </CardContent>
+        </Card>
+      )}
+
+      <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-base">Páginas más vistas</CardTitle></CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead><tr className="text-muted-foreground text-xs border-b">
+                  <th scope="col" className="text-left font-medium py-2 pr-2">Página</th>
+                  <th scope="col" className="text-right font-medium py-2 px-2">Visitantes</th>
+                  <th scope="col" className="text-right font-medium py-2 pl-2">Vistas</th>
+                </tr></thead>
+                <tbody>
+                  {data.topPages.map((p) => (
+                    <tr key={p.path} className="border-b last:border-0">
+                      <td className="py-2 pr-2 font-medium truncate max-w-[16rem]">{p.path}</td>
+                      <td className="py-2 px-2 text-right tabular-nums">{intFmt(p.visitors)}</td>
+                      <td className="py-2 pl-2 text-right tabular-nums text-muted-foreground">{intFmt(p.pageViews)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+        <NamedCountCard title="De dónde llegan (fuentes)" rows={data.topSources} />
+      </section>
+
+      <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <NamedCountCard title="Países" rows={data.countries} />
+        <NamedCountCard title="Dispositivos" rows={data.devices} />
+      </section>
+    </div>
+  );
+}
+
+function DayBars({ points }: { points: WebAnalytics["timeseries"] }) {
+  const max = Math.max(...points.map((p) => p.visitors), 1);
+  return (
+    <div className="flex items-end gap-1 h-32">
+      {points.map((p) => (
+        <div
+          key={p.date}
+          className="flex-1 rounded-t bg-primary/70"
+          style={{ height: `${Math.max(2, (p.visitors / max) * 100)}%` }}
+          title={`${p.date}: ${intFmt(p.visitors)} visitantes`}
+        />
+      ))}
+    </div>
+  );
+}
+
+function NamedCountCard({ title, rows }: { title: string; rows: NamedCount[] }) {
+  const max = rows[0]?.visitors || 1;
+  return (
+    <Card>
+      <CardHeader className="pb-2"><CardTitle className="text-base">{title}</CardTitle></CardHeader>
+      <CardContent className="space-y-2">
+        {rows.length === 0 ? (
+          <p className="text-muted-foreground text-sm">Sin datos.</p>
+        ) : (
+          rows.map((r) => (
+            <div key={r.name}>
+              <div className="flex justify-between text-sm mb-0.5">
+                <span className="truncate">{r.name}</span>
+                <span className="font-medium tabular-nums">{intFmt(r.visitors)}</span>
+              </div>
+              <div className="h-1.5 rounded-full bg-muted overflow-hidden" aria-hidden="true">
+                <div className="h-full rounded-full bg-primary" style={{ width: `${Math.max(3, (r.visitors / max) * 100)}%` }} />
+              </div>
             </div>
           ))
         )}
