@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import {
   methodNotAllowed,
   send,
@@ -23,9 +25,11 @@ import {
 
 // Vista del cliente: SOLO el snapshot agregado (sin PII, sin internos). Acceso
 // abierto por URL — lo usa únicamente el dueño. Si marketing ya publicó un
-// snapshot, se devuelve ese; si no, se arma uno desde los datos precargados
+// snapshot se devuelve ese; si no, se arma uno desde los datos precargados
 // (owner-demo-data.json) para que /cliente muestre datos al instante.
-// La escritura del snapshot (api/client/publish) SÍ exige TRACKING_API_SECRET.
+// La escritura (api/client/publish) SÍ exige TRACKING_API_SECRET.
+let cachedFallback: ClientSummarySnapshot | undefined;
+
 export default async function handler(
   request: VercelRequest,
   response: VercelResponse,
@@ -42,11 +46,17 @@ export default async function handler(
       return;
     }
 
-    const fallback = await buildFallbackSnapshot(request);
-    send(response, {
-      status: 200,
-      body: { ok: true, snapshot: fallback, source: fallback ? "preloaded" : "none" },
-    });
+    if (cachedFallback === undefined) {
+      const built = await buildFallbackSnapshot(request);
+      if (built) cachedFallback = built;
+      send(response, {
+        status: 200,
+        body: { ok: true, snapshot: built, source: built ? "preloaded" : "none" },
+      });
+      return;
+    }
+
+    send(response, { status: 200, body: { ok: true, snapshot: cachedFallback, source: "preloaded" } });
   } catch (error) {
     send(
       response,
@@ -68,7 +78,7 @@ interface OwnerDemoData {
 async function buildFallbackSnapshot(
   request: VercelRequest,
 ): Promise<ClientSummarySnapshot | null> {
-  const demo = await fetchDemoData(request);
+  const demo = (await loadDemoFromDisk()) ?? (await fetchDemoData(request));
   if (!demo) return null;
 
   const pagos = parsePagosDetalle(demo.pagos ?? []);
@@ -84,7 +94,6 @@ async function buildFallbackSnapshot(
     ? { min: dates[0], max: dates[dates.length - 1] }
     : null;
 
-  // Margen real desde "acciones" si está disponible; si no, 60% por defecto.
   const margins = buildTreatmentMargin(acciones, {});
   const totalMargin = margins.reduce((s, m) => s + m.margin, 0);
   const marginRevenue = margins.reduce((s, m) => s + m.revenue, 0);
@@ -103,7 +112,25 @@ async function buildFallbackSnapshot(
   });
 }
 
-// La función serverless lee el asset estático de su propio deployment.
+// Primario: lee el asset incluido en el bundle de la función (independiente de
+// la protección de deployment). Ver `includeFiles` en vercel.json.
+async function loadDemoFromDisk(): Promise<OwnerDemoData | null> {
+  for (const path of [
+    join(process.cwd(), "static", "owner-demo-data.json"),
+    join(process.cwd(), "apps", "tracking-core", "static", "owner-demo-data.json"),
+  ]) {
+    try {
+      const raw = await readFile(path, "utf8");
+      return JSON.parse(raw) as OwnerDemoData;
+    } catch {
+      // intenta la siguiente ruta
+    }
+  }
+  return null;
+}
+
+// Secundario: fetch del asset estático del propio deployment (falla si el
+// deployment tiene protección de Vercel, p.ej. en previews).
 async function fetchDemoData(request: VercelRequest): Promise<OwnerDemoData | null> {
   const headers = request.headers ?? {};
   const host = headers["x-forwarded-host"] ?? headers.host;
