@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, resolve } from "node:path";
 import type { DailyBranchReport, PatientTreatmentRecord, PatientTreatmentSummary } from "../../types/domain.js";
+import type { ClientSummarySnapshot } from "../reports/client-snapshot.js";
 
 export interface PaymentSyncState {
   lastCheckIso?: string;
@@ -37,6 +38,10 @@ export interface StateStore {
   recordPatientTreatment(record: PatientTreatmentRecord): Promise<void>;
   /** Patients sorted by treatmentCount desc. minTreatments defaults to 1 (all). */
   listRecurringPatients(minTreatments?: number): Promise<PatientTreatmentSummary[]>;
+  /** Store the latest published client-facing summary snapshot (single, overwrites). */
+  saveClientSnapshot(snapshot: ClientSummarySnapshot): Promise<void>;
+  /** Read the latest published client-facing snapshot, or null if none published. */
+  getClientSnapshot(): Promise<ClientSummarySnapshot | null>;
 }
 
 export class InMemoryStateStore implements StateStore {
@@ -48,6 +53,7 @@ export class InMemoryStateStore implements StateStore {
   private contactLeadSources: Map<string, string> = new Map();
   private patientReferences: Map<number, string> = new Map();
   private patientTreatments: Map<number, Map<number, PatientTreatmentRecord>> = new Map();
+  private clientSnapshot: ClientSummarySnapshot | null = null;
 
   async getPaymentSyncState(): Promise<PaymentSyncState> {
     return {
@@ -147,6 +153,16 @@ export class InMemoryStateStore implements StateStore {
 
   async listRecurringPatients(minTreatments = 1): Promise<PatientTreatmentSummary[]> {
     return buildSummaries(this.patientTreatments, minTreatments);
+  }
+
+  async saveClientSnapshot(snapshot: ClientSummarySnapshot): Promise<void> {
+    this.clientSnapshot = JSON.parse(JSON.stringify(snapshot)) as ClientSummarySnapshot;
+  }
+
+  async getClientSnapshot(): Promise<ClientSummarySnapshot | null> {
+    return this.clientSnapshot
+      ? (JSON.parse(JSON.stringify(this.clientSnapshot)) as ClientSummarySnapshot)
+      : null;
   }
 }
 
@@ -292,6 +308,17 @@ export class FileStateStore implements StateStore {
     return buildSummaries(asMap, minTreatments);
   }
 
+  async saveClientSnapshot(snapshot: ClientSummarySnapshot): Promise<void> {
+    const state = await this.readRawState();
+    state.clientSnapshot = snapshot;
+    await this.writeRawState(state);
+  }
+
+  async getClientSnapshot(): Promise<ClientSummarySnapshot | null> {
+    const state = await this.readRawState();
+    return (state.clientSnapshot as ClientSummarySnapshot | undefined) ?? null;
+  }
+
   private async readState(): Promise<PaymentSyncState> {
     const raw = await this.readRawState();
     const parsed = raw as unknown as PaymentSyncState;
@@ -337,6 +364,7 @@ export class RedisStateStore implements StateStore {
   private readonly processedSetKey: string;
   private readonly dailyReportsKey: string;
   private readonly patientTreatmentsIndexKey: string;
+  private readonly clientSnapshotKey: string;
 
   constructor(
     private readonly restUrl: string,
@@ -348,6 +376,7 @@ export class RedisStateStore implements StateStore {
     this.processedSetKey = `${keyPrefix}:payment-sync:processed`;
     this.dailyReportsKey = `${keyPrefix}:daily-reports`;
     this.patientTreatmentsIndexKey = `${keyPrefix}:patient-treatments:_index`;
+    this.clientSnapshotKey = `${keyPrefix}:client-snapshot`;
   }
 
   async getPaymentSyncState(): Promise<PaymentSyncState> {
@@ -502,6 +531,20 @@ export class RedisStateStore implements StateStore {
     );
 
     return buildSummaries(asMap, minTreatments);
+  }
+
+  async saveClientSnapshot(snapshot: ClientSummarySnapshot): Promise<void> {
+    await this.command(["SET", this.clientSnapshotKey, JSON.stringify(snapshot)]);
+  }
+
+  async getClientSnapshot(): Promise<ClientSummarySnapshot | null> {
+    const raw = await this.command<string | null>(["GET", this.clientSnapshotKey]);
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw) as ClientSummarySnapshot;
+    } catch {
+      return null;
+    }
   }
 
   private async command<T = unknown>(

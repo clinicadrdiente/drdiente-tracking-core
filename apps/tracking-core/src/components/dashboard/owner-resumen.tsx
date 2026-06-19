@@ -199,6 +199,8 @@ export function OwnerResumen({ secret }: { secret: string }) {
   const [demoLoading, setDemoLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [publishing, setPublishing] = useState(false);
+  const [publishMsg, setPublishMsg] = useState<string | null>(null);
 
   const customInvalid = preset === "custom" && (!from || !to || from > to);
 
@@ -432,6 +434,36 @@ export function OwnerResumen({ secret }: { secret: string }) {
     }
   }
 
+  // Publica el snapshot agregado (global, todo el periodo) para el dashboard del
+  // cliente. El servidor lo reconstruye con los módulos puros (sin PII).
+  async function handlePublish() {
+    if (!pagos) return;
+    setPublishing(true);
+    setPublishMsg(null);
+    try {
+      const res = await fetch("/api/client/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-tracking-secret": secret.trim() },
+        body: JSON.stringify({
+          pagos,
+          acciones: acciones ?? null,
+          windsorDaily: windsorDaily ?? [],
+          cartera: cartera ?? null,
+          pipeline: presupuestos ? buildPipeline(presupuestos, {}) : null,
+          marginPct: marginInput,
+          repurchase,
+          bounds,
+        }),
+      });
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      setPublishMsg(res.ok ? "Publicado al cliente ✓" : body.error ?? "No se pudo publicar.");
+    } catch {
+      setPublishMsg("Error de red al publicar.");
+    } finally {
+      setPublishing(false);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -450,6 +482,10 @@ export function OwnerResumen({ secret }: { secret: string }) {
           <UploadButton label={names.acciones ? "Acciones ✓" : "Acciones (margen)"} onFile={(f) => handleFile(f, "acciones")} loading={loading} />
           <UploadButton label={names.saldos ? "Saldos ✓" : "Saldos (cartera)"} onFile={(f) => handleFile(f, "saldos")} loading={loading} />
           <UploadButton label={names.presupuestos ? "Presupuestos ✓" : "Presupuestos"} onFile={(f) => handleFile(f, "presupuestos")} loading={loading} />
+          <Button size="sm" variant="secondary" disabled={publishing || !pagos} onClick={handlePublish}>
+            {publishing ? "Publicando…" : "Publicar al cliente"}
+          </Button>
+          {publishMsg && <span className="text-xs text-muted-foreground self-center">{publishMsg}</span>}
         </div>
       </div>
 

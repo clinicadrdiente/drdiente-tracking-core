@@ -2,8 +2,9 @@
   "buildCommand": "npm run build",
   "installCommand": "npm install",
   "outputDirectory": "dist",
+  "cleanUrls": true,
   "functions": {
-    "api/**/*.ts": { "maxDuration": 60 }
+    "api/**/*.ts": { "maxDuration": 60, "includeFiles": "static/owner-demo-data.json" }
   },
   "crons": [
     {
