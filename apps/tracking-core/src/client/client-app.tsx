@@ -1,7 +1,5 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
-import { Button } from "@/components/ui/button";
+import { useEffect, useState, type ReactNode } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import type {
   ClientChannelRow,
   ClientSummarySnapshot,
@@ -33,61 +31,52 @@ function intFmt(value: number): string {
   return new Intl.NumberFormat("es-MX", { maximumFractionDigits: 0 }).format(value);
 }
 
-type AuthState = "checking" | "anon" | "authed";
+type LoadState = "loading" | "ready" | "error";
 
 export function ClientApp() {
-  const [auth, setAuth] = useState<AuthState>("checking");
+  const [state, setState] = useState<LoadState>("loading");
   const [snapshot, setSnapshot] = useState<ClientSummarySnapshot | null>(null);
-  const [snapshotMissing, setSnapshotMissing] = useState(false);
-
-  async function loadSummary(): Promise<void> {
-    const res = await fetch("/api/client/summary", { credentials: "same-origin" });
-    if (res.status === 401) {
-      setAuth("anon");
-      return;
-    }
-    const body = (await res.json()) as { ok?: boolean; snapshot?: ClientSummarySnapshot | null };
-    setSnapshot(body.snapshot ?? null);
-    setSnapshotMissing(!body.snapshot);
-    setAuth("authed");
-  }
 
   useEffect(() => {
-    loadSummary().catch(() => setAuth("anon"));
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/client/summary");
+        const body = (await res.json()) as {
+          ok?: boolean;
+          snapshot?: ClientSummarySnapshot | null;
+        };
+        if (cancelled) return;
+        setSnapshot(body.snapshot ?? null);
+        setState("ready");
+      } catch {
+        if (!cancelled) setState("error");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  async function handleLogout(): Promise<void> {
-    await fetch("/api/client/logout", { method: "POST", credentials: "same-origin" }).catch(() => undefined);
-    setSnapshot(null);
-    setAuth("anon");
-  }
-
-  if (auth === "checking") {
-    return <Centered>Cargando…</Centered>;
-  }
-  if (auth === "anon") {
-    return <LoginForm onSuccess={() => loadSummary().catch(() => setAuth("anon"))} />;
-  }
+  if (state === "loading") return <Centered>Cargando…</Centered>;
+  if (state === "error") return <Centered>No se pudo cargar el resumen. Intenta recargar la página.</Centered>;
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 flex flex-col gap-5">
-      <header className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Resumen del Cliente · DrDiente</h1>
-          {snapshot?.bounds && (
-            <p className="text-muted-foreground text-sm mt-0.5">
-              Periodo {snapshot.bounds.min} → {snapshot.bounds.max}
-              {snapshot.generatedAt ? ` · actualizado ${snapshot.generatedAt.slice(0, 10)}` : ""}
-            </p>
-          )}
-        </div>
-        <Button variant="outline" size="sm" onClick={handleLogout}>Cerrar sesión</Button>
+      <header>
+        <h1 className="text-2xl font-semibold tracking-tight">Resumen · DrDiente</h1>
+        {snapshot?.bounds && (
+          <p className="text-muted-foreground text-sm mt-0.5">
+            Periodo {snapshot.bounds.min} → {snapshot.bounds.max}
+            {snapshot.generatedAt ? ` · actualizado ${snapshot.generatedAt.slice(0, 10)}` : ""}
+          </p>
+        )}
       </header>
 
-      {snapshotMissing && (
+      {!snapshot && (
         <Card className="border-dashed">
           <CardContent className="py-10 text-center text-muted-foreground text-sm">
-            Aún no hay un reporte publicado. Tu equipo de marketing lo publicará desde el panel interno.
+            Aún no hay un reporte publicado. Tu equipo de marketing lo publicará en breve.
           </CardContent>
         </Card>
       )}
@@ -111,61 +100,6 @@ function Centered({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen flex items-center justify-center text-muted-foreground text-sm">
       {children}
-    </div>
-  );
-}
-
-function LoginForm({ onSuccess }: { onSuccess: () => void }) {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  async function submit(e: FormEvent): Promise<void> {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/client/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify({ username, password }),
-      });
-      if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
-        setError(body.error ?? "No se pudo iniciar sesión.");
-        return;
-      }
-      onSuccess();
-    } catch {
-      setError("Error de red. Intenta de nuevo.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle>Resumen del Cliente · DrDiente</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={submit} className="flex flex-col gap-3">
-            <label className="text-sm flex flex-col gap-1">
-              Usuario
-              <Input value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" required />
-            </label>
-            <label className="text-sm flex flex-col gap-1">
-              Contraseña
-              <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" required />
-            </label>
-            {error && <p className="text-destructive text-sm">{error}</p>}
-            <Button type="submit" disabled={busy}>{busy ? "Entrando…" : "Entrar"}</Button>
-          </form>
-        </CardContent>
-      </Card>
     </div>
   );
 }
@@ -213,10 +147,7 @@ function InvestmentByChannel({ snapshot }: { snapshot: ClientSummarySnapshot }) 
     <Card>
       <CardHeader className="pb-2"><CardTitle className="text-base">¿En qué se invirtió y qué devolvió? (por canal)</CardTitle></CardHeader>
       <CardContent>
-        <ChannelTable
-          channels={snapshot.channels}
-          columns={["inversion", "ingreso", "roas", "cac"]}
-        />
+        <ChannelTable channels={snapshot.channels} columns={["inversion", "ingreso", "roas", "cac"]} />
         <p className="text-muted-foreground text-xs mt-2">
           Inversión = gasto de anuncios del periodo. ROAS = ingreso ÷ inversión. CAC = costo por paciente que pagó.
         </p>

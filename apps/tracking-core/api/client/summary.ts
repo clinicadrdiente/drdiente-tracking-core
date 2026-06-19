@@ -1,28 +1,20 @@
 import {
   methodNotAllowed,
   send,
-  toHttpRequest,
   type VercelRequest,
   type VercelResponse,
 } from "../_lib/http.js";
 import { serverError, trackingHttpHandlers } from "../../src/index.js";
-import { requireClientSession } from "../../src/http/client-auth.js";
 
-// Vista del cliente: SOLO el snapshot agregado publicado por marketing. Nunca
-// toca endpoints internos ni datos crudos. Protegido por sesión de cliente
-// (jamás por TRACKING_API_SECRET).
+// Vista del cliente: SOLO el snapshot agregado publicado por marketing (sin PII,
+// sin internos). Acceso abierto por URL — lo usa únicamente el dueño. El
+// snapshot se escribe vía api/client/publish, que SÍ exige TRACKING_API_SECRET.
 export default async function handler(
   request: VercelRequest,
   response: VercelResponse,
 ): Promise<void> {
   if (request.method !== "GET") {
     methodNotAllowed(response);
-    return;
-  }
-
-  const authError = requireClientSession(toHttpRequest(request));
-  if (authError) {
-    send(response, authError);
     return;
   }
 
