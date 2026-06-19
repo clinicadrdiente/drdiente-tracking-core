@@ -16,6 +16,13 @@ export default defineConfig({
   build: {
     outDir: "dist",
     emptyOutDir: true,
+    rollupOptions: {
+      input: {
+        // App interna de marketing (/) y dashboard del cliente (/cliente).
+        main: fileURLToPath(new URL("./index.html", import.meta.url)),
+        cliente: fileURLToPath(new URL("./cliente.html", import.meta.url)),
+      },
+    },
   },
   test: {
     environment: "node",
