@@ -1,0 +1,141 @@
+/* SendButton — Origin Financial style: the only true action is a white pill
+   with a trailing arrow. Never chromatic. */
+.send-btn {
+  position: relative;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  border: 0;
+  border-radius: 9999px;
+  padding: 17px 28px;
+  background: #ffffff;
+  color: #090a0b;
+  font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.182em;
+  text-transform: uppercase;
+  cursor: pointer;
+  overflow: hidden;
+  box-shadow: rgba(0, 0, 0, 0.2) 0px 18px 20px 0px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease, background 0.2s ease;
+}
+.send-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: rgba(0, 0, 0, 0.28) 0px 22px 26px 0px;
+}
+.send-btn:active {
+  transform: translateY(0);
+}
+.send-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px #0f1011, 0 0 0 4px #f5f5f7;
+}
+.send-btn:disabled {
+  cursor: not-allowed;
+}
+.send-btn[data-status="loading"] {
+  opacity: 0.9;
+  transform: none;
+}
+.send-btn[data-status="success"] {
+  background: #f5f5f7;
+}
+
+.send-btn__label {
+  transition: opacity 0.25s ease;
+}
+.send-btn[data-status="loading"] .send-btn__label {
+  opacity: 0.85;
+}
+
+/* Icon stack — arrow / spinner / check cross-fade by status */
+.send-btn__icon {
+  position: relative;
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.send-btn__arrow,
+.send-btn__spinner,
+.send-btn__check {
+  position: absolute;
+  inset: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s ease, transform 0.3s ease;
+}
+
+/* Idle: trailing arrow; nudges right on hover (Origin signature) */
+.send-btn__arrow {
+  opacity: 1;
+  transform: translateX(0);
+}
+.send-btn:hover .send-btn__arrow {
+  transform: translateX(4px);
+}
+.send-btn[data-status="loading"] .send-btn__arrow,
+.send-btn[data-status="success"] .send-btn__arrow,
+.send-btn[data-status="error"] .send-btn__arrow {
+  opacity: 0;
+  transform: translateX(14px);
+}
+
+/* Loading: spinner */
+.send-btn__spinner {
+  opacity: 0;
+  width: 14px;
+  height: 14px;
+  margin: auto;
+  border: 2px solid rgba(9, 10, 11, 0.25);
+  border-top-color: #090a0b;
+  border-radius: 9999px;
+}
+.send-btn[data-status="loading"] .send-btn__spinner {
+  opacity: 1;
+  animation: send-spin 0.7s linear infinite;
+}
+
+/* Success: check pops in */
+.send-btn__check {
+  opacity: 0;
+  transform: scale(0.4);
+}
+.send-btn[data-status="success"] .send-btn__check {
+  opacity: 1;
+  transform: scale(1);
+  animation: send-pop 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes send-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes send-pop {
+  0% {
+    transform: scale(0.4);
+  }
+  60% {
+    transform: scale(1.18);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .send-btn,
+  .send-btn * {
+    transition: none !important;
+    animation: none !important;
+  }
+  .send-btn[data-status="loading"] .send-btn__spinner {
+    opacity: 1;
+  }
+}

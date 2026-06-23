@@ -1,0 +1,376 @@
+/* ===== Origin Financial design system — reception daily-close page ===== */
+.origin {
+  /* Surfaces */
+  --obsidian: #0f1011;
+  --carbon: #090a0b;
+  --graphite: #2e2e2e;
+  --slate: #3f4041;
+  /* Text */
+  --mist: #6a6b6b;
+  --frost: #9f9fa0;
+  --pearl: #cacaca;
+  --bone: #f5f5f7;
+  --paper: #ffffff;
+  /* Chromatic — product surfaces only, used very sparingly as a brand dot */
+  --amethyst: #847dff;
+  /* Fonts */
+  --font-serif: "Playfair Display", Georgia, "Times New Roman", serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* Radii */
+  --r-input: 8px;
+  --r-card: 16px;
+  --r-pill: 9999px;
+
+  min-height: 100vh;
+  background: var(--obsidian);
+  color: var(--frost);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  position: relative;
+  overflow-x: hidden;
+}
+.origin *,
+.origin *::before,
+.origin *::after {
+  box-sizing: border-box;
+}
+
+/* Hero atmosphere: one dusk-sky gradient moment, low intensity, behind the hero */
+.origin .sky {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 460px;
+  background: linear-gradient(180deg, #0f1011 0%, #131d27 30%, #1a4788 72%, #408ac1 100%);
+  opacity: 0.16;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Eyebrow — stamped mono label with a single restrained brand dot */
+.origin .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+.origin .eyebrow .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--amethyst);
+  flex: none;
+}
+.origin .eyebrow span {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.182em;
+  color: var(--frost);
+}
+
+/* Hero */
+.origin .hero {
+  position: relative;
+  z-index: 1;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 100px 20px 56px;
+  text-align: center;
+}
+.origin .hero .eyebrow {
+  justify-content: center;
+}
+.origin .hero h1 {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: clamp(3rem, 9vw, 5rem);
+  line-height: 0.95;
+  letter-spacing: -0.01em;
+  color: var(--bone);
+  margin: 26px 0 18px;
+}
+.origin .hero h1 .em {
+  font-style: italic;
+}
+.origin .hero p {
+  font-family: var(--font-sans);
+  font-weight: 300;
+  font-size: 18px;
+  line-height: 1.5;
+  color: var(--frost);
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+/* Layout */
+.origin .wrap {
+  position: relative;
+  z-index: 1;
+  max-width: 760px;
+  margin: 0 auto 120px;
+  padding: 0 16px;
+}
+
+.origin .msg {
+  padding: 16px 20px;
+  border-radius: var(--r-input);
+  font-size: 14px;
+  margin-bottom: 24px;
+}
+.origin .msg.ok {
+  background: var(--graphite);
+  color: var(--bone);
+}
+.origin .msg.err {
+  background: #2a1416;
+  color: #ffb3b3;
+}
+
+/* Cards — tonal depth via the dark ladder, no chromatic */
+.origin .card {
+  background: var(--carbon);
+  border: 1px solid rgba(245, 245, 247, 0.05);
+  border-radius: var(--r-card);
+  padding: 40px;
+  margin-bottom: 24px;
+}
+.origin .card h2 {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: 30px;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  color: var(--bone);
+  margin: 18px 0 6px;
+}
+.origin .card .desc {
+  font-family: var(--font-sans);
+  font-weight: 300;
+  font-size: 16px;
+  color: var(--frost);
+  margin: 0 0 22px;
+}
+
+/* Field labels — stamped uppercase register */
+.origin label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--mist);
+  margin: 18px 0 8px;
+}
+.origin input,
+.origin select,
+.origin textarea {
+  width: 100%;
+  height: 48px;
+  background: var(--graphite);
+  border: 1px solid transparent;
+  border-radius: var(--r-input);
+  color: var(--bone);
+  padding: 0 14px;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 400;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.origin textarea {
+  height: auto;
+  padding: 13px 14px;
+  line-height: 1.5;
+  resize: vertical;
+}
+.origin input::placeholder,
+.origin textarea::placeholder {
+  color: var(--mist);
+}
+.origin input:focus,
+.origin select:focus,
+.origin textarea:focus {
+  outline: none;
+  border-color: var(--frost);
+  background: #343434;
+}
+.origin select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239f9fa0' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 38px;
+}
+.origin .grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 20px;
+}
+
+/* Lead cards — one elevation step up */
+.origin .lead {
+  position: relative;
+  background: #161718;
+  border: 1px solid rgba(245, 245, 247, 0.06);
+  border-radius: var(--r-card);
+  padding: 24px;
+  margin-bottom: 20px;
+}
+.origin .lead input,
+.origin .lead select {
+  background: var(--slate);
+}
+.origin .lead input:focus,
+.origin .lead select:focus {
+  background: #494a4b;
+}
+.origin .lead .rm {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  background: transparent;
+  border: 1px solid rgba(159, 159, 160, 0.4);
+  color: var(--frost);
+  border-radius: var(--r-pill);
+  padding: 0 14px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease;
+  z-index: 1;
+}
+.origin .lead .rm:hover {
+  color: var(--bone);
+  border-color: var(--frost);
+}
+.origin .lead-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+.origin .lead-head .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--amethyst);
+}
+.origin .lead-head span {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.182em;
+  text-transform: uppercase;
+  color: var(--frost);
+}
+
+/* Ghost add button — quiet pill, no chromatic */
+.origin .add {
+  width: 100%;
+  background: transparent;
+  border: 1px solid rgba(159, 159, 160, 0.35);
+  border-radius: var(--r-pill);
+  color: var(--frost);
+  padding: 15px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.182em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+.origin .add:hover {
+  color: var(--bone);
+  border-color: var(--frost);
+  background: rgba(245, 245, 247, 0.03);
+}
+
+.origin details summary {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--frost);
+  cursor: pointer;
+  margin-top: 22px;
+  list-style: none;
+}
+.origin details summary::-webkit-details-marker {
+  display: none;
+}
+.origin details summary::before {
+  content: "+ ";
+  color: var(--frost);
+}
+.origin details[open] summary::before {
+  content: "– ";
+}
+
+.origin .submit-wrap {
+  position: sticky;
+  bottom: 16px;
+  margin-top: 32px;
+}
+
+.origin .foot {
+  text-align: center;
+  font-family: var(--font-mono);
+  color: var(--mist);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-top: 24px;
+}
+
+/* Motion — subtle editorial entrance */
+@keyframes origin-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.origin .reveal {
+  opacity: 0;
+  animation: origin-fade-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.origin .d1 { animation-delay: 0.05s; }
+.origin .d2 { animation-delay: 0.13s; }
+.origin .d3 { animation-delay: 0.21s; }
+.origin .d4 { animation-delay: 0.29s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .origin .reveal {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+}
+
+@media (max-width: 600px) {
+  .origin .card {
+    padding: 28px 22px;
+  }
+  .origin .grid {
+    grid-template-columns: 1fr;
+  }
+  .origin .hero {
+    padding-top: 72px;
+  }
+}

@@ -66,4 +66,88 @@ describe("validateDailyReportInput", () => {
       expect(result.input.branch).toBe("Centro");
     }
   });
+
+  it("defaults optional aggregates and leads when absent", () => {
+    const result = validateDailyReportInput(VALID_BODY);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.input.revenueTotal).toBeNull();
+      expect(result.input.appointmentsCreated).toBeNull();
+      expect(result.input.leads).toEqual([]);
+    }
+  });
+
+  it("accepts optional aggregates and a recepcionist", () => {
+    const result = validateDailyReportInput({
+      ...VALID_BODY,
+      recepcionist: "Ana",
+      appointmentsCreated: 4,
+      appointmentsAttended: 3,
+      noShows: 1,
+      conversions: 2,
+      revenueTotal: 12500.5,
+      adSpend: 800,
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.input.recepcionist).toBe("Ana");
+      expect(result.input.revenueTotal).toBe(12500.5);
+      expect(result.input.conversions).toBe(2);
+    }
+  });
+
+  it("rejects a negative optional aggregate", () => {
+    const result = validateDailyReportInput({ ...VALID_BODY, revenueTotal: -1 });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toMatch(/revenueTotal/);
+    }
+  });
+
+  it("accepts a valid lead detail row", () => {
+    const result = validateDailyReportInput({
+      ...VALID_BODY,
+      leads: [
+        {
+          name: "Juan",
+          contact: "5512345678",
+          origin: "meta_ads",
+          campaign: "Blanqueamiento Junio",
+          interest: "blanqueamiento",
+          question: "precio",
+          status: "agendo",
+          appointmentDate: "2026-06-12",
+          quotedValue: 3500,
+        },
+      ],
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.input.leads).toHaveLength(1);
+      expect(result.input.leads?.[0].interest).toBe("blanqueamiento");
+      expect(result.input.leads?.[0].lostReason).toBeNull();
+    }
+  });
+
+  it("rejects a lead with an unknown interest", () => {
+    const result = validateDailyReportInput({
+      ...VALID_BODY,
+      leads: [{ name: "Juan", origin: "google", interest: "manicure", question: "precio", status: "agendo" }],
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toMatch(/interest/);
+    }
+  });
+
+  it("rejects a lead without a name", () => {
+    const result = validateDailyReportInput({
+      ...VALID_BODY,
+      leads: [{ origin: "google", interest: "limpieza", question: "precio", status: "agendo" }],
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toMatch(/name/);
+    }
+  });
 });

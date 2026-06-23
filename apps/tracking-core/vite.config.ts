@@ -16,6 +16,14 @@ export default defineConfig({
   build: {
     outDir: "dist",
     emptyOutDir: true,
+    rollupOptions: {
+      input: {
+        // Dashboard de dueños (SPA principal).
+        main: fileURLToPath(new URL("./index.html", import.meta.url)),
+        // Página de recepción (cierre diario) — entry React independiente y ligero.
+        cierre: fileURLToPath(new URL("./cierre.html", import.meta.url)),
+      },
+    },
   },
   test: {
     environment: "node",
