@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Agente en la nube — Dr Diente</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body {
+        font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+        max-width: 640px; margin: 6vh auto; padding: 0 1.25rem; line-height: 1.55;
+      }
+      h1 { font-size: 1.4rem; margin-bottom: 0.25rem; }
+      .muted { opacity: 0.7; font-size: 0.95rem; }
+      code { background: rgba(127,127,127,0.18); padding: 0.1rem 0.35rem; border-radius: 4px; }
+      ul { padding-left: 1.1rem; }
+      #status { margin-top: 1rem; font-size: 0.95rem; }
+    </style>
+  </head>
+  <body>
+    <h1>Agente en la nube — Dr Diente</h1>
+    <p class="muted">
+      Ingesta de leads, persistencia (Supabase + Google Sheets) y reportes diarios
+      a dueños por WhatsApp. App independiente de los dashboards.
+    </p>
+    <ul>
+      <li><code>POST /api/agent/lead-intake</code> — workflow de salida de Elevator</li>
+      <li><code>POST /api/agent/appointment-intake</code> — webhook de agendamientos</li>
+      <li><code>POST /api/reports/daily</code> — formulario de recepción (SAC)</li>
+      <li><code>GET /api/cron/daily-owner-report</code> — resumen diario (cron)</li>
+      <li><code>GET /api/cron/eod-owner-report</code> — reporte total de cierre (cron)</li>
+      <li><code>GET /api/health</code> — estado de integraciones</li>
+    </ul>
+    <div id="status" class="muted">Cargando estado…</div>
+    <script>
+      fetch("/api/health")
+        .then((r) => r.json())
+        .then((d) => {
+          const i = d.integrations || {};
+          document.getElementById("status").textContent =
+            `Integraciones — Supabase: ${i.supabase ? "on" : "off"} · ` +
+            `Sheets: ${i.sheets ? "on" : "off"} · WhatsApp: ${i.whatsapp ? "on" : "off"} · ` +
+            `Windsor: ${i.windsor ? "on" : "off"}`;
+        })
+        .catch(() => {
+          document.getElementById("status").textContent = "No se pudo leer /api/health.";
+        });
+    </script>
+  </body>
+</html>

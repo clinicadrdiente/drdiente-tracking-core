@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "api/**/*.ts": { "maxDuration": 60 }
+  },
+  "crons": [
+    { "path": "/api/cron/daily-owner-report", "schedule": "0 5 * * *" },
+    { "path": "/api/cron/eod-owner-report", "schedule": "30 5 * * *" }
+  ]
+}

@@ -19,8 +19,32 @@ Each executor: read the plan fully before starting, honor its STOP conditions, a
 | [009](009-performance-comparatives.md) | Comparatives: current vs previous period, branch vs branch | P2 | M | 008 | DONE |
 | [010](010-daily-branch-report.md) | Daily branch report form with persistent lead-contact data | P1 | L | 007 | DONE |
 | [011](011-efforts-panel.md) | Efforts panel: spend, posts, leads, calls, messages, impressions, reach | P2 | M | 008, 010 | DONE |
+| [012](012-lead-intake-multicuenta.md) | Contrato de salida + ingesta del agente para ambas cuentas (Roma + general) con `location` y `initial_message` | P1 | M | — | DONE (apps/agente-nube) |
+| [013](013-persistencia-supabase-sheets.md) | Persistencia dual: Supabase (BD) + Google Sheets (espejo) | P1 | M | 012 | DONE (apps/agente-nube) |
+| [014](014-reporte-diario-whatsapp.md) | Reporte diario a dueños por WhatsApp (leads + Windsor + agendamientos) | P1 | M | 012, 013 | DONE (apps/agente-nube) |
+| [015](015-sac-reporte-combinado.md) | Ingesta SAC + reporte total combinado de fin de día | P2 | M | 011, 014 | DONE (apps/agente-nube) |
 
 Status values: `TODO` | `IN PROGRESS` | `DONE` | `BLOCKED (reason)` | `REJECTED (reason)`
+
+## Agente en la nube (planes 012–015)
+
+Cierran el ciclo lead → reporte a dueños descrito en
+[`docs/agente-nube-arquitectura.md`](../docs/agente-nube-arquitectura.md); brechas en
+[`docs/agente-nube-brechas.md`](../docs/agente-nube-brechas.md).
+
+**Implementados (2026-06-23) como app nueva e independiente en
+[`apps/agente-nube`](../apps/agente-nube/README.md)** — por decisión del stakeholder
+de **no tocar los dashboards** de `tracking-core`. WhatsApp vía Elevator/GHL, Supabase
+como capa analítica adicional, mensajes con plantilla fija. Código + pruebas verdes
+(`npm run check`, `npm test`). Los textos de los planes 012–015 referencian rutas de
+`tracking-core` (encuadre original); la implementación real vive en `apps/agente-nube`
+y no modifica `tracking-core`.
+
+**Pendiente (operativo, lado dueño/infra):** aplicar migración Supabase, crear el
+webhook GHL de WhatsApp + números de dueños, desplegar el Apps Script de Sheets,
+cargar `WINDSOR_API_KEY`/secretos, apuntar los workflows de Elevator (Roma y general)
+a `POST /api/agent/lead-intake`, y crear el proyecto Vercel con root `apps/agente-nube`.
+Ver `apps/agente-nube/README.md` y §9 del doc de arquitectura.
 
 ## Dependency notes
 
