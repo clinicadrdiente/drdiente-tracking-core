@@ -3,8 +3,8 @@ import {
   type ClinicAccount,
   type DailyBranchReportInput,
   type LeadContactChannel,
-} from "../../types/domain";
-import type { ValidationResult } from "../intake/validate";
+} from "../../types/domain.js";
+import type { ValidationResult } from "../intake/validate.js";
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const CHANNELS: readonly LeadContactChannel[] = [

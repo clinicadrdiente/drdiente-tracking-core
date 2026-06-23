@@ -1,5 +1,5 @@
-import type { ClinicAccount } from "../../types/domain";
-import type { WindsorSummary } from "../windsor/client";
+import type { ClinicAccount } from "../../types/domain.js";
+import type { WindsorSummary } from "../windsor/client.js";
 
 export interface DailySummaryInput {
   dateLabel: string;

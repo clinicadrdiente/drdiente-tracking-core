@@ -1,7 +1,7 @@
-import type { ClinicDayRange } from "../../lib/dates";
-import { SupabaseStore } from "../supabase/client";
-import { WindsorClient, type WindsorSummary } from "../windsor/client";
-import type { ClinicAccount } from "../../types/domain";
+import type { ClinicDayRange } from "../../lib/dates.js";
+import { SupabaseStore } from "../supabase/client.js";
+import { WindsorClient, type WindsorSummary } from "../windsor/client.js";
+import type { ClinicAccount } from "../../types/domain.js";
 
 export interface DailyData {
   leads: { total: number; byAccount: Record<ClinicAccount, number> } | null;

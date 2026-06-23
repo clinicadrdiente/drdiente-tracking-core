@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateDailyReport } from "./validate-daily";
+import { validateDailyReport } from "./validate-daily.js";
 
 describe("validateDailyReport", () => {
   it("requiere branch y date con formato YYYY-MM-DD", () => {

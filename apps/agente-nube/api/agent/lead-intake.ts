@@ -1,13 +1,13 @@
-import { requireTrackingSecret } from "../../src/http/auth";
-import { validateLeadHandoff } from "../../src/modules/intake/validate";
-import { processLeadHandoff } from "../../src/modules/intake/process";
+import { requireTrackingSecret } from "../../src/http/auth.js";
+import { validateLeadHandoff } from "../../src/modules/intake/validate.js";
+import { processLeadHandoff } from "../../src/modules/intake/process.js";
 import {
   methodNotAllowed,
   parseBody,
   send,
   type VercelRequest,
   type VercelResponse,
-} from "../_lib/http";
+} from "../_lib/http.js";
 
 export default async function handler(
   request: VercelRequest,

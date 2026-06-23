@@ -1,4 +1,4 @@
-import { getAgentConfig, type WindsorConfig } from "../../config";
+import { getAgentConfig, type WindsorConfig } from "../../config.js";
 
 export interface WindsorPlatform {
   source: string;

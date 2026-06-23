@@ -1,4 +1,4 @@
-import { getAgentConfig, type WhatsappConfig } from "../../config";
+import { getAgentConfig, type WhatsappConfig } from "../../config.js";
 
 export interface WhatsappDelivery {
   delivered: number;

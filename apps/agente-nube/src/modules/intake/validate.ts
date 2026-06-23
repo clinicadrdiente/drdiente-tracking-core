@@ -3,7 +3,7 @@ import {
   type AppointmentIntakeInput,
   type ClinicAccount,
   type LeadHandoffInput,
-} from "../../types/domain";
+} from "../../types/domain.js";
 
 export type ValidationResult<T> =
   | { ok: true; input: T }

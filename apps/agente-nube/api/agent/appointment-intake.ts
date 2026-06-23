@@ -1,13 +1,13 @@
-import { requireTrackingSecret } from "../../src/http/auth";
-import { validateAppointment } from "../../src/modules/intake/validate";
-import { SupabaseStore } from "../../src/modules/supabase/client";
+import { requireTrackingSecret } from "../../src/http/auth.js";
+import { validateAppointment } from "../../src/modules/intake/validate.js";
+import { SupabaseStore } from "../../src/modules/supabase/client.js";
 import {
   methodNotAllowed,
   parseBody,
   send,
   type VercelRequest,
   type VercelResponse,
-} from "../_lib/http";
+} from "../_lib/http.js";
 
 export default async function handler(
   request: VercelRequest,

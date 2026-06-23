@@ -1,11 +1,11 @@
-import { isAuthorizedCron } from "../../src/http/auth";
-import { getAgentConfig } from "../../src/config";
-import { clinicDayRange } from "../../src/lib/dates";
-import { gatherDailyData } from "../../src/modules/reports/gather";
-import { buildDailySummary } from "../../src/modules/reports/daily-summary";
-import { SupabaseStore } from "../../src/modules/supabase/client";
-import { ElevatorWhatsapp } from "../../src/modules/whatsapp/elevator-client";
-import { methodNotAllowed, type VercelRequest, type VercelResponse } from "../_lib/http";
+import { isAuthorizedCron } from "../../src/http/auth.js";
+import { getAgentConfig } from "../../src/config.js";
+import { clinicDayRange } from "../../src/lib/dates.js";
+import { gatherDailyData } from "../../src/modules/reports/gather.js";
+import { buildDailySummary } from "../../src/modules/reports/daily-summary.js";
+import { SupabaseStore } from "../../src/modules/supabase/client.js";
+import { ElevatorWhatsapp } from "../../src/modules/whatsapp/elevator-client.js";
+import { methodNotAllowed, type VercelRequest, type VercelResponse } from "../_lib/http.js";
 
 export default async function handler(
   request: VercelRequest,

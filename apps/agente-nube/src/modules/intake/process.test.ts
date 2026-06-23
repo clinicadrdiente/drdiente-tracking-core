@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { processLeadHandoff, type LeadMirror, type LeadPersistence } from "./process";
-import type { CanonicalLead, LeadHandoffInput } from "../../types/domain";
+import { processLeadHandoff, type LeadMirror, type LeadPersistence } from "./process.js";
+import type { CanonicalLead, LeadHandoffInput } from "../../types/domain.js";
 
 const input: LeadHandoffInput = {
   eventId: "lead_roma_1",

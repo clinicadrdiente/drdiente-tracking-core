@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clinicDayRange } from "./dates";
+import { clinicDayRange } from "./dates.js";
 
 describe("clinicDayRange", () => {
   it("resuelve el día local de la clínica (offset -6) para un instante UTC", () => {

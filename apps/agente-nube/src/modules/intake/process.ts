@@ -1,7 +1,7 @@
-import { normalizeEmail, normalizePhone } from "../../lib/normalize";
-import type { CanonicalLead, LeadHandoffInput } from "../../types/domain";
-import { SheetsMirror } from "../sheets/client";
-import { SupabaseStore } from "../supabase/client";
+import { normalizeEmail, normalizePhone } from "../../lib/normalize.js";
+import type { CanonicalLead, LeadHandoffInput } from "../../types/domain.js";
+import { SheetsMirror } from "../sheets/client.js";
+import { SupabaseStore } from "../supabase/client.js";
 
 export type IntegrationStatus = "ok" | "skipped" | "error";
 
