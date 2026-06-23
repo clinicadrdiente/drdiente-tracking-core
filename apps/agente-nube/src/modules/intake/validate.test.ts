@@ -7,9 +7,33 @@ describe("validateLeadHandoff", () => {
     expect(result.ok).toBe(false);
   });
 
-  it("rechaza sin firstName o phone", () => {
+  it("rechaza sin firstName, o sin teléfono ni email", () => {
     expect(validateLeadHandoff({ account: "roma", phone: "555" }).ok).toBe(false);
     expect(validateLeadHandoff({ account: "roma", firstName: "Juan" }).ok).toBe(false);
+  });
+
+  it("acepta lead con email pero sin teléfono", () => {
+    const result = validateLeadHandoff({
+      account: "roma",
+      firstName: "Ana",
+      email: "ana@example.com",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.input.phone).toBeNull();
+    expect(result.input.email).toBe("ana@example.com");
+    expect(result.input.eventId).toContain("lead_roma_ana@example.com");
+  });
+
+  it("aplana customData anidado (account dentro de customData)", () => {
+    const result = validateLeadHandoff({
+      first_name: "Luis",
+      phone: "5551234",
+      customData: { account: "general" },
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.input.account).toBe("general");
   });
 
   it("acepta payload mínimo y deriva eventId", () => {

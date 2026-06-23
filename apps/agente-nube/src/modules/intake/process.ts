@@ -34,7 +34,7 @@ export function toCanonicalLead(
 ): CanonicalLead {
   return {
     ...input,
-    phoneNormalized: normalizePhone(input.phone),
+    phoneNormalized: input.phone ? normalizePhone(input.phone) : null,
     emailNormalized: normalizeEmail(input.email),
     receivedAt: receivedAtIso,
   };

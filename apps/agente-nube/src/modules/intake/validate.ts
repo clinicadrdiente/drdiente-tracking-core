@@ -51,45 +51,58 @@ export function validateLeadHandoff(
   const record = asRecord(body);
   if (!record) return { ok: false, error: "body must be a JSON object" };
 
-  const acc = account(record.account);
+  // Algunos sistemas (GHL/Elevator) anidan los campos personalizados bajo
+  // `customData`. Aplanamos para leer todo desde un solo objeto; los campos
+  // estándar de nivel superior tienen prioridad sobre los anidados.
+  const custom = asRecord(record.customData) ?? asRecord(record.custom_data) ?? {};
+  const data: Record<string, unknown> = { ...custom, ...record };
+
+  const acc = account(data.account);
   if (!acc) {
     return { ok: false, error: 'account is required and must be "roma" or "general"' };
   }
 
-  const firstName = str(record.firstName ?? record.first_name);
+  const firstName = str(
+    data.firstName ?? data.first_name ?? data.full_name ?? data.name,
+  );
   if (!firstName) return { ok: false, error: "firstName is required" };
 
-  const phone = str(record.phone);
-  if (!phone) return { ok: false, error: "phone is required" };
+  // Basta con teléfono O email: hay leads que dejan solo uno de los dos.
+  const phone = optStr(data.phone);
+  const email = optStr(data.email);
+  if (!phone && !email) {
+    return { ok: false, error: "phone or email is required" };
+  }
 
+  const elevatorId = optStr(data.elevatorId ?? data.elevator_id ?? data.contact_id);
   const eventId =
-    str(record.eventId ?? record.event_id) ??
-    `lead_${acc}_${str(record.elevatorId ?? record.elevator_id) ?? phone}_${isoOrNow(
-      record.occurredAt ?? record.occurred_at,
+    str(data.eventId ?? data.event_id) ??
+    `lead_${acc}_${elevatorId ?? phone ?? email}_${isoOrNow(
+      data.occurredAt ?? data.occurred_at,
     ).slice(0, 10)}`;
 
   return {
     ok: true,
     input: {
       eventId,
-      occurredAt: isoOrNow(record.occurredAt ?? record.occurred_at),
+      occurredAt: isoOrNow(data.occurredAt ?? data.occurred_at),
       account: acc,
-      elevatorId: optStr(record.elevatorId ?? record.elevator_id),
+      elevatorId,
       firstName,
-      lastName: optStr(record.lastName ?? record.last_name),
-      email: optStr(record.email),
+      lastName: optStr(data.lastName ?? data.last_name),
+      email,
       phone,
-      source: optStr(record.source),
-      location: optStr(record.location),
-      initialMessage: optStr(record.initialMessage ?? record.initial_message),
-      utmSource: optStr(record.utmSource ?? record.utm_source),
-      utmMedium: optStr(record.utmMedium ?? record.utm_medium),
-      utmCampaign: optStr(record.utmCampaign ?? record.utm_campaign),
-      fbclid: optStr(record.fbclid),
-      gclid: optStr(record.gclid),
-      ttclid: optStr(record.ttclid),
-      landingUrl: optStr(record.landingUrl ?? record.landing_url),
-      distributedTo: stringArray(record.distributedTo ?? record.distributed_to),
+      source: optStr(data.source ?? data.contact_source),
+      location: optStr(data.city) ?? optStr(data.location),
+      initialMessage: optStr(data.initialMessage ?? data.initial_message),
+      utmSource: optStr(data.utmSource ?? data.utm_source),
+      utmMedium: optStr(data.utmMedium ?? data.utm_medium),
+      utmCampaign: optStr(data.utmCampaign ?? data.utm_campaign),
+      fbclid: optStr(data.fbclid),
+      gclid: optStr(data.gclid),
+      ttclid: optStr(data.ttclid),
+      landingUrl: optStr(data.landingUrl ?? data.landing_url),
+      distributedTo: stringArray(data.distributedTo ?? data.distributed_to),
     },
   };
 }

@@ -14,7 +14,7 @@ export interface LeadHandoffInput {
   firstName: string;
   lastName?: string | null;
   email?: string | null;
-  phone: string;
+  phone?: string | null; // opcional: basta con teléfono o email
   source?: string | null; // origen
   location?: string | null; // localización del paciente
   initialMessage?: string | null; // mensaje inicial captado por el workflow
@@ -30,7 +30,7 @@ export interface LeadHandoffInput {
 
 /** Lead normalizado y listo para persistir. */
 export interface CanonicalLead extends LeadHandoffInput {
-  phoneNormalized: string;
+  phoneNormalized: string | null;
   emailNormalized: string | null;
   receivedAt: string; // ISO 8601 — cuándo lo recibió el agente
 }
