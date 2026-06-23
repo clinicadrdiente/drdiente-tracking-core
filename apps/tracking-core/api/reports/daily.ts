@@ -5,7 +5,7 @@ import {
   type VercelRequest,
   type VercelResponse,
 } from "../_lib/http.js";
-import { requireDailySubmitSecret, requireTrackingSecret } from "../../src/http/auth.js";
+import { requireTrackingSecret } from "../../src/http/auth.js";
 import { trackingHttpHandlers } from "../../src/index.js";
 import { validateDailyReportInput } from "../../src/modules/reports/validate.js";
 
@@ -27,12 +27,8 @@ export default async function handler(
 }
 
 async function handlePost(request: VercelRequest, response: VercelResponse): Promise<void> {
-  const authError = requireDailySubmitSecret(toHttpRequest(request));
-  if (authError) {
-    send(response, authError);
-    return;
-  }
-
+  // Sin auth: recepción envía el cierre diario sin PIN. El GET (lectura del
+  // dashboard) sigue protegido con TRACKING_API_SECRET.
   const validation = validateDailyReportInput(request.body);
   if (!validation.ok) {
     send(response, { status: 400, body: { error: validation.error } });

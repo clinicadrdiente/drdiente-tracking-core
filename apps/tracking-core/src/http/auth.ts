@@ -24,30 +24,6 @@ export function requireTrackingSecret(request: AnyHttpRequest): HttpResponse | n
   return null;
 }
 
-/**
- * Autoriza el envío del cierre diario desde recepción. Acepta el secret de admin
- * (TRACKING_API_SECRET) O un token de bajo privilegio para recepción
- * (RECEPTION_SUBMIT_TOKEN) que solo sirve para POST de reportes diarios — así la
- * página pública de recepción nunca lleva el secret de admin.
- */
-export function requireDailySubmitSecret(request: AnyHttpRequest): HttpResponse | null {
-  const adminSecret = process.env.TRACKING_API_SECRET?.trim();
-  const receptionToken = process.env.RECEPTION_SUBMIT_TOKEN?.trim();
-
-  if (!adminSecret && !receptionToken) {
-    return unauthorized("daily submit secret is not configured");
-  }
-
-  const received = getHeader(request, TRACKING_SECRET_HEADER)?.trim();
-  const matchesAdmin = Boolean(adminSecret) && timingSafeStringEqual(received, adminSecret);
-  const matchesReception = Boolean(receptionToken) && timingSafeStringEqual(received, receptionToken);
-  if (!matchesAdmin && !matchesReception) {
-    return unauthorized();
-  }
-
-  return null;
-}
-
 function timingSafeStringEqual(a: string | undefined, b: string | undefined): boolean {
   if (!a || !b) return false;
   // Buffers must be same length for timingSafeEqual; hash both to normalize length.
