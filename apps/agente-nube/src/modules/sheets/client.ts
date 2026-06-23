@@ -1,5 +1,5 @@
-import { getAgentConfig, type SheetsConfig } from "../../config";
-import type { CanonicalLead } from "../../types/domain";
+import { getAgentConfig, type SheetsConfig } from "../../config.js";
+import type { CanonicalLead } from "../../types/domain.js";
 
 /**
  * Espejo en Google Sheets vía un Web App de Apps Script (appendRow).

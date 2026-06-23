@@ -1,5 +1,5 @@
-import { getAgentConfig } from "../src/config";
-import { methodNotAllowed, type VercelRequest, type VercelResponse } from "./_lib/http";
+import { getAgentConfig } from "../src/config.js";
+import { methodNotAllowed, type VercelRequest, type VercelResponse } from "./_lib/http.js";
 
 export default async function handler(
   request: VercelRequest,

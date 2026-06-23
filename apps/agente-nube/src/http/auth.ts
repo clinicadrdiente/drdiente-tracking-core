@@ -1,5 +1,5 @@
 import { createHash, timingSafeEqual } from "node:crypto";
-import { unauthorized, type HttpResult } from "./response";
+import { unauthorized, type HttpResult } from "./response.js";
 
 export interface RequestLike {
   headers?: Record<string, string | undefined>;

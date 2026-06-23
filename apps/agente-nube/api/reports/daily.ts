@@ -1,7 +1,7 @@
-import { requireTrackingSecret } from "../../src/http/auth";
-import { validateDailyReport } from "../../src/modules/reports/validate-daily";
-import { SupabaseStore } from "../../src/modules/supabase/client";
-import type { DailyBranchReport } from "../../src/types/domain";
+import { requireTrackingSecret } from "../../src/http/auth.js";
+import { validateDailyReport } from "../../src/modules/reports/validate-daily.js";
+import { SupabaseStore } from "../../src/modules/supabase/client.js";
+import type { DailyBranchReport } from "../../src/types/domain.js";
 import {
   methodNotAllowed,
   parseBody,
@@ -9,7 +9,7 @@ import {
   send,
   type VercelRequest,
   type VercelResponse,
-} from "../_lib/http";
+} from "../_lib/http.js";
 
 export default async function handler(
   request: VercelRequest,

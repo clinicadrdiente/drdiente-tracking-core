@@ -1,5 +1,5 @@
-import type { DailyBranchReport } from "../../types/domain";
-import { buildDailySummary, formatInt, type DailySummaryInput } from "./daily-summary";
+import type { DailyBranchReport } from "../../types/domain.js";
+import { buildDailySummary, formatInt, type DailySummaryInput } from "./daily-summary.js";
 
 export interface ReceptionTotals {
   leadsReceived: number;

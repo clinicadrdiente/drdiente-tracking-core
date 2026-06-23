@@ -1,4 +1,4 @@
-import type { HttpResult } from "../../src/http/response";
+import type { HttpResult } from "../../src/http/response.js";
 
 export interface VercelRequest {
   body?: unknown;

@@ -1,10 +1,10 @@
-import { getAgentConfig, type SupabaseConfig } from "../../config";
+import { getAgentConfig, type SupabaseConfig } from "../../config.js";
 import type {
   AppointmentIntakeInput,
   CanonicalLead,
   ClinicAccount,
   DailyBranchReport,
-} from "../../types/domain";
+} from "../../types/domain.js";
 
 export interface LeadCountByAccount {
   total: number;

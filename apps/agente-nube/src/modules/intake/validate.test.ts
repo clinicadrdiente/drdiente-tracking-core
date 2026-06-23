@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateAppointment, validateLeadHandoff } from "./validate";
+import { validateAppointment, validateLeadHandoff } from "./validate.js";
 
 describe("validateLeadHandoff", () => {
   it("rechaza body sin account válido", () => {

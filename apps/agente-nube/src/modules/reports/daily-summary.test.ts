@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildDailySummary, type DailySummaryInput } from "./daily-summary";
+import { buildDailySummary, type DailySummaryInput } from "./daily-summary.js";
 
 const base: DailySummaryInput = {
   dateLabel: "23 jun",

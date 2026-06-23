@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { aggregateReception, buildTotalSummary } from "./total-summary";
-import type { DailySummaryInput } from "./daily-summary";
-import type { DailyBranchReport } from "../../types/domain";
+import { aggregateReception, buildTotalSummary } from "./total-summary.js";
+import type { DailySummaryInput } from "./daily-summary.js";
+import type { DailyBranchReport } from "../../types/domain.js";
 
 const daily: DailySummaryInput = {
   dateLabel: "23 jun",
