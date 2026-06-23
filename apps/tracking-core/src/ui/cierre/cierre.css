@@ -83,6 +83,12 @@
   padding: 100px 20px 56px;
   text-align: center;
 }
+.origin .hero .brand {
+  height: 84px;
+  width: auto;
+  opacity: 0.96;
+  margin-bottom: 22px;
+}
 .origin .hero .eyebrow {
   justify-content: center;
 }

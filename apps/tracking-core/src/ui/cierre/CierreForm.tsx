@@ -227,6 +227,7 @@ export function CierreForm() {
     <div className="origin">
       <div className="sky" aria-hidden="true" />
       <header className="hero reveal">
+        <img className="brand" src="/logo-drdiente.png" alt="Clínica Dr. Diente" />
         <div className="eyebrow">
           <span className="dot" />
           <span>Recepción · Cierre de caja</span>
