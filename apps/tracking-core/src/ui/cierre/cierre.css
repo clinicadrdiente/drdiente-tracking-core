@@ -84,10 +84,11 @@
   text-align: center;
 }
 .origin .hero .brand {
+  display: block;
   height: 84px;
   width: auto;
+  margin: 0 auto 22px;
   opacity: 0.96;
-  margin-bottom: 22px;
 }
 .origin .hero .eyebrow {
   justify-content: center;
