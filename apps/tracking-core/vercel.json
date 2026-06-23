@@ -5,6 +5,13 @@
   "functions": {
     "api/**/*.ts": { "maxDuration": 60 }
   },
+  "rewrites": [
+    {
+      "source": "/",
+      "has": [{ "type": "host", "value": "cierre.clinicadrdiente.com" }],
+      "destination": "/cierre.html"
+    }
+  ],
   "crons": [
     {
       "path": "/api/cron/payments-sync",
