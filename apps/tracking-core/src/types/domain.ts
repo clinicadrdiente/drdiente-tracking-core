@@ -106,11 +106,85 @@ export type LeadContactChannel =
   | "visita_directa"
   | "otro";
 
+// --- Cierre diario de recepción: vocabularios controlados para el detalle por lead.
+// Texto libre rompe el análisis de patrones; estas listas mantienen la data agregable.
+
+/** De dónde vino el lead. */
+export type LeadOriginChannel =
+  | "meta_ads"
+  | "facebook_organico"
+  | "instagram_organico"
+  | "google"
+  | "google_maps"
+  | "whatsapp_directo"
+  | "referido"
+  | "walk_in"
+  | "tiktok"
+  | "otro";
+
+/** Tratamiento por el que consultó el lead. */
+export type LeadInterestTreatment =
+  | "limpieza"
+  | "blanqueamiento"
+  | "ortodoncia"
+  | "implantes"
+  | "endodoncia"
+  | "estetica"
+  | "urgencia"
+  | "protesis"
+  | "otro";
+
+/** Pregunta / objeción principal del lead. Campo clave para detectar el cuello de botella de conversión. */
+export type LeadQuestionTopic =
+  | "precio"
+  | "disponibilidad"
+  | "ubicacion"
+  | "financiamiento"
+  | "duracion"
+  | "garantia"
+  | "dolor_miedo"
+  | "solo_info"
+  | "otro";
+
+/** Estado del lead dentro del embudo del día. */
+export type LeadStatus =
+  | "solo_consulto"
+  | "agendo"
+  | "asistio"
+  | "convirtio"
+  | "no_contesto"
+  | "perdido";
+
+/** Si el lead se perdió, por qué. */
+export type LeadLostReason =
+  | "precio"
+  | "no_respondio"
+  | "eligio_otra_clinica"
+  | "solo_curioseaba"
+  | "sin_horario"
+  | "otro";
+
+/** Una fila por lead/paciente contactado en el día (Bloque B del formulario de recepción). */
+export interface DailyLeadDetail {
+  name: string;
+  contact?: string | null;        // teléfono o email — ID para deduplicar y seguir el recorrido
+  origin: LeadOriginChannel;
+  campaign?: string | null;        // nombre exacto de la campaña activa
+  interest: LeadInterestTreatment;
+  question: LeadQuestionTopic;
+  status: LeadStatus;
+  appointmentDate?: string | null; // "YYYY-MM-DD" si agendó
+  lostReason?: LeadLostReason | null;
+  quotedValue?: number | null;     // valor cotizado/pagado
+  note?: string | null;
+}
+
 export interface DailyBranchReport {
   reportId: string;          // `${branch}_${date}` — natural key, one report per branch per day
   branch: string;
   date: string;              // "YYYY-MM-DD"
   submittedAt: string;       // ISO
+  recepcionist?: string | null;  // quién cierra caja
   contacts: Array<{ channel: LeadContactChannel; count: number }>;
   leadsReceived: number;
   leadsContacted: number;
@@ -118,6 +192,15 @@ export interface DailyBranchReport {
   promoWhatsappSent: number;
   emailsSent: number;
   postsPublished: number;
+  // --- Bloque A: agregados del embudo del día (opcionales — retrocompatibles).
+  appointmentsCreated?: number | null;   // citas creadas hoy
+  appointmentsAttended?: number | null;  // asistencias (show)
+  noShows?: number | null;               // no-show + cancelaciones
+  conversions?: number | null;           // pacientes que aceptaron/pagaron
+  revenueTotal?: number | null;          // ingreso del día (cuadra con caja)
+  adSpend?: number | null;               // gasto publicitario del día (si se conoce)
+  // --- Bloque B: detalle por lead para análisis de patrones.
+  leads?: DailyLeadDetail[];
   notes?: string | null;
 }
 

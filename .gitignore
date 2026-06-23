@@ -8,3 +8,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 node-compile-cache/
+
+# Claude Code local preview/session config
+.claude/

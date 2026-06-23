@@ -5,7 +5,7 @@ import {
   type VercelRequest,
   type VercelResponse,
 } from "../_lib/http.js";
-import { requireTrackingSecret } from "../../src/http/auth.js";
+import { requireDailySubmitSecret, requireTrackingSecret } from "../../src/http/auth.js";
 import { trackingHttpHandlers } from "../../src/index.js";
 import { validateDailyReportInput } from "../../src/modules/reports/validate.js";
 
@@ -27,7 +27,7 @@ export default async function handler(
 }
 
 async function handlePost(request: VercelRequest, response: VercelResponse): Promise<void> {
-  const authError = requireTrackingSecret(toHttpRequest(request));
+  const authError = requireDailySubmitSecret(toHttpRequest(request));
   if (authError) {
     send(response, authError);
     return;
