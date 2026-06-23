@@ -92,15 +92,6 @@ function today(): string {
 const toInt = (v: string): number => (v === "" ? 0 : parseInt(v, 10));
 const toNum = (v: string): number | null => (v === "" ? null : Number(v));
 
-function getToken(): string | null {
-  let t = localStorage.getItem("drdiente_reception_token");
-  if (!t) {
-    t = window.prompt("PIN de recepción (se pide una sola vez en este dispositivo):");
-    if (t) localStorage.setItem("drdiente_reception_token", t.trim());
-  }
-  return t;
-}
-
 const options = (arr: ReadonlyArray<readonly [string, string]>) =>
   arr.map(([value, labelText]) => (
     <option key={value} value={value}>
@@ -145,12 +136,6 @@ export function CierreForm() {
     event.preventDefault();
     setMsg(null);
 
-    const token = getToken();
-    if (!token) {
-      setMsg({ kind: "err", text: "Necesitas el PIN de recepción para enviar." });
-      return;
-    }
-
     const payload = {
       branch: branch.trim(),
       date,
@@ -190,7 +175,7 @@ export function CierreForm() {
     try {
       const res = await fetch("/api/reports/daily", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-tracking-secret": token },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
@@ -222,11 +207,6 @@ export function CierreForm() {
           postsPublished: "0",
         });
         setDate(today());
-        window.setTimeout(() => setStatus("idle"), 2200);
-      } else if (res.status === 401) {
-        localStorage.removeItem("drdiente_reception_token");
-        setStatus("error");
-        setMsg({ kind: "err", text: "PIN incorrecto. Recarga la página e intenta de nuevo." });
         window.setTimeout(() => setStatus("idle"), 2200);
       } else {
         setStatus("error");
