@@ -24,11 +24,26 @@ export default async function handler(
     return;
   }
 
-  const validation = validateLeadHandoff(parseBody(request.body));
+  const parsed = parseBody(request.body);
+  // Registro temporal de diagnóstico: solo las LLAVES (no los valores/PII) para
+  // confirmar cómo mapea Elevator/GHL los campos. Quitar tras validar el cableado.
+  console.log(
+    "[lead-intake] keys:",
+    parsed ? Object.keys(parsed).join(",") : "null",
+  );
+
+  const validation = validateLeadHandoff(parsed);
   if (!validation.ok) {
+    console.warn("[lead-intake] rejected:", validation.error);
     send(response, { status: 400, body: { ok: false, error: validation.error } });
     return;
   }
+  console.log(
+    "[lead-intake] accepted:",
+    validation.input.account,
+    validation.input.phone ? "phone" : "no-phone",
+    validation.input.email ? "email" : "no-email",
+  );
 
   try {
     const result = await processLeadHandoff(validation.input);
