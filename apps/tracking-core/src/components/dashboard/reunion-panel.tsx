@@ -359,8 +359,21 @@ export function ReunionPanel() {
       item.imp += f.imp; item.disp += f.disp;
       meses.set(m, item);
     }
+    const diasMes = new Map<string, Set<string>>();
+    for (const f of data.mercado.shareDiario) {
+      if (!deClinica(f.clinica, clinica)) continue;
+      const m = f.fecha.slice(0, 7);
+      (diasMes.get(m) ?? diasMes.set(m, new Set()).get(m)!).add(f.fecha);
+    }
     const porMes = [...meses.entries()].sort()
-      .map(([m, v]) => ({ mes: MESES.find((x) => x.clave === m)?.etiqueta ?? m, ...v, share: v.disp ? v.imp / v.disp : 0 }));
+      .map(([m, v]) => {
+        const dias = diasMes.get(m)?.size ?? 1;
+        return {
+          mes: MESES.find((x) => x.clave === m)?.etiqueta ?? m, ...v,
+          share: v.disp ? v.imp / v.disp : 0, dias,
+          impDia: v.imp / dias, dispDia: v.disp / dias,
+        };
+      });
     return {
       shareGlobal: disponibles ? capturadas / disponibles : null,
       disponibles, capturadas, conShare, sinMedir, topPresupuesto, porMes,
@@ -573,9 +586,9 @@ export function ReunionPanel() {
               y2: deltaPct(data.mercado.canastas.usa.ult12, data.mercado.canastas.usa.prev24),
             },
             mercadoCalc?.shareGlobal != null ? {
-              label: `Del volumen donde competimos, capturamos (${etiquetaPeriodo.split(" (")[0]})`, valor: fmtPct(mercadoCalc.shareGlobal * 100, 0),
+              label: `De las subastas donde participamos, capturamos (${etiquetaPeriodo.split(" (")[0]})`, valor: fmtPct(mercadoCalc.shareGlobal * 100, 0),
               yoy: null, y2: null,
-              extra: `${fmtInt(mercadoCalc.capturadas)} de ${fmtInt(mercadoCalc.disponibles)} impresiones disponibles`,
+              extra: `${fmtInt(mercadoCalc.capturadas)} de ${fmtInt(mercadoCalc.disponibles)} impresiones en nuestras subastas`,
             } : null,
           ].filter(Boolean).map((s) => s ? (
             <div key={s.label} className="rn-mstat">
@@ -591,15 +604,20 @@ export function ReunionPanel() {
         </div>
 
         {mercadoCalc && mercadoCalc.porMes.length > 1 ? (
-          <div className="rn-mes-patron">
-            <span className="rn-grupo-label">El patrón mes a mes (capturado vs disponible donde competimos):</span>
-            {mercadoCalc.porMes.map((m) => (
-              <span key={m.mes} className="rn-mes-chip">
-                <b>{m.mes}</b> {fmtPct(m.share * 100, 0)}
-                <small>{fmtInt(m.imp)} de {fmtInt(m.disp)}</small>
-              </span>
-            ))}
-          </div>
+          <>
+            <div className="rn-mes-patron">
+              <span className="rn-grupo-label">Nuestra huella mes a mes, en promedio diario (para comparar meses completos con meses en curso):</span>
+              {mercadoCalc.porMes.map((m) => (
+                <span key={m.mes} className="rn-mes-chip">
+                  <b>{m.mes}</b> {fmtPct(m.share * 100, 0)}
+                  <small>{fmtInt(m.impDia)}/día de {fmtInt(m.dispDia)}/día · {m.dias} días: {fmtInt(m.imp)} de {fmtInt(m.disp)}</small>
+                </span>
+              ))}
+            </div>
+            <p className="rn-mini-nota" style={{ marginTop: "-0.4rem", marginBottom: "1rem" }}>
+              Ojo con la lectura: “disponibles” son las subastas donde <b>nuestras campañas participaron</b> — crece cuando encendemos más campañas y presupuesto (es nuestra huella, no el tamaño del mercado). El mercado total es la canasta de búsquedas/mes de abajo. Y las impresiones de hoy se convierten en caja en 4–8 semanas: la siembra de julio se cosecha en agosto.
+            </p>
+          </>
         ) : null}
 
         <div className="rn-mercado-grid">
