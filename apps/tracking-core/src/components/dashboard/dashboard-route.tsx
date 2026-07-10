@@ -36,6 +36,7 @@ import type {
   WindsorTestResult,
 } from "@/types/dashboard";
 import { DailyReport } from "@/components/dashboard/daily-report";
+import { ReunionPanel } from "@/components/dashboard/reunion-panel";
 import { EffortsPanel } from "@/components/dashboard/efforts-panel";
 import { SystemHealthPanel, SystemHealthCard } from "@/components/dashboard/system-health";
 import { GuidedActionsCard, OperationsResultCard } from "@/components/dashboard/actions";
@@ -476,6 +477,10 @@ export function DashboardRoute({
         secret={secret}
       />
     );
+  }
+
+  if (route === "reunion") {
+    return <ReunionPanel />;
   }
 
   if (route === "help" || route === "status") {
