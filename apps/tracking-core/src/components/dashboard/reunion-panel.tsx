@@ -2,9 +2,10 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   CalendarClockIcon,
-  CalculatorIcon,
   PresentationIcon,
+  RocketIcon,
   SparklesIcon,
+  TrendingUpIcon,
   UsersRoundIcon,
 } from "lucide-react";
 import {
@@ -36,6 +37,17 @@ interface Atrib {
   caja: number; pagos: number; citas: number; atendidas: number; presupMonto: number;
 }
 interface Rec { fecha: string; clinica: string; quien: string; caja: number; pagos: number; pacientes: number }
+interface ShareCampana {
+  cuenta: string; campana: string; impresiones: number;
+  share: number | null; perdidoPresupuesto: number; perdidoRanking: number;
+}
+interface Canasta {
+  etiqueta: string; totalPromedio: number;
+  keywords: { keyword: string; promedio: number | null }[];
+  serie: { anio: number; mes: number; total: number }[];
+  ult12: number; prev12: number; prev24: number;
+}
+interface Esfuerzo { grupo: "hecho" | "activo" | "siguiente"; titulo: string; detalle: string; quien?: string }
 interface Campana {
   nombre: string; estado: string; gasto: number; leads: number;
   cpl: number | null; esMaps: boolean; deltaGasto: number | null;
@@ -48,6 +60,8 @@ interface StatusData {
   atribucion: Atrib[];
   recomendadores: Rec[];
   agendaFutura: { total: number; hastaFecha: string | null; porClinica: Record<string, number>; porCanal: Record<string, number> };
+  mercado: { ventana: string; impressionShare: ShareCampana[]; canastas: { mx: Canasta; usa: Canasta } };
+  esfuerzos: Esfuerzo[];
   campanasSemana: { ventana: { desde: string; hasta: string }; cuentas: Record<string, Campana[]> };
   notas: Record<string, string>;
 }
@@ -192,9 +206,6 @@ export function ReunionPanel() {
   const [desdeCustom, setDesdeCustom] = useState("");
   const [hastaCustom, setHastaCustom] = useState("");
   const [clinica, setClinica] = useState<Clinica>("todas");
-  const [invProyectada, setInvProyectada] = useState(200000);
-  const [roasProyectado, setRoasProyectado] = useState<number | null>(null);
-  const [platProyectada, setPlatProyectada] = useState<"Google" | "Meta / Redes">("Google");
 
   useEffect(() => {
     let activo = true;
@@ -320,15 +331,22 @@ export function ReunionPanel() {
       .map(([, v]) => ({ ...v, inversion: Math.round(v.inversion) }));
   }, [data, clinica]);
 
-  /* --- calculadora --- */
-  const roasRealPlat = useMemo(() => {
-    const p = plataformas.find((x) => x.nombre === platProyectada);
-    return p?.roas ?? null;
-  }, [plataformas, platProyectada]);
-  const roasCalc = roasProyectado ?? (roasRealPlat ? Number(roasRealPlat.toFixed(1)) : 4);
-  const ticketPago = actual && actual.pagosN > 0 ? actual.caja / actual.pagosN : 12000;
-  const cajaEsperada = invProyectada * roasCalc;
-  const pagosEsperados = ticketPago > 0 ? cajaEsperada / ticketPago : 0;
+  /* --- mercado: share global y campañas midiendo --- */
+  const mercadoCalc = useMemo(() => {
+    if (!data) return null;
+    const conShare = data.mercado.impressionShare.filter((f) => f.share !== null);
+    const disponibles = conShare.reduce((s, f) => s + f.impresiones / (f.share || 1), 0);
+    const capturadas = conShare.reduce((s, f) => s + f.impresiones, 0);
+    const topPresupuesto = [...conShare].sort((a, b) => b.perdidoPresupuesto - a.perdidoPresupuesto).slice(0, 3);
+    return {
+      shareGlobal: disponibles ? capturadas / disponibles : null,
+      disponibles: Math.round(disponibles),
+      capturadas,
+      conShare: [...conShare].sort((a, b) => (b.share ?? 0) - (a.share ?? 0)),
+      sinMedir: data.mercado.impressionShare.filter((f) => f.share === null),
+      topPresupuesto,
+    };
+  }, [data]);
 
   if (error) {
     return (
@@ -470,71 +488,160 @@ export function ReunionPanel() {
         </div>
       </div>
 
-      {/* ROAS POR PLATAFORMA + CALCULADORA */}
-      <div className="rn-dos rn-dos-desigual">
-        <div className="rn-panel">
-          <div className="rn-panel-head">
-            <h3>ROAS real por plataforma</h3>
-            <p>Inversión de la plataforma contra caja que recepción le atribuye · {etiquetaPeriodo}.</p>
-          </div>
-          <div className="rn-tabla-wrap">
-            <table className="rn-tabla">
-              <thead><tr><th>Plataforma</th><th>Inversión</th><th>Caja atribuida</th><th>Citas</th><th>ROAS real</th></tr></thead>
-              <tbody>
-                {plataformas.map((p) => (
-                  <tr key={p.nombre}>
-                    <td><i className="rn-dot" style={{ background: COLORES_CANAL[p.nombre] ?? "#AFA795" }} />{p.nombre}
-                      {p.inversion === 0 ? <Badge variant="secondary" className="ml-2 align-middle">orgánico</Badge> : null}
-                    </td>
-                    <td>{p.inversion > 0 ? fmtMoney(p.inversion) : "—"}</td>
-                    <td>{fmtMoney(p.caja)}</td>
-                    <td>{fmtInt(p.citas)}</td>
-                    <td className="rn-roas">{p.roas !== null ? `${p.roas.toFixed(1)}×` : "∞"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p className="rn-mini-nota">La atribución viene de recepción, no del pixel: es caja cobrada real. TikTok e IA facturan sin inversión (orgánico puro).</p>
+      {/* ROAS POR PLATAFORMA */}
+      <div className="rn-panel">
+        <div className="rn-panel-head">
+          <h3>ROAS real por plataforma</h3>
+          <p>Inversión de la plataforma contra caja que recepción le atribuye · {etiquetaPeriodo}.</p>
+        </div>
+        <div className="rn-tabla-wrap">
+          <table className="rn-tabla">
+            <thead><tr><th>Plataforma</th><th>Inversión</th><th>Caja atribuida</th><th>Citas</th><th>ROAS real</th></tr></thead>
+            <tbody>
+              {plataformas.map((p) => (
+                <tr key={p.nombre}>
+                  <td><i className="rn-dot" style={{ background: COLORES_CANAL[p.nombre] ?? "#AFA795" }} />{p.nombre}</td>
+                  <td>{p.inversion > 0 ? fmtMoney(p.inversion) : "—"}</td>
+                  <td>{fmtMoney(p.caja)}</td>
+                  <td>{fmtInt(p.citas)}</td>
+                  <td className="rn-roas">{p.roas !== null ? `${p.roas.toFixed(1)}×` : "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="rn-mini-nota">La atribución viene de recepción, no del pixel: es caja cobrada real.</p>
+      </div>
+
+      {/* ESFUERZOS DE MARKETING */}
+      <div className="rn-panel">
+        <div className="rn-panel-head">
+          <h3><RocketIcon className="inline size-4 -mt-0.5" /> Los esfuerzos de marketing</h3>
+          <p>Lo construido el último mes, lo que se acaba de encender y lo que sigue.</p>
+        </div>
+        <div className="rn-esfuerzos">
+          {([["hecho", "Hecho · último mes"], ["activo", "Encendido · esta semana"], ["siguiente", "Lo que sigue · próximas semanas"]] as const).map(([grupo, titulo]) => (
+            <div key={grupo} className="rn-esf-col">
+              <div className={`rn-esf-head rn-esf-${grupo}`}>{titulo}</div>
+              {data.esfuerzos.filter((e) => e.grupo === grupo).map((e) => (
+                <div key={e.titulo} className="rn-esf-card">
+                  <b>{e.titulo}{e.quien ? <span className="rn-esf-quien">{e.quien}</span> : null}</b>
+                  <span>{e.detalle}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* EL MERCADO (VOLUMEN) */}
+      <div className="rn-panel">
+        <div className="rn-panel-head">
+          <h3><TrendingUpIcon className="inline size-4 -mt-0.5" /> El mercado por el que competimos</h3>
+          <p>Como en trading: cuánto volumen existe, cuánto estamos capturando y cuánto queda disponible · impression share de Google, {data.mercado.ventana}.</p>
         </div>
 
-        <div className="rn-panel rn-panel-oro">
-          <div className="rn-panel-head">
-            <h3><CalculatorIcon className="inline size-4 -mt-0.5" /> Proyección en vivo</h3>
-            <p>Con el ROAS real del periodo seleccionado, no supuestos.</p>
-          </div>
-          <div className="rn-calc">
-            <label className="rn-calc-campo">
-              <span>Plataforma</span>
-              <div className="rn-seg rn-seg-mini">
-                {(["Google", "Meta / Redes"] as const).map((p) => (
-                  <button key={p} className={platProyectada === p ? "activo" : ""}
-                    onClick={() => { setPlatProyectada(p); setRoasProyectado(null); }}>{p === "Google" ? "Google" : "Meta"}</button>
-                ))}
-              </div>
-            </label>
-            <label className="rn-calc-campo">
-              <span>Si invierto al mes</span>
-              <Input type="number" value={invProyectada} min={0} step={10000}
-                onChange={(e) => setInvProyectada(Number(e.target.value) || 0)} />
-            </label>
-            <label className="rn-calc-campo">
-              <span>Con un ROAS de <em>(real del periodo: {roasRealPlat ? `${roasRealPlat.toFixed(1)}×` : "sin dato"})</em></span>
-              <Input type="number" value={roasCalc} min={0} step={0.5}
-                onChange={(e) => setRoasProyectado(Number(e.target.value) || 0)} />
-            </label>
-            <div className="rn-calc-resultado">
-              <div>
-                <span className="rn-calc-num">{fmtMoney(cajaEsperada)}</span>
-                <small>caja esperada al mes</small>
-              </div>
-              <div>
-                <span className="rn-calc-num">≈ {fmtInt(pagosEsperados)}</span>
-                <small>pagos (ticket real {fmtMoney(ticketPago)})</small>
-              </div>
+        <div className="rn-mercado-stats">
+          {[
+            {
+              label: "Búsquedas/mes · México (canasta objetivo)", valor: fmtInt(data.mercado.canastas.mx.totalPromedio),
+              yoy: deltaPct(data.mercado.canastas.mx.ult12, data.mercado.canastas.mx.prev12),
+              y2: deltaPct(data.mercado.canastas.mx.ult12, data.mercado.canastas.mx.prev24),
+            },
+            {
+              label: "Búsquedas/mes · EE.UU. (turismo dental)", valor: fmtInt(data.mercado.canastas.usa.totalPromedio),
+              yoy: deltaPct(data.mercado.canastas.usa.ult12, data.mercado.canastas.usa.prev12),
+              y2: deltaPct(data.mercado.canastas.usa.ult12, data.mercado.canastas.usa.prev24),
+            },
+            mercadoCalc?.shareGlobal != null ? {
+              label: "Del volumen donde ya competimos, capturamos", valor: fmtPct(mercadoCalc.shareGlobal * 100, 0),
+              yoy: null, y2: null,
+              extra: `${fmtInt(mercadoCalc.capturadas)} de ${fmtInt(mercadoCalc.disponibles)} impresiones disponibles`,
+            } : null,
+          ].filter(Boolean).map((s) => s ? (
+            <div key={s.label} className="rn-mstat">
+              <span className="rn-kpi-label">{s.label}</span>
+              <span className="rn-mstat-valor">{s.valor}</span>
+              <span className="rn-kpi-pie">
+                {s.yoy !== null && s.yoy !== undefined ? <span className="rn-pill rn-pill-bueno">{s.yoy > 0 ? "+" : ""}{s.yoy.toFixed(0)}% vs año anterior</span> : null}
+                {s.y2 !== null && s.y2 !== undefined ? <span className="rn-pill rn-pill-neutro">{s.y2 > 0 ? "+" : ""}{s.y2.toFixed(0)}% vs hace 2 años</span> : null}
+                {"extra" in s && s.extra ? <span>{s.extra}</span> : null}
+              </span>
             </div>
+          ) : null)}
+        </div>
+
+        <div className="rn-mercado-grid">
+          <div>
+            <div className="rn-grupo-label">Cuánto capturamos por campaña (verde) · perdido por presupuesto (ámbar) · por ranking (gris)</div>
+            <div className="rn-shares">
+              {mercadoCalc?.conShare.map((f) => (
+                <div key={f.campana} className="rn-share">
+                  <span className="rn-share-nombre" title={f.campana}>{f.campana.replace("Polanco · Search · ", "").replace("Search - ", "")}</span>
+                  <div className="rn-share-barra">
+                    <div className="rn-share-cap" style={{ width: `${(f.share ?? 0) * 100}%` }} />
+                    <div className="rn-share-presup" style={{ width: `${f.perdidoPresupuesto * 100}%` }} />
+                    <div className="rn-share-rank" style={{ width: `${f.perdidoRanking * 100}%` }} />
+                  </div>
+                  <span className="rn-share-pct">{fmtPct((f.share ?? 0) * 100, 0)}</span>
+                </div>
+              ))}
+            </div>
+            {mercadoCalc && mercadoCalc.sinMedir.length > 0 ? (
+              <p className="rn-mini-nota">Google aún está midiendo las campañas recién encendidas ({mercadoCalc.sinMedir.length}: Roma Norte y Turismo USA) — su share aparecerá en unos días.</p>
+            ) : null}
+          </div>
+          <div>
+            <div className="rn-grupo-label">El volumen del mercado, mes a mes (jul 2022 → jun 2026)</div>
+            <ResponsiveContainer width="100%" height={190}>
+              <ComposedChart data={data.mercado.canastas.mx.serie.map((p) => ({
+                etiqueta: `${String(p.anio).slice(2)}-${String(p.mes).padStart(2, "0")}`,
+                anio: p.anio, mes: p.mes, mx: p.total,
+              }))} margin={{ top: 4, right: 8, bottom: 0, left: 8 }}>
+                <defs>
+                  <linearGradient id="rnMx" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--rn-oro)" stopOpacity={0.4} />
+                    <stop offset="100%" stopColor="var(--rn-oro)" stopOpacity={0.03} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <XAxis dataKey="etiqueta" tick={{ fontSize: 10 }} tickLine={false} axisLine={false}
+                  ticks={data.mercado.canastas.mx.serie.filter((p) => p.mes === 1).map((p) => `${String(p.anio).slice(2)}-01`)}
+                  tickFormatter={(v: string) => `20${v.slice(0, 2)}`} />
+                <YAxis tickFormatter={(v: number) => `${Math.round(v / 1000)}k`} tick={{ fontSize: 10 }} tickLine={false} axisLine={false} width={40} />
+                <ChartTip formatter={(value) => [`${fmtInt(Number(value ?? 0))} búsquedas`, "México"]}
+                  contentStyle={{ borderRadius: 10, border: "1px solid var(--border)", background: "var(--card)", color: "var(--foreground)", fontSize: 12 }} />
+                <Area type="monotone" dataKey="mx" stroke="var(--rn-oro)" strokeWidth={2} fill="url(#rnMx)" />
+              </ComposedChart>
+            </ResponsiveContainer>
+            <ResponsiveContainer width="100%" height={110}>
+              <ComposedChart data={data.mercado.canastas.usa.serie.map((p) => ({
+                etiqueta: `${String(p.anio).slice(2)}-${String(p.mes).padStart(2, "0")}`,
+                usa: p.total,
+              }))} margin={{ top: 4, right: 8, bottom: 0, left: 8 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <XAxis dataKey="etiqueta" tick={{ fontSize: 10 }} tickLine={false} axisLine={false}
+                  ticks={data.mercado.canastas.usa.serie.filter((p) => p.mes === 1).map((p) => `${String(p.anio).slice(2)}-01`)}
+                  tickFormatter={(v: string) => `20${v.slice(0, 2)}`} />
+                <YAxis tickFormatter={(v: number) => `${(v / 1000).toFixed(1)}k`} tick={{ fontSize: 10 }} tickLine={false} axisLine={false} width={40} />
+                <ChartTip formatter={(value) => [`${fmtInt(Number(value ?? 0))} búsquedas`, "EE.UU. turismo"]}
+                  contentStyle={{ borderRadius: 10, border: "1px solid var(--border)", background: "var(--card)", color: "var(--foreground)", fontSize: 12 }} />
+                <Line type="monotone" dataKey="usa" stroke="#4373E8" strokeWidth={2} dot={false} />
+              </ComposedChart>
+            </ResponsiveContainer>
           </div>
         </div>
+
+        {mercadoCalc && mercadoCalc.topPresupuesto.length > 0 ? (
+          <div className="rn-nota">
+            <SparklesIcon className="size-3.5" />
+            <span>
+              La lectura de trading: en {mercadoCalc.topPresupuesto.map((f, i) => (
+                <span key={f.campana}>{i > 0 ? (i === mercadoCalc.topPresupuesto.length - 1 ? " y " : ", ") : ""}<b>{f.campana.replace("Polanco · Search · ", "").replace("Search - ", "")}</b> dejamos <b>{fmtPct(f.perdidoPresupuesto * 100, 0)}</b></span>
+              ))} del inventario en la mesa <b>solo por presupuesto</b> — ese volumen se compra con dinero, hoy. En las campañas de alto ticket el share ya domina (64–67%) y lo que falta se gana con ranking, no con presupuesto. El mercado además crece: más volumen disponible que en cualquiera de los 3 años anteriores.
+            </span>
+          </div>
+        ) : null}
       </div>
 
       {/* SERIE SEMANAL */}
