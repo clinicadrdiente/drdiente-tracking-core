@@ -402,3 +402,12 @@ select {
   border-radius: 0.6rem; padding: 0.4rem 0.8rem; font-size: 0.86rem; color: var(--rn-verde); font-weight: 700; }
 .rn-mes-chip b { color: var(--foreground); font-weight: 600; font-size: 0.74rem; }
 .rn-mes-chip small { color: var(--muted-foreground); font-weight: 400; font-size: 0.66rem; }
+
+/* --- Reunión: SEO orgánico --- */
+.rn-mstat-valor + .rn-kpi-pie .rn-pill-malo { background: var(--rn-rojo-bg); color: var(--rn-rojo); }
+.rn-seo-blogs { display: flex; flex-direction: column; gap: 0.35rem; margin-top: 0.55rem; }
+.rn-seo-blog { display: grid; grid-template-columns: 34px 1fr 52px; align-items: center; gap: 0.6rem;
+  border: 1px solid var(--border); border-radius: 0.55rem; padding: 0.4rem 0.65rem; }
+.rn-seo-blog-pos { font-size: 0.72rem; font-weight: 700; color: var(--rn-verde); font-variant-numeric: tabular-nums; }
+.rn-seo-blog-tit { font-size: 0.73rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rn-seo-blog-imp { font-size: 0.72rem; text-align: right; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }

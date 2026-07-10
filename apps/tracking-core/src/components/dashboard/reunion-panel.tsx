@@ -4,6 +4,7 @@ import {
   CalendarClockIcon,
   PresentationIcon,
   RocketIcon,
+  SearchIcon,
   SparklesIcon,
   TrendingUpIcon,
   UsersRoundIcon,
@@ -48,6 +49,10 @@ interface Canasta {
   ult12: number; prev12: number; prev24: number;
 }
 interface Esfuerzo { grupo: "hecho" | "activo" | "siguiente"; titulo: string; detalle: string; quien?: string }
+interface SeoConteo { paginas: number; primeraPagina: number; top3: number; impresiones: number; clics: number }
+interface SeoMes { mes: string; etiqueta: string; total: SeoConteo; blogs: SeoConteo; sitio: SeoConteo }
+interface SeoBlog { titulo: string; url: string; imp: number; clk: number; pos: number }
+interface Seo { fuente: string; serie: SeoMes[]; topBlogsPrimeraPagina: SeoBlog[] }
 interface Campana {
   nombre: string; estado: string; gasto: number; leads: number;
   cpl: number | null; esMaps: boolean; deltaGasto: number | null;
@@ -60,6 +65,7 @@ interface StatusData {
   atribucion: Atrib[];
   recomendadores: Rec[];
   agendaFutura: { total: number; hastaFecha: string | null; porClinica: Record<string, number>; porCanal: Record<string, number> };
+  seo: Seo;
   mercado: { shareDiario: ShareDia[]; canastas: { mx: Canasta; usa: Canasta } };
   esfuerzos: Esfuerzo[];
   campanasSemana: { ventana: { desde: string; hasta: string }; cuentas: Record<string, Campana[]> };
@@ -405,6 +411,11 @@ export function ReunionPanel() {
   const donutData = canales.filter((c) => c.caja > 0).map((c) => ({ name: c.canal, value: c.caja }));
   const sinNombre = recomendadores.find((r) => r.quien === "(sin nombre)");
 
+  // SEO: último mes cerrado (jun) vs mes antes de la optimización (may)
+  const seoSerie = data.seo.serie;
+  const seoCerrado = seoSerie[seoSerie.length - 2] ?? seoSerie[seoSerie.length - 1];
+  const seoBase = seoSerie.find((m) => m.mes === "2026-05") ?? seoSerie[0];
+
   return (
     <div className="rn reunion-view flex flex-col gap-5">
       {/* encabezado */}
@@ -563,6 +574,75 @@ export function ReunionPanel() {
               ))}
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* SEO ORGÁNICO — prueba del trabajo de optimización */}
+      <div className="rn-panel">
+        <div className="rn-panel-head">
+          <h3><SearchIcon className="inline size-4 -mt-0.5" /> Posicionamiento orgánico (SEO)</h3>
+          <p>El efecto medible de la optimización de la web y los blogs · páginas nuestras que Google muestra, cuántas en primera página y sus impresiones · {data.seo.fuente}.</p>
+        </div>
+
+        <div className="rn-mercado-stats">
+          {[
+            { label: "Páginas en primera página de Google", valor: fmtInt(seoCerrado.total.primeraPagina), sub: `${fmtInt(seoCerrado.total.top3)} en el top 3 · ${seoCerrado.etiqueta}`, delta: deltaPct(seoCerrado.total.primeraPagina, seoBase.total.primeraPagina) },
+            { label: "Blogs rankeando en Google", valor: fmtInt(seoCerrado.blogs.paginas), sub: `de ${fmtInt(seoCerrado.total.paginas)} páginas nuestras visibles · ${seoCerrado.etiqueta}`, delta: deltaPct(seoCerrado.blogs.paginas, seoBase.blogs.paginas) },
+            { label: "Impresiones orgánicas (gratis)", valor: fmtInt(seoCerrado.total.impresiones), sub: `${fmtInt(seoCerrado.total.clics)} clics sin pagar · ${seoCerrado.etiqueta}`, delta: deltaPct(seoCerrado.total.impresiones, seoBase.total.impresiones) },
+          ].map((s) => (
+            <div key={s.label} className="rn-mstat">
+              <span className="rn-kpi-label">{s.label}</span>
+              <span className="rn-mstat-valor">{s.valor}</span>
+              <span className="rn-kpi-pie">
+                {s.delta !== null ? <span className={`rn-pill ${s.delta > 0 ? "rn-pill-bueno" : "rn-pill-malo"}`}>{s.delta > 0 ? "+" : ""}{s.delta.toFixed(0)}% vs mayo</span> : null}
+                <span>{s.sub}</span>
+              </span>
+            </div>
+          ))}
+        </div>
+
+        <div className="rn-mercado-grid">
+          <div>
+            <div className="rn-grupo-label">Blogs rankeando mes a mes (barra) e impresiones orgánicas (línea) · ene → jul 2026</div>
+            <ResponsiveContainer width="100%" height={210}>
+              <ComposedChart data={data.seo.serie.map((m) => ({ etiqueta: m.etiqueta, blogs: m.blogs.paginas, imp: m.total.impresiones, parcial: m.mes === "2026-07" }))} margin={{ top: 6, right: 8, bottom: 0, left: 8 }}>
+                <defs>
+                  <linearGradient id="rnSeo" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--rn-verde)" stopOpacity={0.5} />
+                    <stop offset="100%" stopColor="var(--rn-verde)" stopOpacity={0.05} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <XAxis dataKey="etiqueta" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+                <YAxis yAxisId="b" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} width={30} />
+                <YAxis yAxisId="i" orientation="right" tickFormatter={(v: number) => `${Math.round(v / 1000)}k`} tick={{ fontSize: 10 }} tickLine={false} axisLine={false} width={34} />
+                <ChartTip formatter={(value, name) => [fmtInt(Number(value ?? 0)), String(name) === "blogs" ? "Blogs rankeando" : "Impresiones"]}
+                  contentStyle={{ borderRadius: 10, border: "1px solid var(--border)", background: "var(--card)", color: "var(--foreground)", fontSize: 12 }} />
+                <Area yAxisId="b" type="monotone" dataKey="blogs" stroke="var(--rn-verde)" strokeWidth={2} fill="url(#rnSeo)" />
+                <Line yAxisId="i" type="monotone" dataKey="imp" stroke="var(--rn-oro)" strokeWidth={1.8} dot={false} strokeDasharray="4 3" />
+              </ComposedChart>
+            </ResponsiveContainer>
+            <p className="rn-mini-nota">Julio va a 9 días (impresiones parciales); el conteo de páginas rankeando ya iguala a junio en solo un tercio del mes.</p>
+          </div>
+          <div>
+            <div className="rn-grupo-label">Blogs en primera página con más impresiones · {seoCerrado.etiqueta}</div>
+            <div className="rn-seo-blogs">
+              {data.seo.topBlogsPrimeraPagina.slice(0, 9).map((b) => (
+                <div key={b.url} className="rn-seo-blog">
+                  <span className="rn-seo-blog-pos">#{b.pos.toFixed(0)}</span>
+                  <span className="rn-seo-blog-tit" title={b.titulo}>{b.titulo}</span>
+                  <span className="rn-seo-blog-imp">{fmtInt(b.imp)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="rn-nota">
+          <SparklesIcon className="size-3.5" />
+          <span>
+            La correlación: entre mayo y junio los blogs rankeando pasaron de <b>{fmtInt(seoBase.blogs.paginas)}</b> a <b>{fmtInt(seoCerrado.blogs.paginas)}</b> ({deltaPct(seoCerrado.blogs.paginas, seoBase.blogs.paginas)! > 0 ? "+" : ""}{deltaPct(seoCerrado.blogs.paginas, seoBase.blogs.paginas)!.toFixed(0)}%) y las páginas en primera página de <b>{fmtInt(seoBase.total.primeraPagina)}</b> a <b>{fmtInt(seoCerrado.total.primeraPagina)}</b> — justo cuando entró la optimización de web + IA. Eso son impresiones que <b>no pagamos</b>: tráfico que Google nos regala por estar bien indexados.
+          </span>
         </div>
       </div>
 
