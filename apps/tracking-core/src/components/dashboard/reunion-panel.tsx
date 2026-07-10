@@ -37,9 +37,9 @@ interface Atrib {
   caja: number; pagos: number; citas: number; atendidas: number; presupMonto: number;
 }
 interface Rec { fecha: string; clinica: string; quien: string; caja: number; pagos: number; pacientes: number }
-interface ShareCampana {
-  cuenta: string; campana: string; impresiones: number;
-  share: number | null; perdidoPresupuesto: number; perdidoRanking: number;
+interface ShareDia {
+  fecha: string; clinica: string; campana: string;
+  imp: number; disp: number; pp: number; pr: number;
 }
 interface Canasta {
   etiqueta: string; totalPromedio: number;
@@ -60,7 +60,7 @@ interface StatusData {
   atribucion: Atrib[];
   recomendadores: Rec[];
   agendaFutura: { total: number; hastaFecha: string | null; porClinica: Record<string, number>; porCanal: Record<string, number> };
-  mercado: { ventana: string; impressionShare: ShareCampana[]; canastas: { mx: Canasta; usa: Canasta } };
+  mercado: { shareDiario: ShareDia[]; canastas: { mx: Canasta; usa: Canasta } };
   esfuerzos: Esfuerzo[];
   campanasSemana: { ventana: { desde: string; hasta: string }; cuentas: Record<string, Campana[]> };
   notas: Record<string, string>;
@@ -331,22 +331,41 @@ export function ReunionPanel() {
       .map(([, v]) => ({ ...v, inversion: Math.round(v.inversion) }));
   }, [data, clinica]);
 
-  /* --- mercado: share global y campañas midiendo --- */
+  /* --- mercado: share del periodo seleccionado + capturado por mes --- */
   const mercadoCalc = useMemo(() => {
     if (!data) return null;
-    const conShare = data.mercado.impressionShare.filter((f) => f.share !== null);
-    const disponibles = conShare.reduce((s, f) => s + f.impresiones / (f.share || 1), 0);
-    const capturadas = conShare.reduce((s, f) => s + f.impresiones, 0);
-    const topPresupuesto = [...conShare].sort((a, b) => b.perdidoPresupuesto - a.perdidoPresupuesto).slice(0, 3);
+    const porCampana = new Map<string, { campana: string; imp: number; disp: number; pp: number; pr: number }>();
+    for (const f of data.mercado.shareDiario) {
+      if (!enRango(f.fecha, desde, hasta) || !deClinica(f.clinica, clinica)) continue;
+      const item = porCampana.get(f.campana) ?? { campana: f.campana, imp: 0, disp: 0, pp: 0, pr: 0 };
+      item.imp += f.imp; item.disp += f.disp; item.pp += f.pp; item.pr += f.pr;
+      porCampana.set(f.campana, item);
+    }
+    // Campañas donde Google aún no calcula share: disp==imp y nada perdido (recién encendidas)
+    const todas = [...porCampana.values()];
+    const sinMedir = todas.filter((c) => c.pp === 0 && c.pr === 0 && c.disp === c.imp);
+    const conShare = todas.filter((c) => !sinMedir.includes(c))
+      .map((c) => ({ ...c, share: c.disp ? c.imp / c.disp : 0, ppPct: c.disp ? c.pp / c.disp : 0, prPct: c.disp ? c.pr / c.disp : 0 }))
+      .sort((a, b) => b.share - a.share);
+    const capturadas = conShare.reduce((s, c) => s + c.imp, 0);
+    const disponibles = conShare.reduce((s, c) => s + c.disp, 0);
+    const topPresupuesto = [...conShare].sort((a, b) => b.ppPct - a.ppPct).slice(0, 3);
+    // Capturado por mes (respeta clínica, ignora el periodo: para ver el patrón de un vistazo)
+    const meses = new Map<string, { imp: number; disp: number }>();
+    for (const f of data.mercado.shareDiario) {
+      if (!deClinica(f.clinica, clinica)) continue;
+      const m = f.fecha.slice(0, 7);
+      const item = meses.get(m) ?? { imp: 0, disp: 0 };
+      item.imp += f.imp; item.disp += f.disp;
+      meses.set(m, item);
+    }
+    const porMes = [...meses.entries()].sort()
+      .map(([m, v]) => ({ mes: MESES.find((x) => x.clave === m)?.etiqueta ?? m, ...v, share: v.disp ? v.imp / v.disp : 0 }));
     return {
       shareGlobal: disponibles ? capturadas / disponibles : null,
-      disponibles: Math.round(disponibles),
-      capturadas,
-      conShare: [...conShare].sort((a, b) => (b.share ?? 0) - (a.share ?? 0)),
-      sinMedir: data.mercado.impressionShare.filter((f) => f.share === null),
-      topPresupuesto,
+      disponibles, capturadas, conShare, sinMedir, topPresupuesto, porMes,
     };
-  }, [data]);
+  }, [data, desde, hasta, clinica]);
 
   if (error) {
     return (
@@ -538,7 +557,7 @@ export function ReunionPanel() {
       <div className="rn-panel">
         <div className="rn-panel-head">
           <h3><TrendingUpIcon className="inline size-4 -mt-0.5" /> El mercado por el que competimos</h3>
-          <p>Cuánto volumen existe, cuánto estamos capturando y cuánto queda disponible · impression share de Google, {data.mercado.ventana}.</p>
+          <p>Cuánto volumen existe, cuánto estamos capturando y cuánto queda disponible · impression share de Google · <b>{etiquetaPeriodo}</b> (obedece al selector de arriba).</p>
         </div>
 
         <div className="rn-mercado-stats">
@@ -554,7 +573,7 @@ export function ReunionPanel() {
               y2: deltaPct(data.mercado.canastas.usa.ult12, data.mercado.canastas.usa.prev24),
             },
             mercadoCalc?.shareGlobal != null ? {
-              label: "Del volumen donde ya competimos, capturamos", valor: fmtPct(mercadoCalc.shareGlobal * 100, 0),
+              label: `Del volumen donde competimos, capturamos (${etiquetaPeriodo.split(" (")[0]})`, valor: fmtPct(mercadoCalc.shareGlobal * 100, 0),
               yoy: null, y2: null,
               extra: `${fmtInt(mercadoCalc.capturadas)} de ${fmtInt(mercadoCalc.disponibles)} impresiones disponibles`,
             } : null,
@@ -571,28 +590,37 @@ export function ReunionPanel() {
           ) : null)}
         </div>
 
+        {mercadoCalc && mercadoCalc.porMes.length > 1 ? (
+          <div className="rn-mes-patron">
+            <span className="rn-grupo-label">El patrón mes a mes (capturado vs disponible donde competimos):</span>
+            {mercadoCalc.porMes.map((m) => (
+              <span key={m.mes} className="rn-mes-chip">
+                <b>{m.mes}</b> {fmtPct(m.share * 100, 0)}
+                <small>{fmtInt(m.imp)} de {fmtInt(m.disp)}</small>
+              </span>
+            ))}
+          </div>
+        ) : null}
+
         <div className="rn-mercado-grid">
           <div>
             <div className="rn-grupo-label">Cuánto capturamos por campaña (verde) · perdido por presupuesto (ámbar) · por ranking (gris)</div>
             <div className="rn-shares">
-              {mercadoCalc?.conShare.map((f) => {
-                const disponibles = Math.round(f.impresiones / (f.share || 1));
-                return (
-                  <div key={f.campana} className="rn-share">
-                    <span className="rn-share-nombre" title={f.campana}>{f.campana.replace("Polanco · Search · ", "").replace("Search - ", "")}</span>
-                    <div className="rn-share-barra">
-                      <div className="rn-share-cap" style={{ width: `${(f.share ?? 0) * 100}%` }} />
-                      <div className="rn-share-presup" style={{ width: `${f.perdidoPresupuesto * 100}%` }} />
-                      <div className="rn-share-rank" style={{ width: `${f.perdidoRanking * 100}%` }} />
-                    </div>
-                    <span className="rn-share-pct">{fmtPct((f.share ?? 0) * 100, 0)}</span>
-                    <span className="rn-share-nums">{fmtInt(f.impresiones)} de ~{fmtInt(disponibles)}</span>
+              {mercadoCalc?.conShare.map((f) => (
+                <div key={f.campana} className="rn-share">
+                  <span className="rn-share-nombre" title={f.campana}>{f.campana.replace("Polanco · Search · ", "").replace("Search - ", "").replace("Roma · Search · ", "Roma · ")}</span>
+                  <div className="rn-share-barra">
+                    <div className="rn-share-cap" style={{ width: `${f.share * 100}%` }} />
+                    <div className="rn-share-presup" style={{ width: `${f.ppPct * 100}%` }} />
+                    <div className="rn-share-rank" style={{ width: `${f.prPct * 100}%` }} />
                   </div>
-                );
-              })}
+                  <span className="rn-share-pct">{fmtPct(f.share * 100, 0)}</span>
+                  <span className="rn-share-nums">{fmtInt(f.imp)} de ~{fmtInt(f.disp)}</span>
+                </div>
+              ))}
             </div>
             {mercadoCalc && mercadoCalc.sinMedir.length > 0 ? (
-              <p className="rn-mini-nota">Google aún está midiendo las campañas recién encendidas ({mercadoCalc.sinMedir.length}: Roma Norte y Turismo USA) — su share aparecerá en unos días.</p>
+              <p className="rn-mini-nota">Google aún está midiendo {mercadoCalc.sinMedir.length} campañas recién encendidas (Roma Norte y Turismo USA) — su share aparecerá en unos días.</p>
             ) : null}
           </div>
           <div>
@@ -661,8 +689,8 @@ export function ReunionPanel() {
             <SparklesIcon className="size-3.5" />
             <span>
               La lectura: en {mercadoCalc.topPresupuesto.map((f, i) => (
-                <span key={f.campana}>{i > 0 ? (i === mercadoCalc.topPresupuesto.length - 1 ? " y " : ", ") : ""}<b>{f.campana.replace("Polanco · Search · ", "").replace("Search - ", "")}</b> dejamos <b>{fmtPct(f.perdidoPresupuesto * 100, 0)}</b></span>
-              ))} del inventario en la mesa <b>solo por presupuesto</b> — ese volumen se compra con dinero, hoy. En las campañas de alto ticket el share ya domina (64–67%) y lo que falta se gana con ranking, no con presupuesto. El mercado además crece: más volumen disponible que en cualquiera de los 3 años anteriores.
+                <span key={f.campana}>{i > 0 ? (i === mercadoCalc.topPresupuesto.length - 1 ? " y " : ", ") : ""}<b>{f.campana.replace("Polanco · Search · ", "").replace("Search - ", "")}</b> dejamos <b>{fmtPct(f.ppPct * 100, 0)}</b></span>
+              ))} del inventario en la mesa <b>solo por presupuesto</b> — ese volumen se compra con dinero, hoy. Donde el share ya es alto, lo que falta se gana con ranking, no con presupuesto. El mercado además crece: más volumen disponible que en cualquiera de los 3 años anteriores.
             </span>
           </div>
         ) : null}

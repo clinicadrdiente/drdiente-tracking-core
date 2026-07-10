@@ -395,3 +395,10 @@ select {
 .rn-kw { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.72rem;
   border: 1px solid var(--border); border-radius: 999px; padding: 0.22rem 0.7rem; }
 .rn-kw b { color: var(--rn-oro); font-variant-numeric: tabular-nums; }
+
+/* --- Reunión: patrón mensual de captura --- */
+.rn-mes-patron { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 1.1rem; }
+.rn-mes-chip { display: inline-flex; align-items: baseline; gap: 0.45rem; border: 1px solid var(--border);
+  border-radius: 0.6rem; padding: 0.4rem 0.8rem; font-size: 0.86rem; color: var(--rn-verde); font-weight: 700; }
+.rn-mes-chip b { color: var(--foreground); font-weight: 600; font-size: 0.74rem; }
+.rn-mes-chip small { color: var(--muted-foreground); font-weight: 400; font-size: 0.66rem; }
