@@ -538,7 +538,7 @@ export function ReunionPanel() {
       <div className="rn-panel">
         <div className="rn-panel-head">
           <h3><TrendingUpIcon className="inline size-4 -mt-0.5" /> El mercado por el que competimos</h3>
-          <p>Como en trading: cuánto volumen existe, cuánto estamos capturando y cuánto queda disponible · impression share de Google, {data.mercado.ventana}.</p>
+          <p>Cuánto volumen existe, cuánto estamos capturando y cuánto queda disponible · impression share de Google, {data.mercado.ventana}.</p>
         </div>
 
         <div className="rn-mercado-stats">
@@ -575,17 +575,21 @@ export function ReunionPanel() {
           <div>
             <div className="rn-grupo-label">Cuánto capturamos por campaña (verde) · perdido por presupuesto (ámbar) · por ranking (gris)</div>
             <div className="rn-shares">
-              {mercadoCalc?.conShare.map((f) => (
-                <div key={f.campana} className="rn-share">
-                  <span className="rn-share-nombre" title={f.campana}>{f.campana.replace("Polanco · Search · ", "").replace("Search - ", "")}</span>
-                  <div className="rn-share-barra">
-                    <div className="rn-share-cap" style={{ width: `${(f.share ?? 0) * 100}%` }} />
-                    <div className="rn-share-presup" style={{ width: `${f.perdidoPresupuesto * 100}%` }} />
-                    <div className="rn-share-rank" style={{ width: `${f.perdidoRanking * 100}%` }} />
+              {mercadoCalc?.conShare.map((f) => {
+                const disponibles = Math.round(f.impresiones / (f.share || 1));
+                return (
+                  <div key={f.campana} className="rn-share">
+                    <span className="rn-share-nombre" title={f.campana}>{f.campana.replace("Polanco · Search · ", "").replace("Search - ", "")}</span>
+                    <div className="rn-share-barra">
+                      <div className="rn-share-cap" style={{ width: `${(f.share ?? 0) * 100}%` }} />
+                      <div className="rn-share-presup" style={{ width: `${f.perdidoPresupuesto * 100}%` }} />
+                      <div className="rn-share-rank" style={{ width: `${f.perdidoRanking * 100}%` }} />
+                    </div>
+                    <span className="rn-share-pct">{fmtPct((f.share ?? 0) * 100, 0)}</span>
+                    <span className="rn-share-nums">{fmtInt(f.impresiones)} de ~{fmtInt(disponibles)}</span>
                   </div>
-                  <span className="rn-share-pct">{fmtPct((f.share ?? 0) * 100, 0)}</span>
-                </div>
-              ))}
+                );
+              })}
             </div>
             {mercadoCalc && mercadoCalc.sinMedir.length > 0 ? (
               <p className="rn-mini-nota">Google aún está midiendo las campañas recién encendidas ({mercadoCalc.sinMedir.length}: Roma Norte y Turismo USA) — su share aparecerá en unos días.</p>
@@ -632,11 +636,31 @@ export function ReunionPanel() {
           </div>
         </div>
 
+        <div className="rn-kw-grid">
+          <div>
+            <div className="rn-grupo-label">Búsquedas por palabra · México (promedio mensual)</div>
+            <div className="rn-kws">
+              {data.mercado.canastas.mx.keywords.map((k) => (
+                <span key={k.keyword} className="rn-kw">{k.keyword}<b>{k.promedio ? fmtInt(k.promedio) : "—"}</b></span>
+              ))}
+            </div>
+          </div>
+          <div>
+            <div className="rn-grupo-label">Búsquedas por palabra · EE.UU. turismo (promedio mensual)</div>
+            <div className="rn-kws">
+              {data.mercado.canastas.usa.keywords.map((k) => (
+                <span key={k.keyword} className="rn-kw">{k.keyword}<b>{k.promedio ? fmtInt(k.promedio) : "—"}</b></span>
+              ))}
+            </div>
+            <p className="rn-mini-nota">Las palabras de procedimientos (implantes, carillas, veneers…) vienen bloqueadas por la política de salud del Keyword Planner: el volumen real del mercado es mayor al mostrado.</p>
+          </div>
+        </div>
+
         {mercadoCalc && mercadoCalc.topPresupuesto.length > 0 ? (
           <div className="rn-nota">
             <SparklesIcon className="size-3.5" />
             <span>
-              La lectura de trading: en {mercadoCalc.topPresupuesto.map((f, i) => (
+              La lectura: en {mercadoCalc.topPresupuesto.map((f, i) => (
                 <span key={f.campana}>{i > 0 ? (i === mercadoCalc.topPresupuesto.length - 1 ? " y " : ", ") : ""}<b>{f.campana.replace("Polanco · Search · ", "").replace("Search - ", "")}</b> dejamos <b>{fmtPct(f.perdidoPresupuesto * 100, 0)}</b></span>
               ))} del inventario en la mesa <b>solo por presupuesto</b> — ese volumen se compra con dinero, hoy. En las campañas de alto ticket el share ya domina (64–67%) y lo que falta se gana con ranking, no con presupuesto. El mercado además crece: más volumen disponible que en cualquiera de los 3 años anteriores.
             </span>

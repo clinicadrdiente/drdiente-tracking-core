@@ -385,3 +385,13 @@ select {
 .rn-share-presup { background: #D9A036; transition: width 0.5s ease; }
 .rn-share-rank { background: color-mix(in srgb, var(--foreground) 22%, transparent); transition: width 0.5s ease; }
 .rn-share-pct { font-size: 0.74rem; font-weight: 650; text-align: right; font-variant-numeric: tabular-nums; color: var(--rn-verde); }
+
+/* --- Reunión: números de share y volumen por palabra --- */
+.rn-share { grid-template-columns: 168px 1fr 40px 108px; }
+.rn-share-nums { font-size: 0.66rem; color: var(--muted-foreground); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.rn-kw-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.4rem; margin-top: 1.2rem; }
+@media (max-width: 980px) { .rn-kw-grid { grid-template-columns: 1fr; } }
+.rn-kws { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+.rn-kw { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.72rem;
+  border: 1px solid var(--border); border-radius: 999px; padding: 0.22rem 0.7rem; }
+.rn-kw b { color: var(--rn-oro); font-variant-numeric: tabular-nums; }
