@@ -11,6 +11,7 @@ import {
   HelpCircleIcon,
   LayoutGridIcon,
   MegaphoneIcon,
+  PresentationIcon,
   RepeatIcon,
   Scale3dIcon,
   SendIcon,
@@ -38,6 +39,11 @@ export const navGroups: SidebarNavGroup[] = [
   {
     label: "Operar",
     items: [
+      {
+        title: "Reunión de Status",
+        path: "#/reunion",
+        icon: <PresentationIcon />,
+      },
       {
         title: "Dueños",
         path: "#/duenos",

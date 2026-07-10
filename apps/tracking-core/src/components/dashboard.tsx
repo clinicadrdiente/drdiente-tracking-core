@@ -436,56 +436,63 @@ export function Dashboard() {
   );
   const topPayments = data?.patients.slice(0, 8) ?? [];
 
+  // La vista de Reunión carga sola desde datos estáticos: sin secret ni chrome de datos en vivo.
+  const esReunion = route === "reunion";
+
   return (
     <div className="flex flex-col gap-4">
-      <section className="flex items-center justify-between gap-4">
-        <h1 className="text-balance font-semibold text-4xl tracking-tight md:text-5xl">
-          Dr Diente Core
-        </h1>
-        <Button
-          disabled={isLoading}
-          onClick={() => void loadDashboard(secret, { skipBrowserCache: true })}
-          variant={secret ? "default" : "outline"}
-        >
-          <RefreshCwIcon aria-hidden="true" data-icon="inline-start" />
-          {isLoading ? "Cargando" : "Actualizar"}
-        </Button>
-      </section>
+      {!esReunion && (
+        <>
+          <section className="flex items-center justify-between gap-4">
+            <h1 className="text-balance font-semibold text-4xl tracking-tight md:text-5xl">
+              Dr Diente Core
+            </h1>
+            <Button
+              disabled={isLoading}
+              onClick={() => void loadDashboard(secret, { skipBrowserCache: true })}
+              variant={secret ? "default" : "outline"}
+            >
+              <RefreshCwIcon aria-hidden="true" data-icon="inline-start" />
+              {isLoading ? "Cargando" : "Actualizar"}
+            </Button>
+          </section>
 
-      {!secret && (
-        <Card className="border-muted">
-          <CardContent className="py-4 text-muted-foreground text-sm">
-            Configura el{" "}
-            <code className="font-mono text-xs">TRACKING_API_SECRET</code> en{" "}
-            <a className="text-brand underline-offset-4 hover:underline" href="#/settings">
-              Configuración
-            </a>{" "}
-            para cargar datos.
-          </CardContent>
-        </Card>
+          {!secret && (
+            <Card className="border-muted">
+              <CardContent className="py-4 text-muted-foreground text-sm">
+                Configura el{" "}
+                <code className="font-mono text-xs">TRACKING_API_SECRET</code> en{" "}
+                <a className="text-brand underline-offset-4 hover:underline" href="#/settings">
+                  Configuración
+                </a>{" "}
+                para cargar datos.
+              </CardContent>
+            </Card>
+          )}
+
+          {data?.cache ? (
+            <div className="flex">
+              <Badge variant="secondary">
+                {data.cache.hit ? "Cache" : "Actualizado"} · {formatCacheTime(data.cache.cachedAt)}
+              </Badge>
+            </div>
+          ) : null}
+
+          {error ? (
+            <Card className="border-destructive/40">
+              <CardContent className="py-4 text-destructive text-sm">{error}</CardContent>
+            </Card>
+          ) : null}
+
+          {statusError ? (
+            <Card className="border-warn/40">
+              <CardContent className="py-4 text-warn text-sm">
+                Estado del sistema no disponible: {statusError}
+              </CardContent>
+            </Card>
+          ) : null}
+        </>
       )}
-
-      {data?.cache ? (
-        <div className="flex">
-          <Badge variant="secondary">
-            {data.cache.hit ? "Cache" : "Actualizado"} · {formatCacheTime(data.cache.cachedAt)}
-          </Badge>
-        </div>
-      ) : null}
-
-      {error ? (
-        <Card className="border-destructive/40">
-          <CardContent className="py-4 text-destructive text-sm">{error}</CardContent>
-        </Card>
-      ) : null}
-
-      {statusError ? (
-        <Card className="border-warn/40">
-          <CardContent className="py-4 text-warn text-sm">
-            Estado del sistema no disponible: {statusError}
-          </CardContent>
-        </Card>
-      ) : null}
 
       <DashboardRoute
         chartRows={chartRows}
