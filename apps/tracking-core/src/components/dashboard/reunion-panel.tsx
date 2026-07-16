@@ -622,7 +622,7 @@ export function ReunionPanel() {
                 <Line yAxisId="i" type="monotone" dataKey="imp" stroke="var(--rn-oro)" strokeWidth={1.8} dot={false} strokeDasharray="4 3" />
               </ComposedChart>
             </ResponsiveContainer>
-            <p className="rn-mini-nota">Julio va a 9 días (impresiones parciales); el conteo de páginas rankeando ya iguala a junio en solo un tercio del mes.</p>
+            <p className="rn-mini-nota">El mes en curso va parcial (datos al {data.cierreDatos}, impresiones incompletas); el conteo de blogs rankeando ya casi iguala al mes anterior completo.</p>
           </div>
           <div>
             <div className="rn-grupo-label">Blogs en primera página con más impresiones · {seoCerrado.etiqueta}</div>
