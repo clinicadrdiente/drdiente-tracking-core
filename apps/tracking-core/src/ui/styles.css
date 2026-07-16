@@ -411,3 +411,17 @@ select {
 .rn-seo-blog-pos { font-size: 0.72rem; font-weight: 700; color: var(--rn-verde); font-variant-numeric: tabular-nums; }
 .rn-seo-blog-tit { font-size: 0.73rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rn-seo-blog-imp { font-size: 0.72rem; text-align: right; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
+
+/* --- Reunión: embudo por especialidad --- */
+.rn-tabla-esp .rn-grupo-fila th { padding-bottom: 0.25rem; border-bottom: 0; }
+.rn-grupo-g { text-align: center !important; color: var(--rn-oro) !important; letter-spacing: 0.12em; }
+.rn-grupo-c { text-align: center !important; color: var(--rn-verde) !important; letter-spacing: 0.12em;
+  border-left: 1px solid var(--border); }
+.rn-tabla-esp tbody td:nth-child(5) { border-left: 1px solid var(--border); }
+.rn-esp-nombre { font-weight: 600; }
+.rn-esp-imp, .rn-esp-caja { position: relative; }
+.rn-esp-bar { position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+  height: 62%; border-radius: 0 4px 4px 0; background: color-mix(in srgb, var(--foreground) 9%, transparent); z-index: 0; }
+.rn-esp-caja .rn-esp-bar { left: auto; right: 0; border-radius: 4px 0 0 4px; }
+.rn-esp-bar-oro { background: var(--rn-oro-bg); }
+.rn-esp-num { position: relative; z-index: 1; }
