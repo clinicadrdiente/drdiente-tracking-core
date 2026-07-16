@@ -50,6 +50,10 @@ interface Canasta {
   ult12: number; prev12: number; prev24: number;
 }
 interface Esfuerzo { grupo: "hecho" | "activo" | "siguiente"; titulo: string; detalle: string; quien?: string }
+interface ServicioEmbudo {
+  servicio: string; imp: number; clics: number;
+  citas: number | null; generados: number | null; cierres: number | null; caja: number | null;
+}
 interface SeoConteo { paginas: number; primeraPagina: number; top3: number; impresiones: number; clics: number }
 interface SeoMes { mes: string; etiqueta: string; total: SeoConteo; blogs: SeoConteo; sitio: SeoConteo }
 interface SeoBlog { titulo: string; url: string; imp: number; clk: number; pos: number }
@@ -66,6 +70,7 @@ interface StatusData {
   atribucion: Atrib[];
   recomendadores: Rec[];
   agendaFutura: { total: number; hastaFecha: string | null; porClinica: Record<string, number>; porCanal: Record<string, number> };
+  embudoEspecialidad: { rango: { desde: string; hasta: string }; servicios: ServicioEmbudo[] };
   seo: Seo;
   mercado: { shareDiario: ShareDia[]; canastas: { mx: Canasta; usa: Canasta } };
   esfuerzos: Esfuerzo[];
@@ -566,6 +571,52 @@ export function ReunionPanel() {
         </div>
         <p className="rn-mini-nota">“Cierres” = presupuestos generados en el mes que el paciente ya inició (venta cerrada). Las citas incluyen todos los canales, no solo publicidad.</p>
       </div>
+
+      {/* EMBUDO POR ESPECIALIDAD */}
+      {(() => {
+        const serv = data.embudoEspecialidad.servicios;
+        const maxImp = Math.max(...serv.map((s) => s.imp), 1);
+        const maxCaja = Math.max(...serv.map((s) => s.caja ?? 0), 1);
+        return (
+          <div className="rn-panel">
+            <div className="rn-panel-head">
+              <h3>El embudo por especialidad</h3>
+              <p>Para cada servicio: cuántas veces nos vieron → cuántos clics → cuántas citas → cuántas se cerraron y en cuánto · rango completo ({fmtFecha(data.embudoEspecialidad.rango.desde)} – {fmtFecha(data.embudoEspecialidad.rango.hasta)}).</p>
+            </div>
+            <div className="rn-tabla-wrap">
+              <table className="rn-tabla rn-tabla-esp">
+                <thead>
+                  <tr className="rn-grupo-fila">
+                    <th></th>
+                    <th colSpan={3} className="rn-grupo-g">Demanda en Google (lo que buscan)</th>
+                    <th colSpan={3} className="rn-grupo-c">Producción de la clínica (todos los orígenes)</th>
+                  </tr>
+                  <tr><th>Especialidad</th><th>Impresiones</th><th>Clics</th><th>CTR</th><th>Citas</th><th>Cierres</th><th>Caja cobrada</th></tr>
+                </thead>
+                <tbody>
+                  {serv.map((s) => (
+                    <tr key={s.servicio}>
+                      <td className="rn-esp-nombre">{s.servicio}</td>
+                      <td className="rn-esp-imp"><span className="rn-esp-bar" style={{ width: `${(s.imp / maxImp) * 100}%` }} /><span className="rn-esp-num">{fmtInt(s.imp)}</span></td>
+                      <td>{fmtInt(s.clics)}</td>
+                      <td>{s.imp ? fmtPct((s.clics / s.imp) * 100) : "—"}</td>
+                      <td>{s.citas !== null ? fmtInt(s.citas) : "—"}</td>
+                      <td>{s.cierres !== null ? fmtInt(s.cierres) : "—"}</td>
+                      <td className="rn-esp-caja">{s.caja !== null ? <><span className="rn-esp-bar rn-esp-bar-oro" style={{ width: `${(s.caja / maxCaja) * 100}%` }} /><span className="rn-esp-num rn-roas">{fmtMoney(s.caja)}</span></> : "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="rn-nota">
+              <SparklesIcon className="size-3.5" />
+              <span>
+                Cómo leerlo: <b>impresiones y clics</b> son de Google Ads (la demanda de búsqueda que pagamos por ese servicio); <b>citas, cierres y caja</b> son de Dentalink e incluyen pacientes de <b>todos los orígenes</b>, no solo de quien hizo clic — el vínculo es el tipo de servicio, no el mismo paciente. Por eso hay más citas que clics donde manda la recomendación. Lo valioso: dónde hay <b>mucha búsqueda pero poco cierre</b> (afinar oferta/landing) y dónde <b>cerramos mucho con poca inversión</b> (subir presupuesto). Urgencias no tiene categoría de prestación propia en Dentalink (se resuelve como endodoncia, cirugía…), por eso su lado clínico va en blanco.
+              </span>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* PILARES DE INGRESO */}
       <div className="rn-panel">
