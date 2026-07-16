@@ -31,7 +31,8 @@ interface Dia {
   fecha: string; clinica: string;
   gImp: number; gClics: number; gCosto: number; gCostoMaps: number; gConv: number; gLeads: number;
   mImp: number; mClics: number; mGasto: number;
-  citas: number; atendidas: number; presupN: number; presupMonto: number; caja: number; pagosN: number;
+  citas: number; atendidas: number; presupN: number; presupMonto: number; presupIni?: number;
+  caja: number; pagosN: number;
 }
 interface Atrib {
   fecha: string; clinica: string; canal: string;
@@ -416,6 +417,37 @@ export function ReunionPanel() {
   const seoCerrado = seoSerie[seoSerie.length - 2] ?? seoSerie[seoSerie.length - 1];
   const seoBase = seoSerie.find((m) => m.mes === "2026-05") ?? seoSerie[0];
 
+  // Repercusión monetaria del trabajo SEO/IA (rango completo, ambas clínicas)
+  const cajaIA = data.atribucion.filter((a) => a.canal === "IA (ChatGPT)").reduce((s, a) => s + a.caja, 0);
+  const cpcReal = (() => {
+    const costo = data.dias.reduce((s, x) => s + x.gCosto, 0);
+    const clics = data.dias.reduce((s, x) => s + x.gClics, 0);
+    return clics > 0 ? costo / clics : 0;
+  })();
+  const clicsOrganicos = seoSerie.filter((m) => m.mes >= data.rango.desde.slice(0, 7))
+    .reduce((s, m) => s + m.total.clics, 0);
+  const valorOrganico = clicsOrganicos * cpcReal;
+
+  // Contraste mensual: impresiones → clics → citas → cierres de tratamiento (respeta clínica)
+  const contrasteMensual = (() => {
+    const meses = new Map<string, { imp: number; clics: number; citas: number; cierres: number }>();
+    for (const x of data.dias) {
+      if (!deClinica(x.clinica, clinica)) continue;
+      const k = x.fecha.slice(0, 7);
+      const m = meses.get(k) ?? { imp: 0, clics: 0, citas: 0, cierres: 0 };
+      m.imp += x.gImp + x.mImp;
+      m.clics += x.gClics + x.mClics;
+      m.citas += x.citas;
+      m.cierres += x.presupIni ?? 0;
+      meses.set(k, m);
+    }
+    return [...meses.entries()].sort().map(([k, m]) => ({
+      etiqueta: MESES.find((x) => x.clave === k)?.etiqueta ?? k,
+      parcial: k === data.cierreDatos.slice(0, 7),
+      ...m,
+    }));
+  })();
+
   return (
     <div className="rn reunion-view flex flex-col gap-5">
       {/* encabezado */}
@@ -506,6 +538,33 @@ export function ReunionPanel() {
               : <>La plataforma no reporta leads en este periodo; la realidad la cuenta Dentalink: <b>{fmtInt(citasDig)} citas</b> de canales digitales.</>}
           </span>
         </div>
+      </div>
+
+      {/* CONTRASTE MES A MES */}
+      <div className="rn-panel">
+        <div className="rn-panel-head">
+          <h3>El contraste, mes a mes</h3>
+          <p>Impresiones → clics → citas → cierres de tratamiento (presupuestos que arrancaron) · respeta el filtro de clínica.</p>
+        </div>
+        <div className="rn-tabla-wrap">
+          <table className="rn-tabla">
+            <thead><tr><th>Mes</th><th>Impresiones</th><th>Clics</th><th>CTR</th><th>Citas agendadas</th><th>Cierres de tratamiento</th><th>Cita → cierre</th></tr></thead>
+            <tbody>
+              {contrasteMensual.map((m) => (
+                <tr key={m.etiqueta}>
+                  <td>{m.etiqueta}{m.parcial ? <Badge variant="secondary" className="ml-2 align-middle">en curso</Badge> : null}</td>
+                  <td>{fmtInt(m.imp)}</td>
+                  <td>{fmtInt(m.clics)}</td>
+                  <td>{m.imp ? fmtPct((m.clics / m.imp) * 100) : "—"}</td>
+                  <td>{fmtInt(m.citas)}</td>
+                  <td className="rn-roas">{fmtInt(m.cierres)}</td>
+                  <td>{m.citas ? fmtPct((m.cierres / m.citas) * 100, 0) : "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="rn-mini-nota">“Cierres” = presupuestos generados en el mes que el paciente ya inició (venta cerrada). Las citas incluyen todos los canales, no solo publicidad.</p>
       </div>
 
       {/* PILARES DE INGRESO */}
@@ -642,6 +701,12 @@ export function ReunionPanel() {
           <SparklesIcon className="size-3.5" />
           <span>
             La correlación: entre mayo y junio los blogs rankeando pasaron de <b>{fmtInt(seoBase.blogs.paginas)}</b> a <b>{fmtInt(seoCerrado.blogs.paginas)}</b> ({deltaPct(seoCerrado.blogs.paginas, seoBase.blogs.paginas)! > 0 ? "+" : ""}{deltaPct(seoCerrado.blogs.paginas, seoBase.blogs.paginas)!.toFixed(0)}%) y las páginas en primera página de <b>{fmtInt(seoBase.total.primeraPagina)}</b> a <b>{fmtInt(seoCerrado.total.primeraPagina)}</b> — justo cuando entró la optimización de web + IA. Eso son impresiones que <b>no pagamos</b>: tráfico que Google nos regala por estar bien indexados.
+          </span>
+        </div>
+        <div className="rn-nota" style={{ marginTop: "0.6rem" }}>
+          <SparklesIcon className="size-3.5" />
+          <span>
+            La repercusión en dinero: los pacientes que llegaron diciendo “me lo recomendó la IA / ChatGPT” ya dejaron <b>{fmtMoney(cajaIA)}</b> de caja real ({fmtFecha(data.rango.desde)} – {fmtFecha(data.rango.hasta)}). Y los <b>{fmtInt(clicsOrganicos)}</b> clics orgánicos de blogs y web en ese periodo, comprados a nuestro costo real por clic ({fmtMoney(cpcReal)}), habrían costado <b>{fmtMoney(valorOrganico)}</b> — tráfico que hoy no pagamos, todos los meses.
           </span>
         </div>
       </div>
