@@ -437,7 +437,7 @@ export function Dashboard() {
   const topPayments = data?.patients.slice(0, 8) ?? [];
 
   // La vista de Reunión carga sola desde datos estáticos: sin secret ni chrome de datos en vivo.
-  const esReunion = route === "reunion";
+  const esReunion = route === "reunion" || route === "reunion-lab" || route === "reunion-experimental";
 
   return (
     <div className="flex flex-col gap-4">
