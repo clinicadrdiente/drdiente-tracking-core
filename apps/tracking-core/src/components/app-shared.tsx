@@ -45,11 +45,6 @@ export const navGroups: SidebarNavGroup[] = [
         icon: <PresentationIcon />,
       },
       {
-        title: "Reunión Lab",
-        path: "#/reunion-lab",
-        icon: <PresentationIcon />,
-      },
-      {
         title: "Dueños",
         path: "#/duenos",
         icon: <BriefcaseIcon />,

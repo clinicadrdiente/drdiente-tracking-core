@@ -37,7 +37,6 @@ import type {
 } from "@/types/dashboard";
 import { DailyReport } from "@/components/dashboard/daily-report";
 import { ReunionPanel } from "@/components/dashboard/reunion-panel";
-import { ReunionPanelExperimental } from "@/components/dashboard/reunion-panel-experimental";
 import { EffortsPanel } from "@/components/dashboard/efforts-panel";
 import { SystemHealthPanel, SystemHealthCard } from "@/components/dashboard/system-health";
 import { GuidedActionsCard, OperationsResultCard } from "@/components/dashboard/actions";
@@ -482,10 +481,6 @@ export function DashboardRoute({
 
   if (route === "reunion") {
     return <ReunionPanel />;
-  }
-
-  if (route === "reunion-lab" || route === "reunion-experimental") {
-    return <ReunionPanelExperimental secret={secret} />;
   }
 
   if (route === "help" || route === "status") {
