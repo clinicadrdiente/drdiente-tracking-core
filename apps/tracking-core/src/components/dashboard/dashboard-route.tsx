@@ -485,7 +485,7 @@ export function DashboardRoute({
   }
 
   if (route === "reunion-lab" || route === "reunion-experimental") {
-    return <ReunionPanelExperimental secret={secret} />;
+    return <ReunionPanelExperimental />;
   }
 
   if (route === "help" || route === "status") {

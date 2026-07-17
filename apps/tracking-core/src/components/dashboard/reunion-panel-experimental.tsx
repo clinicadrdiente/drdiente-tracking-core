@@ -88,27 +88,17 @@ const phases = [
   },
 ];
 
-export function ReunionPanelExperimental({ secret }: { secret: string }) {
+export function ReunionPanelExperimental() {
   const [liveData, setLiveData] = useState<ReunionStatusLive | null>(null);
   const [liveError, setLiveError] = useState<string | null>(null);
   const [isLoadingLive, setIsLoadingLive] = useState(false);
 
   useEffect(() => {
     async function loadLive() {
-      if (!secret.trim()) {
-        setLiveError("Pega el TRACKING_API_SECRET para cargar la Fase 1 live.");
-        setLiveData(null);
-        return;
-      }
-
       setIsLoadingLive(true);
       setLiveError(null);
       try {
-        const response = await fetch("/api/dev/reunion-status-live?rangeDays=7", {
-          headers: {
-            "x-tracking-secret": secret.trim(),
-          },
-        });
+        const response = await fetch("/api/dev/reunion-status-live?rangeDays=7");
         const body = (await response.json()) as ReunionStatusLive | { error?: string };
         if (!response.ok || !("range" in body)) {
           throw new Error("error" in body ? body.error ?? "No se pudo cargar la fase live." : "No se pudo cargar la fase live.");
@@ -123,7 +113,7 @@ export function ReunionPanelExperimental({ secret }: { secret: string }) {
     }
 
     void loadLive();
-  }, [secret]);
+  }, []);
 
   return (
     <div className="flex flex-col gap-6">

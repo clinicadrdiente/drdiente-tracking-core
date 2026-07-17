@@ -1,16 +1,13 @@
 import {
   methodNotAllowed,
   send,
-  toHttpRequest,
   type VercelRequest,
   type VercelResponse,
 } from "../_lib/http.js";
 import {
   createDentalinkClient,
   createWindsorClient,
-  getAppConfig,
   getDentalinkConfig,
-  requireTrackingSecret,
 } from "../../src/index.js";
 import { trailingRange, previousRange, type RangeDays } from "../../src/lib/date-ranges.js";
 
@@ -114,12 +111,6 @@ export default async function handler(
 ): Promise<void> {
   if (request.method !== "GET") {
     methodNotAllowed(response);
-    return;
-  }
-
-  const authError = requireTrackingSecret(toHttpRequest(request));
-  if (authError) {
-    send(response, authError);
     return;
   }
 
