@@ -129,14 +129,6 @@ export function ReunionPanelExperimental() {
                   ]}
                 />
                 <DetailCard
-                  title="Leads y citas"
-                  lines={[
-                    `Leads por account: ${formatRecord(liveData.leads.byAccount)}`,
-                    `Citas por branch: ${formatRecord(liveData.appointments.byBranch)}`,
-                    `Pagos detectados: ${formatInt(liveData.revenue.payments)}`,
-                  ]}
-                />
-                <DetailCard
                   title="Recepción / SAC"
                   lines={[
                     `Reportes capturados: ${formatInt(liveData.sac.reportsCount)}`,
@@ -144,6 +136,14 @@ export function ReunionPanelExperimental() {
                     `Follow-ups: ${formatInt(liveData.sac.followUpsSent)}`,
                     `Llamadas: ${formatInt(liveData.sac.callsReceived)}`,
                     `Citas apartadas: ${formatInt(liveData.sac.appointmentsBooked)}`,
+                  ]}
+                />
+                <DetailCard
+                  title="Leads y citas"
+                  lines={[
+                    `Leads por account: ${formatRecord(liveData.leads.byAccount)}`,
+                    `Citas por branch: ${formatRecord(liveData.appointments.byBranch)}`,
+                    `Pagos detectados: ${formatInt(liveData.revenue.payments)}`,
                   ]}
                 />
               </div>
