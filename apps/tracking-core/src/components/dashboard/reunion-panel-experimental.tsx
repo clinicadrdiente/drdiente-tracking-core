@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FlaskConicalIcon, GitCompareArrowsIcon, Layers3Icon, LoaderCircleIcon, RocketIcon } from "lucide-react";
+import { LoaderCircleIcon } from "lucide-react";
 import { ReunionPanel } from "@/components/dashboard/reunion-panel";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,45 +49,6 @@ interface ReunionStatusLive {
   notes: string[];
 }
 
-const phases = [
-  {
-    id: "fase-1",
-    title: "Fase 1 · Nutrido mínimo viable",
-    icon: <Layers3Icon className="size-4" />,
-    goal: "Conectar la reunión a una capa live sin tocar la reunión vieja.",
-    bullets: [
-      "Marketing summary: impresiones, clics y spend por plataforma.",
-      "Leads reales desde Elevator/Supabase: total, por account y por source.",
-      "Agendamientos reales desde appointments: total y cortes operativos.",
-      "Revenue/pagos desde Dentalink: total, por branch y por periodo.",
-      "Funnel KPIs: click→lead, lead→appointment, appointment→payment.",
-      "Operación SAC: contacto, follow-ups, llamadas, promo WhatsApp y notas.",
-    ],
-  },
-  {
-    id: "fase-2",
-    title: "Fase 2 · Enriquecer las secciones actuales",
-    icon: <GitCompareArrowsIcon className="size-4" />,
-    goal: "Mantener el diseño ejecutivo actual, pero cambiando el motor de datos.",
-    bullets: [
-      "Reemplazar el corazón de status-data.json por agregación live.",
-      "Mapear funnel, plataformas, citas, caja y atribución a las nuevas fuentes.",
-      "Comparar legacy vs live dentro de la misma operación para validar equivalencia.",
-    ],
-  },
-  {
-    id: "fase-3",
-    title: "Fase 3 · Nuevos bloques de decisión",
-    icon: <RocketIcon className="size-4" />,
-    goal: "Agregar lo que hoy falta para operar mejor marketing + recepción + caja.",
-    bullets: [
-      "Lead Quality: completitud, UTM/source, duplicados, match/no match.",
-      "Lead → Cita: tiempos, conversión por source/account y pendientes.",
-      "Recepción / SAC: seguimiento operativo, cuellos de botella y observaciones.",
-    ],
-  },
-];
-
 export function ReunionPanelExperimental() {
   const [liveData, setLiveData] = useState<ReunionStatusLive | null>(null);
   const [liveError, setLiveError] = useState<string | null>(null);
@@ -117,61 +78,19 @@ export function ReunionPanelExperimental() {
 
   return (
     <div className="flex flex-col gap-6">
-      <Card className="border-brand/30 bg-[radial-gradient(circle_at_top_left,rgba(24,186,251,0.12),transparent_36%),linear-gradient(135deg,rgba(24,88,251,0.08),transparent_48%)]">
-        <CardHeader className="gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge className="bg-brand/15 text-brand hover:bg-brand/15">Experimental</Badge>
-            <Badge variant="outline">No reemplaza lo actual</Badge>
-            <Badge variant="secondary">Ruta de debate</Badge>
-          </div>
-          <div className="space-y-1">
-            <CardTitle className="flex items-center gap-2 text-2xl">
-              <FlaskConicalIcon className="size-5" />
-              Reunión de Status · Laboratorio
-            </CardTitle>
-            <CardDescription>
-              Esta vista duplica la reunión actual dentro de Operar para comparar sin perder lo viejo.
-              Aquí vamos a debatir si la evolución live realmente nos sirve antes de sustituir la versión legacy.
-            </CardDescription>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-3 md:grid-cols-3">
-            <div className="rounded-xl border bg-background/70 p-4">
-              <p className="text-sm font-medium">Base actual</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Copia directa de la reunión legacy para preservar lectura, layout y narrativa.
-              </p>
-            </div>
-            <div className="rounded-xl border bg-background/70 p-4">
-              <p className="text-sm font-medium">Objetivo del laboratorio</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Evaluar una transición progresiva hacia data viva de Dentalink + Elevator + SAC.
-              </p>
-            </div>
-            <div className="rounded-xl border bg-background/70 p-4">
-              <p className="text-sm font-medium">Criterio de decisión</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Si la versión nueva sirve, sustituye a la vieja. Si no, la vieja sigue intacta.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       <Card>
         <CardHeader className="gap-3">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline">Fase 1 live</Badge>
+            <Badge variant="outline">Live</Badge>
             {liveData ? <Badge variant="secondary">Últimos {liveData.range.days} días</Badge> : null}
             {liveData ? <Badge variant="secondary">Windsor: {liveData.sources.windsor}</Badge> : null}
             {liveData ? <Badge variant="secondary">Dentalink: {liveData.sources.dentalink}</Badge> : null}
             {liveData ? <Badge variant="secondary">Supabase: {liveData.sources.supabase}</Badge> : null}
           </div>
           <div>
-            <CardTitle className="text-xl">Lectura live mínima</CardTitle>
+            <CardTitle className="text-xl">Resumen live</CardTitle>
             <CardDescription>
-              Esta capa nueva no reemplaza el panel legacy todavía. Solo nos deja debatir con data viva al lado.
+              Lectura ejecutiva rápida arriba; la reunión original sigue intacta abajo.
             </CardDescription>
           </div>
         </CardHeader>
@@ -247,30 +166,6 @@ export function ReunionPanelExperimental() {
       <ReunionPanel />
 
       <Separator />
-
-      <section className="grid gap-4 xl:grid-cols-3">
-        {phases.map((phase) => (
-          <Card key={phase.id} className="h-full">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                {phase.icon}
-                {phase.title}
-              </CardTitle>
-              <CardDescription>{phase.goal}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                {phase.bullets.map((bullet) => (
-                  <li key={bullet} className="flex gap-2">
-                    <span className="mt-1 size-1.5 shrink-0 rounded-full bg-brand" />
-                    <span>{bullet}</span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-        ))}
-      </section>
     </div>
   );
 }
