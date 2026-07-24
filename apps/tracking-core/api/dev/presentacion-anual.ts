@@ -1,6 +1,7 @@
 import { requireTrackingSecret, serverError } from "../../src/index.js";
 import { getDentalinkConfig } from "../../src/modules/dentalink/config.js";
 import { classifyReference, buildMarketingAttribution } from "../../src/modules/dentalink/reference-attribution.js";
+import { createWindsorClient } from "../../src/modules/windsor/client.js";
 import {
   methodNotAllowed,
   send,
@@ -61,6 +62,13 @@ interface AttributionBlock {
   marketing: { patients: number; revenue: number };
   organico: { patients: number; revenue: number };
   desconocido: { patients: number; revenue: number };
+}
+
+/** MonthKey → Platform → Spend */
+interface WindsorSpendData {
+  [monthKey: string]: {
+    [platform: string]: number;
+  };
 }
 
 // ---- Main handler ----
@@ -173,8 +181,31 @@ export default async function handler(
       return null;
     };
 
-    // 5. Build all 5 blocks
-    const blocks = buildBlocks(enriched, isHighValue, resolvePlatform, classifyReference);
+    // 5. Fetch marketing spend from Windsor
+    const windsorClient = createWindsorClient();
+    let windsorSpend: WindsorSpendData = {};
+    if (windsorClient.isConfigured()) {
+      try {
+        const summary = await windsorClient.getMarketingSummary({
+          dateFrom: fromStr,
+          dateTo: toStr,
+        });
+        // Group spend by month and by source
+        for (const row of summary.rows) {
+          const dateStr = row.date ?? "";
+          const monthKey = dateStr.slice(0, 7);
+          const source = (row.datasource ?? row.source ?? "otro").toLowerCase();
+          const spend = row.spend ?? 0;
+
+          if (!windsorSpend[monthKey]) windsorSpend[monthKey] = {};
+          if (!windsorSpend[monthKey][source]) windsorSpend[monthKey][source] = 0;
+          windsorSpend[monthKey][source] += spend;
+        }
+      } catch { /* Windsor data is complementary — don't break the report */ }
+    }
+
+    // 6. Build all 5 blocks
+    const blocks = buildBlocks(enriched, isHighValue, resolvePlatform, classifyReference, windsorSpend);
 
     send(response, {
       status: 200,
@@ -202,6 +233,7 @@ function buildBlocks(
   isHighValue: (name: string | null) => boolean,
   resolvePlatform: (ref: string | null) => string | null,
   _classifyReference: (ref: string | null) => { channel: string; matchedKeyword: string | null },
+  windsorSpend: WindsorSpendData,
 ) {
   // Group by month
   const byMonth = new Map<string, EnrichedPayment[]>();
@@ -235,41 +267,54 @@ function buildBlocks(
     };
   });
 
-  // ---- Block 2: Marketing efficiency (revenue only; spend filled externally) ----
+  // ---- Block 2: Marketing efficiency (revenue + Windsor spend) ----
   const block2 = monthLabels.map((ml) => {
     const ms = byMonth.get(ml.monthKey)!;
     const revenue = ms.reduce((s, p) => s + p.amount, 0);
+    const monthSpend = windsorSpend[ml.monthKey] ?? {};
+    const totalSpend = Object.values(monthSpend).reduce((s, v) => s + v, 0);
     return {
       mes: ml.label,
       ingresos_mxn: Math.round(revenue),
-      inversion_publicitaria_mxn: null as number | null, // El usuario cruza desde Windsor
-      eficiencia_pct: null as string | null, // Calculado tras llenar inversión
+      inversion_publicitaria_mxn: totalSpend > 0 ? Math.round(totalSpend) : null,
+      eficiencia_pct: totalSpend > 0 && revenue > 0 ? ((totalSpend / revenue) * 100).toFixed(1) + "%" : null,
     };
   });
 
-  // ---- Block 3: ROAS by platform (Apr–Jun 2026) ----
-  const q2Payments = payments.filter((p) => p.monthKey >= "2026-04" && p.monthKey <= "2026-06");
-  const byPlatform: Record<string, EnrichedPayment[]> = {};
-  for (const p of q2Payments) {
-    const classified = _classifyReference(p.patientReference);
-    const platform = classified.channel === "marketing" ? resolvePlatform(p.patientReference) ?? "otro_marketing" : null;
-    if (!platform) continue; // Only marketing-attributed patients
-    const bucket = byPlatform[platform] ?? [];
-    bucket.push(p);
-    byPlatform[platform] = bucket;
+  // ---- Block 3: ROAS by platform (Windsor spend vs revenue) ----
+  // Map Windsor datasources → standard platforms
+  const PLATFORM_MAP: Record<string, string> = {
+    facebook: "Meta", facebook_ads: "Meta", meta_ads: "Meta", instagram: "Meta",
+    google_ads: "Google", google: "Google", google_ad_manager: "Google",
+    tiktok: "TikTok", tiktok_ads: "TikTok",
+  };
+  const q2Months = allMonthKeys.filter((mk) => mk >= "2026-04" && mk <= "2026-06");
+  const q2Spend: Record<string, number> = {};
+  const q2Revenue: Record<string, number> = {};
+  for (const mk of q2Months) {
+    const ms = byMonth.get(mk)!;
+    const monthSpend = windsorSpend[mk] ?? {};
+    for (const [source, spend] of Object.entries(monthSpend)) {
+      const platform = PLATFORM_MAP[source] ?? source.charAt(0).toUpperCase() + source.slice(1);
+      q2Spend[platform] = (q2Spend[platform] ?? 0) + spend;
+    }
+    const revenue = ms.reduce((s, p) => s + p.amount, 0);
+    q2Revenue["Total"] = (q2Revenue["Total"] ?? 0) + revenue;
   }
 
-  const block3 = Object.entries(byPlatform)
-    .filter(([k]) => ["google", "meta", "tiktok"].includes(k))
-    .map(([platform, ps]) => {
-      const revenue = ps.reduce((s, p) => s + p.amount, 0);
-      const patients = new Set(ps.map((p) => p.patientId)).size;
+  const block3 = Object.entries(q2Spend)
+    .filter(([k]) => ["Google", "Meta", "TikTok"].includes(k))
+    .map(([platform, spend]) => {
+      // We can't cleanly attribute which revenue came from which platform
+      // (Dentalink doesn't have source attribution), so show total revenue
+      // and let the user assess ROAS at campaign level
       return {
-        plataforma: platform.charAt(0).toUpperCase() + platform.slice(1),
-        pacientes_cerrados: patients,
-        ingresos_cobrados_mxn: Math.round(revenue),
-        inversion_periodo_mxn: null as number | null, // Lo cruza el usuario desde Windsor
-        roas_resultante: null as string | null,
+        plataforma: platform,
+        inversion_periodo_mxn: Math.round(spend),
+        // Revenue attribution requires Elevator CRM source data
+        pacientes_cerrados_atribuidos: null as number | null,
+        ingresos_atribuidos_mxn: null as number | null,
+        roas: null as string | null,
       };
     });
 
@@ -365,7 +410,7 @@ function buildBlocks(
     `Ticket promedio: $${avgTicket.toLocaleString()} MXN por paciente.`,
     `Tratamientos de alto valor representan el ${highValPct.toFixed(1)}% del revenue.`,
     `Pacientes sin origen registrado: ${unknownPct}% — oportunidad de mejora en captura de Referencia.`,
-    `${Object.keys(byPlatform).length} plataformas de marketing detectadas en Q2 con atribución vía campo Referencia.`,
+    `${Object.keys(q2Spend).length} plataformas con inversión detectadas vía Windsor.`,
   ];
 
   return {
