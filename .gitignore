@@ -11,3 +11,6 @@ node-compile-cache/
 
 # Claude Code local preview/session config
 .claude/
+
+# Foglamp local scan and secret edit token
+.foglamp/
