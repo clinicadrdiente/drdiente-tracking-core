@@ -422,9 +422,9 @@ export function ReunionPanel() {
   const donutData = canales.filter((c) => c.caja > 0).map((c) => ({ name: c.canal, value: c.caja }));
   const sinNombre = recomendadores.find((r) => r.quien === "(sin nombre)");
 
-  // SEO: último mes cerrado (jun) vs mes antes de la optimización (may)
+  // SEO: mes en curso (con data al día del corte) vs mes antes de la optimización (may)
   const seoSerie = data.seo.serie;
-  const seoCerrado = seoSerie[seoSerie.length - 2] ?? seoSerie[seoSerie.length - 1];
+  const seoCerrado = seoSerie[seoSerie.length - 1];
   const seoBase = seoSerie.find((m) => m.mes === "2026-05") ?? seoSerie[0];
 
   // Repercusión monetaria del trabajo SEO/IA (rango completo, ambas clínicas)
@@ -557,11 +557,10 @@ export function ReunionPanel() {
             <h3>Lo que sí nos amenaza — y lo que no</h3>
             <p>Separamos ruido de riesgo real, contrastado contra nuestros propios datos.</p>
           </div>
-          <div className="rn-esfuerzos">
+          <div className="rn-esfuerzos rn-esfuerzos-2col">
             {([
               ["confirmado", "Confirmado con datos", "rn-esf-activo"],
               ["observacion", "En observación", "rn-esf-siguiente"],
-              ["descartado", "Descartado — no es excusa", "rn-esf-hecho"],
             ] as [Amenaza["grupo"], string, string][]).map(([grupo, titulo, cls]) => (
               <div key={grupo} className="rn-esf-col">
                 <div className={`rn-esf-head ${cls}`}>{titulo}</div>
@@ -660,7 +659,7 @@ export function ReunionPanel() {
       {/* PILARES DE INGRESO */}
       <div className="rn-panel">
         <div className="rn-panel-head">
-          <h3>¿De quién es el dinero?</h3>
+          <h3>¿A quién es atribuible el capital recolectado?</h3>
           <p>La caja del periodo separada por pilar de origen (campo Referencia de recepción) · {etiquetaPeriodo}.</p>
         </div>
         <div className="rn-pilares-barra">
