@@ -50,6 +50,15 @@ interface Canasta {
   ult12: number; prev12: number; prev24: number;
 }
 interface Esfuerzo { grupo: "hecho" | "activo" | "siguiente"; titulo: string; detalle: string; quien?: string }
+interface CrecimientoStat { label: string; valor: string; sub: string }
+interface Amenaza { grupo: "confirmado" | "observacion" | "descartado"; titulo: string; detalle: string }
+interface Contexto {
+  actualizado: string; mensaje: string;
+  crecimiento: { polanco: CrecimientoStat[]; roma: CrecimientoStat[] };
+  amenazas: Amenaza[];
+  fortalezas: string[];
+  vulnerabilidades: string[];
+}
 interface SeoConteo { paginas: number; primeraPagina: number; top3: number; impresiones: number; clics: number }
 interface SeoMes { mes: string; etiqueta: string; total: SeoConteo; blogs: SeoConteo; sitio: SeoConteo }
 interface SeoBlog { titulo: string; url: string; imp: number; clk: number; pos: number }
@@ -65,6 +74,7 @@ interface StatusData {
   dias: Dia[];
   atribucion: Atrib[];
   recomendadores: Rec[];
+  contexto?: Contexto;
   agendaFutura: { total: number; hastaFecha: string | null; porClinica: Record<string, number>; porCanal: Record<string, number> };
   seo: Seo;
   mercado: { shareDiario: ShareDia[]; canastas: { mx: Canasta; usa: Canasta } };
@@ -505,6 +515,86 @@ export function ReunionPanel() {
           </div>
         ))}
       </div>
+
+      {/* CONTEXTO: DE DÓNDE VENIMOS, DÓNDE ESTAMOS */}
+      {data.contexto ? (
+        <div className="rn-panel">
+          <div className="rn-panel-head">
+            <h3><TrendingUpIcon className="inline size-4 -mt-0.5" /> De dónde venimos, dónde estamos</h3>
+            <p>Lectura del año completo · actualizada {data.contexto.actualizado} · Polanco y Roma Norte, siempre por separado.</p>
+          </div>
+          <div className="rn-nota">
+            <SparklesIcon className="size-3.5" />
+            <span>{data.contexto.mensaje}</span>
+          </div>
+          <div className="rn-grupo-label" style={{ marginTop: "1.1rem" }}>Polanco</div>
+          <div className="rn-mercado-stats">
+            {data.contexto.crecimiento.polanco.map((s) => (
+              <div key={s.label} className="rn-mstat">
+                <span className="rn-kpi-label">{s.label}</span>
+                <span className="rn-mstat-valor">{s.valor}</span>
+                <span className="rn-kpi-pie"><span>{s.sub}</span></span>
+              </div>
+            ))}
+          </div>
+          <div className="rn-grupo-label">Roma Norte</div>
+          <div className="rn-mercado-stats" style={{ marginBottom: 0 }}>
+            {data.contexto.crecimiento.roma.map((s) => (
+              <div key={s.label} className="rn-mstat">
+                <span className="rn-kpi-label">{s.label}</span>
+                <span className="rn-mstat-valor">{s.valor}</span>
+                <span className="rn-kpi-pie"><span>{s.sub}</span></span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {/* AMENAZAS EXTERNAS + FORTALEZAS/VULNERABILIDADES */}
+      {data.contexto ? (
+        <div className="rn-panel">
+          <div className="rn-panel-head">
+            <h3>Lo que sí nos amenaza — y lo que no</h3>
+            <p>Separamos ruido de riesgo real, contrastado contra nuestros propios datos.</p>
+          </div>
+          <div className="rn-esfuerzos">
+            {([
+              ["confirmado", "Confirmado con datos", "rn-esf-activo"],
+              ["observacion", "En observación", "rn-esf-siguiente"],
+              ["descartado", "Descartado — no es excusa", "rn-esf-hecho"],
+            ] as [Amenaza["grupo"], string, string][]).map(([grupo, titulo, cls]) => (
+              <div key={grupo} className="rn-esf-col">
+                <div className={`rn-esf-head ${cls}`}>{titulo}</div>
+                {data.contexto!.amenazas.filter((a) => a.grupo === grupo).map((a) => (
+                  <div key={a.titulo} className="rn-esf-card">
+                    <b>{a.titulo}</b>
+                    <span>{a.detalle}</span>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+
+          <div className="rn-panel-head" style={{ marginTop: "1.4rem" }}>
+            <h3>Lo que nos sostiene, lo que nos puede fallar</h3>
+            <p>Honestidad antes que optimismo.</p>
+          </div>
+          <div className="rn-esfuerzos rn-esfuerzos-2col">
+            <div className="rn-esf-col">
+              <div className="rn-esf-head rn-esf-hecho">Fortalezas</div>
+              {data.contexto.fortalezas.map((f) => (
+                <div key={f} className="rn-esf-card"><b>{f}</b></div>
+              ))}
+            </div>
+            <div className="rn-esf-col">
+              <div className="rn-esf-head rn-esf-malo">Vulnerabilidades</div>
+              {data.contexto.vulnerabilidades.map((v) => (
+                <div key={v} className="rn-esf-card"><b>{v}</b></div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {/* EMBUDO */}
       <div className="rn-panel">

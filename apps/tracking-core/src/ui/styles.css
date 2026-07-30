@@ -361,6 +361,9 @@ select {
 .rn-esf-hecho { background: var(--rn-verde-bg); color: var(--rn-verde); }
 .rn-esf-activo { background: var(--rn-oro-bg); color: var(--rn-oro); }
 .rn-esf-siguiente { background: color-mix(in srgb, var(--foreground) 7%, transparent); color: var(--muted-foreground); }
+.rn-esf-malo { background: var(--rn-rojo-bg); color: var(--rn-rojo); }
+.rn-esfuerzos-2col { grid-template-columns: repeat(2, 1fr); }
+@media (max-width: 700px) { .rn-esfuerzos-2col { grid-template-columns: 1fr; } }
 .rn-esf-card { border: 1px solid var(--border); border-radius: 0.7rem; padding: 0.7rem 0.85rem;
   display: flex; flex-direction: column; gap: 0.2rem; }
 .rn-esf-card b { font-size: 0.8rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
