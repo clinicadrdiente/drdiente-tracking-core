@@ -69,6 +69,10 @@ interface Campana {
 }
 interface StatusData {
   generado: string; cierreDatos: string;
+  // Cortes por fuente: citas/pacientes pueden ir más frescos que publicidad
+  // (Windsor) y caja (export de pagos). Cuando existen y van detrás de
+  // cierreDatos, las vistas de dinero ventanean a su corte y lo etiquetan.
+  cierreAds?: string; cierreCaja?: string;
   rango: { desde: string; hasta: string };
   pilarDeCanal: Record<string, string>;
   dias: Dia[];
@@ -90,6 +94,7 @@ const MESES = [
   { clave: "2026-05", etiqueta: "Mayo" },
   { clave: "2026-06", etiqueta: "Junio" },
   { clave: "2026-07", etiqueta: "Julio" },
+  { clave: "2026-08", etiqueta: "Agosto" },
 ];
 
 const COLORES_CANAL: Record<string, string> = {
@@ -280,7 +285,37 @@ export function ReunionPanel() {
     return agregar(data.dias, prevDesde, prevHasta, clinica);
   }, [data, desde, nDias, clinica]);
 
-  const canales = useMemo(() => (data ? porCanal(data.atribucion, desde, hasta, clinica) : []), [data, desde, hasta, clinica]);
+  /* --- ventana de dinero: publicidad (Windsor) y caja (pagos) pueden cerrar
+     antes que las citas. Si el rango pedido se pasa de ese corte, las vistas
+     de dinero usan una ventana del mismo largo terminada en el corte — con
+     etiqueta visible — en vez de mostrar ceros falsos. --- */
+  const finDinero = useMemo(() => {
+    if (!data) return hasta;
+    const cortes = [data.cierreAds, data.cierreCaja].filter(Boolean) as string[];
+    if (!cortes.length) return hasta;
+    const corte = cortes.sort()[0];
+    return corte < hasta ? corte : hasta;
+  }, [data, hasta]);
+  const dineroRecortado = Boolean(data) && finDinero !== hasta;
+  const desdeDinero = useMemo(
+    () => (dineroRecortado && nDias ? sumarDias(-(nDias - 1), finDinero) : desde),
+    [dineroRecortado, nDias, finDinero, desde],
+  );
+  const actualDinero = useMemo(
+    () => (data ? (dineroRecortado ? agregar(data.dias, desdeDinero, finDinero, clinica) : null) : null),
+    [data, dineroRecortado, desdeDinero, finDinero, clinica],
+  ) ?? actual;
+  const previoDinero = useMemo(() => {
+    if (!data || !dineroRecortado) return previo;
+    const prevHasta = sumarDias(-1, desdeDinero);
+    const prevDesde = sumarDias(-(nDias - 1), prevHasta);
+    if (prevHasta < data.rango.desde) return null;
+    return agregar(data.dias, prevDesde, prevHasta, clinica);
+  }, [data, dineroRecortado, desdeDinero, nDias, clinica, previo]);
+
+  const canales = useMemo(() => (data ? porCanal(data.atribucion, desdeDinero, finDinero, clinica) : []), [data, desdeDinero, finDinero, clinica]);
+  // Citas por canal con el rango pedido completo (las citas sí están frescas).
+  const canalesCitas = useMemo(() => (data ? porCanal(data.atribucion, desde, hasta, clinica) : []), [data, desde, hasta, clinica]);
 
   const pilares = useMemo(() => {
     if (!data) return [] as { pilar: string; caja: number; pagos: number; pct: number }[];
@@ -304,6 +339,7 @@ export function ReunionPanel() {
 
   /* --- ROAS real por plataforma --- */
   const plataformas = useMemo(() => {
+    const actual = actualDinero;
     if (!actual) return [] as { nombre: string; inversion: number; caja: number; citas: number; roas: number | null }[];
     const cajaDe = (canal: string) => canales.find((c) => c.canal === canal)?.caja ?? 0;
     const citasDe = (canal: string) => canales.find((c) => c.canal === canal)?.citas ?? 0;
@@ -316,19 +352,19 @@ export function ReunionPanel() {
     ].map((p) => ({ ...p, roas: p.inversion > 0 ? p.caja / p.inversion : null }))
       .filter((p) => p.inversion > 0 || p.caja > 0)
       .sort((a, b) => b.caja - a.caja);
-  }, [actual, canales]);
+  }, [actualDinero, canales]);
 
   const recomendadores = useMemo(() => {
     if (!data) return [] as { quien: string; caja: number; pagos: number }[];
     const mapa = new Map<string, { caja: number; pagos: number }>();
     for (const r of data.recomendadores) {
-      if (!enRango(r.fecha, desde, hasta) || !deClinica(r.clinica, clinica)) continue;
+      if (!enRango(r.fecha, desdeDinero, finDinero) || !deClinica(r.clinica, clinica)) continue;
       const item = mapa.get(r.quien) ?? { caja: 0, pagos: 0 };
       item.caja += r.caja; item.pagos += r.pagos;
       mapa.set(r.quien, item);
     }
     return [...mapa.entries()].map(([quien, v]) => ({ quien, ...v })).sort((a, b) => b.caja - a.caja);
-  }, [data, desde, hasta, clinica]);
+  }, [data, desdeDinero, finDinero, clinica]);
 
   /* --- serie semanal (todo el rango, para contexto) --- */
   const serie = useMemo(() => {
@@ -353,7 +389,8 @@ export function ReunionPanel() {
     if (!data) return null;
     const porCampana = new Map<string, { campana: string; imp: number; disp: number; pp: number; pr: number }>();
     for (const f of data.mercado.shareDiario) {
-      if (!enRango(f.fecha, desde, hasta) || !deClinica(f.clinica, clinica)) continue;
+      // Share de mercado sale de Windsor: respeta el corte de publicidad.
+      if (!enRango(f.fecha, desdeDinero, finDinero) || !deClinica(f.clinica, clinica)) continue;
       const item = porCampana.get(f.campana) ?? { campana: f.campana, imp: 0, disp: 0, pp: 0, pr: 0 };
       item.imp += f.imp; item.disp += f.disp; item.pp += f.pp; item.pr += f.pr;
       porCampana.set(f.campana, item);
@@ -395,23 +432,25 @@ export function ReunionPanel() {
       shareGlobal: disponibles ? capturadas / disponibles : null,
       disponibles, capturadas, conShare, sinMedir, topPresupuesto, porMes,
     };
-  }, [data, desde, hasta, clinica]);
+  }, [data, desdeDinero, finDinero, clinica]);
 
   if (error) {
     return (
       <Card><CardContent className="py-10 text-center text-muted-foreground">
-        No pude cargar <code>status-data.json</code> ({error}). Corre <code>python3 scripts/generar_status_data.py</code> y recarga.
+        No pude cargar <code>status-data.json</code> ({error}). Corre <code>python3 scripts/actualizar_status_desde_csv.py</code> y recarga.
       </CardContent></Card>
     );
   }
-  if (!data || !actual) {
+  if (!data || !actual || !actualDinero) {
     return <div className="rn-cargando">Cargando la reunión…</div>;
   }
 
-  const maxLog = Math.log10(Math.max(actual.imp, 10));
+  // Etiqueta corta para las vistas que dependen de publicidad/caja.
+  const notaDinero = dineroRecortado ? ` · al ${fmtFecha(finDinero)}` : "";
+  const maxLog = Math.log10(Math.max(actualDinero.imp, 10));
   const ancho = (v: number) => (v > 0 ? (Math.log10(Math.max(v, 1.5)) / maxLog) * 100 : 4);
-  const ctr = actual.imp ? (actual.clics / actual.imp) * 100 : 0;
-  const factorRealidad = actual.leadsPlataforma > 0 ? citasDig / actual.leadsPlataforma : null;
+  const ctr = actualDinero.imp ? (actualDinero.clics / actualDinero.imp) * 100 : 0;
+  const factorRealidad = actualDinero.leadsPlataforma > 0 ? citasDig / actualDinero.leadsPlataforma : null;
 
   const campanas = clinica === "roma"
     ? (data.campanasSemana.cuentas.roma ?? [])
@@ -454,6 +493,8 @@ export function ReunionPanel() {
     return [...meses.entries()].sort().map(([k, m]) => ({
       etiqueta: MESES.find((x) => x.clave === k)?.etiqueta ?? k,
       parcial: k === data.cierreDatos.slice(0, 7),
+      // impresiones/clics/cierres de este mes aún no cierran (Windsor/pagos)
+      dineroParcial: dineroRecortado && k >= finDinero.slice(0, 7),
       ...m,
     }));
   })();
@@ -466,7 +507,9 @@ export function ReunionPanel() {
           <div className="rn-kicker"><PresentationIcon className="size-3.5" /> Reunión de Status</div>
           <h2 className="rn-titulo">Plataformas contra realidad,<br />en una sola vista.</h2>
           <p className="rn-sub">
-            Viendo <b>{etiquetaPeriodo}</b> · datos al {data.cierreDatos} · generado {data.generado.replace("T", " ")}
+            Viendo <b>{etiquetaPeriodo}</b> · citas y pacientes al {fmtFecha(data.cierreDatos)}
+            {dineroRecortado ? <> · <b>caja y publicidad al {fmtFecha(finDinero)}</b> (sus exports cierran después)</> : null}
+            {" "}· generado {data.generado.replace("T", " ")}
           </p>
         </div>
         <div className="rn-controles">
@@ -500,10 +543,10 @@ export function ReunionPanel() {
       {/* KPIs */}
       <div className="rn-kpis">
         {[
-          { label: "Inversión publicitaria", valor: fmtMoney(actual.inversion), delta: previo ? deltaPct(actual.inversion, previo.inversion) : null, invertir: true, nota: "Google + Meta" },
-          { label: "Impresiones", valor: fmtInt(actual.imp), delta: previo ? deltaPct(actual.imp, previo.imp) : null, nota: "veces que aparecimos" },
-          { label: "Clics al sitio", valor: fmtInt(actual.clics), delta: previo ? deltaPct(actual.clics, previo.clics) : null, nota: `CTR ${fmtPct(ctr)}` },
-          { label: "Caja real (Dentalink)", valor: fmtMoney(actual.caja), delta: previo ? deltaPct(actual.caja, previo.caja) : null, nota: `${actual.pagosN} pagos`, dorado: true },
+          { label: "Inversión publicitaria", valor: fmtMoney(actualDinero.inversion), delta: previoDinero ? deltaPct(actualDinero.inversion, previoDinero.inversion) : null, invertir: true, nota: `Google + Meta${notaDinero}` },
+          { label: "Impresiones", valor: fmtInt(actualDinero.imp), delta: previoDinero ? deltaPct(actualDinero.imp, previoDinero.imp) : null, nota: `veces que aparecimos${notaDinero}` },
+          { label: "Clics al sitio", valor: fmtInt(actualDinero.clics), delta: previoDinero ? deltaPct(actualDinero.clics, previoDinero.clics) : null, nota: `CTR ${fmtPct(ctr)}${notaDinero}` },
+          { label: "Caja real (Dentalink)", valor: fmtMoney(actualDinero.caja), delta: previoDinero ? deltaPct(actualDinero.caja, previoDinero.caja) : null, nota: `${actualDinero.pagosN} pagos${notaDinero}`, dorado: true },
         ].map((k) => (
           <div key={k.label} className={`rn-kpi${k.dorado ? " rn-kpi-oro" : ""}`}>
             <span className="rn-kpi-label">{k.label}</span>
@@ -599,13 +642,13 @@ export function ReunionPanel() {
       <div className="rn-panel">
         <div className="rn-panel-head">
           <h3>El embudo completo</h3>
-          <p>De la primera impresión al dinero en caja · {etiquetaPeriodo}. Barras en escala logarítmica para poder verlas juntas.</p>
+          <p>De la primera impresión al dinero en caja · {dineroRecortado ? `ventana con todas las fuentes completas: ${fmtFecha(desdeDinero)} – ${fmtFecha(finDinero)}` : etiquetaPeriodo}. Barras en escala logarítmica para poder verlas juntas.</p>
         </div>
         <div className="rn-funnel">
           <div className="rn-grupo-label">Lo que dicen las plataformas</div>
-          <FunnelStage etiqueta="Impresiones" valor={fmtInt(actual.imp)} max={ancho(actual.imp)} familia="plataforma" retardo={0} />
-          <FunnelStage etiqueta="Clics" valor={fmtInt(actual.clics)} pct={`${fmtPct(ctr)} de las impresiones`} max={ancho(actual.clics)} familia="plataforma" retardo={80} />
-          <FunnelStage etiqueta="Leads que Google reporta" valor={fmtInt(actual.leadsPlataforma)} detalle="sin la campaña de Maps" pct={actual.clics ? `${fmtPct((actual.leadsPlataforma / actual.clics) * 100, 2)} de los clics` : null} max={ancho(actual.leadsPlataforma)} familia="plataforma" retardo={160} />
+          <FunnelStage etiqueta="Impresiones" valor={fmtInt(actualDinero.imp)} max={ancho(actualDinero.imp)} familia="plataforma" retardo={0} />
+          <FunnelStage etiqueta="Clics" valor={fmtInt(actualDinero.clics)} pct={`${fmtPct(ctr)} de las impresiones`} max={ancho(actualDinero.clics)} familia="plataforma" retardo={80} />
+          <FunnelStage etiqueta="Leads que Google reporta" valor={fmtInt(actualDinero.leadsPlataforma)} detalle="sin la campaña de Maps" pct={actualDinero.clics ? `${fmtPct((actualDinero.leadsPlataforma / actualDinero.clics) * 100, 2)} de los clics` : null} max={ancho(actualDinero.leadsPlataforma)} familia="plataforma" retardo={160} />
 
           <div className="rn-vs">
             <span className="rn-vs-linea" />
@@ -614,16 +657,16 @@ export function ReunionPanel() {
           </div>
 
           <FunnelStage etiqueta="Citas de canales digitales" valor={fmtInt(citasDig)} detalle="registradas por recepción" pct={factorRealidad ? `${factorRealidad.toFixed(1)}× lo que Google reporta` : null} max={ancho(citasDig)} familia="real" retardo={240} />
-          <FunnelStage etiqueta="Citas totales agendadas" valor={fmtInt(actual.citas)} detalle="todos los canales" max={ancho(actual.citas)} familia="real" retardo={320} />
-          <FunnelStage etiqueta="Citas atendidas" valor={fmtInt(actual.atendidas)} pct={actual.citas ? `${fmtPct((actual.atendidas / actual.citas) * 100, 0)} asistencia` : null} max={ancho(actual.atendidas)} familia="real" retardo={400} />
-          <FunnelStage etiqueta="Presupuestos generados" valor={fmtCompact(actual.presupMonto)} detalle={`${actual.presupN} planes`} max={ancho(actual.presupN)} familia="real" retardo={480} />
-          <FunnelStage etiqueta="Caja cobrada" valor={fmtMoney(actual.caja)} detalle={`${actual.pagosN} pagos`} max={ancho(actual.pagosN)} familia="real" retardo={560} />
+          <FunnelStage etiqueta="Citas totales agendadas" valor={fmtInt(actualDinero.citas)} detalle="todos los canales" max={ancho(actualDinero.citas)} familia="real" retardo={320} />
+          <FunnelStage etiqueta="Citas atendidas" valor={fmtInt(actualDinero.atendidas)} pct={actualDinero.citas ? `${fmtPct((actualDinero.atendidas / actualDinero.citas) * 100, 0)} asistencia` : null} max={ancho(actualDinero.atendidas)} familia="real" retardo={400} />
+          <FunnelStage etiqueta="Presupuestos generados" valor={fmtCompact(actualDinero.presupMonto)} detalle={`${actualDinero.presupN} planes`} max={ancho(actualDinero.presupN)} familia="real" retardo={480} />
+          <FunnelStage etiqueta="Caja cobrada" valor={fmtMoney(actualDinero.caja)} detalle={`${actualDinero.pagosN} pagos`} max={ancho(actualDinero.pagosN)} familia="real" retardo={560} />
         </div>
         <div className="rn-nota">
           <SparklesIcon className="size-3.5" />
           <span>
             {factorRealidad
-              ? <>Google reportó <b>{fmtInt(actual.leadsPlataforma)} leads</b>, pero recepción registró <b>{fmtInt(citasDig)} citas</b> llegadas por canales digitales — la realidad es <b>{factorRealidad.toFixed(1)}× mayor</b>. Por eso la fuente de verdad es Dentalink, no el conteo de la plataforma.</>
+              ? <>Google reportó <b>{fmtInt(actualDinero.leadsPlataforma)} leads</b>, pero recepción registró <b>{fmtInt(citasDig)} citas</b> llegadas por canales digitales — la realidad es <b>{factorRealidad.toFixed(1)}× mayor</b>. Por eso la fuente de verdad es Dentalink, no el conteo de la plataforma.</>
               : <>La plataforma no reporta leads en este periodo; la realidad la cuenta Dentalink: <b>{fmtInt(citasDig)} citas</b> de canales digitales.</>}
           </span>
         </div>
@@ -641,7 +684,7 @@ export function ReunionPanel() {
             <tbody>
               {contrasteMensual.map((m) => (
                 <tr key={m.etiqueta}>
-                  <td>{m.etiqueta}{m.parcial ? <Badge variant="secondary" className="ml-2 align-middle">en curso</Badge> : null}</td>
+                  <td>{m.etiqueta}{m.parcial ? <Badge variant="secondary" className="ml-2 align-middle">en curso</Badge> : m.dineroParcial ? <Badge variant="secondary" className="ml-2 align-middle">publicidad al {fmtFecha(finDinero)}</Badge> : null}</td>
                   <td>{fmtInt(m.imp)}</td>
                   <td>{fmtInt(m.clics)}</td>
                   <td>{m.imp ? fmtPct((m.clics / m.imp) * 100) : "—"}</td>
@@ -660,7 +703,7 @@ export function ReunionPanel() {
       <div className="rn-panel">
         <div className="rn-panel-head">
           <h3>¿A quién es atribuible el capital recolectado?</h3>
-          <p>La caja del periodo separada por pilar de origen (campo Referencia de recepción) · {etiquetaPeriodo}.</p>
+          <p>La caja del periodo separada por pilar de origen (campo Referencia de recepción) · {etiquetaPeriodo}{notaDinero}.</p>
         </div>
         <div className="rn-pilares-barra">
           {pilares.map((p) => (
@@ -683,7 +726,7 @@ export function ReunionPanel() {
       <div className="rn-panel">
         <div className="rn-panel-head">
           <h3>ROAS real por plataforma</h3>
-          <p>Inversión de la plataforma contra caja que recepción le atribuye · {etiquetaPeriodo}.</p>
+          <p>Inversión de la plataforma contra caja que recepción le atribuye · {etiquetaPeriodo}{notaDinero}.</p>
         </div>
         <div className="rn-tabla-wrap">
           <table className="rn-tabla">
@@ -770,7 +813,7 @@ export function ReunionPanel() {
                 <Line yAxisId="i" type="monotone" dataKey="imp" stroke="var(--rn-oro)" strokeWidth={1.8} dot={false} strokeDasharray="4 3" />
               </ComposedChart>
             </ResponsiveContainer>
-            <p className="rn-mini-nota">El mes en curso va parcial (datos al {data.cierreDatos}, impresiones incompletas); el conteo de blogs rankeando ya casi iguala al mes anterior completo.</p>
+            <p className="rn-mini-nota">El mes en curso va parcial (datos al {data.cierreAds ?? data.cierreDatos}, impresiones incompletas); el conteo de blogs rankeando ya casi iguala al mes anterior completo.</p>
           </div>
           <div>
             <div className="rn-grupo-label">Blogs en primera página con más impresiones · {seoCerrado.etiqueta}</div>
@@ -804,7 +847,7 @@ export function ReunionPanel() {
       <div className="rn-panel">
         <div className="rn-panel-head">
           <h3><TrendingUpIcon className="inline size-4 -mt-0.5" /> El mercado por el que competimos</h3>
-          <p>Cuánto volumen existe, cuánto estamos capturando y cuánto queda disponible · impression share de Google · <b>{etiquetaPeriodo}</b> (obedece al selector de arriba).</p>
+          <p>Cuánto volumen existe, cuánto estamos capturando y cuánto queda disponible · impression share de Google · <b>{etiquetaPeriodo}</b>{notaDinero} (obedece al selector de arriba).</p>
         </div>
 
         <div className="rn-mercado-stats">
@@ -982,7 +1025,7 @@ export function ReunionPanel() {
         <div className="rn-panel">
           <div className="rn-panel-head">
             <h3>¿De dónde vino la caja?</h3>
-            <p>Por canal de referencia · {etiquetaPeriodo}.</p>
+            <p>Por canal de referencia · {etiquetaPeriodo}{notaDinero}.</p>
           </div>
           <div className="rn-donut">
             <ResponsiveContainer width="100%" height={230}>
@@ -995,7 +1038,7 @@ export function ReunionPanel() {
               </PieChart>
             </ResponsiveContainer>
             <div className="rn-donut-centro">
-              <span>{fmtCompact(actual.caja)}</span>
+              <span>{fmtCompact(actualDinero.caja)}</span>
               <small>caja del periodo</small>
             </div>
           </div>
@@ -1012,8 +1055,8 @@ export function ReunionPanel() {
             <p>Agendadas (y cuántas ya se atendieron) · {etiquetaPeriodo}.</p>
           </div>
           <div className="rn-canales">
-            {canales.filter((c) => c.citas > 0).slice(0, 8).map((c) => {
-              const maxCitas = Math.max(...canales.map((x) => x.citas), 1);
+            {canalesCitas.filter((c) => c.citas > 0).slice(0, 8).map((c) => {
+              const maxCitas = Math.max(...canalesCitas.map((x) => x.citas), 1);
               return (
                 <div key={c.canal} className="rn-canal">
                   <span className="rn-canal-nombre"><i style={{ background: COLORES_CANAL[c.canal] ?? "#AFA795" }} />{c.canal}</span>
@@ -1033,7 +1076,7 @@ export function ReunionPanel() {
         <div className="rn-panel">
           <div className="rn-panel-head">
             <h3><UsersRoundIcon className="inline size-4 -mt-0.5" /> ¿Quién nos recomienda?</h3>
-            <p>El pilar de recomendación, con nombre y apellido (caja que trajo cada quien) · {etiquetaPeriodo}.</p>
+            <p>El pilar de recomendación, con nombre y apellido (caja que trajo cada quien) · {etiquetaPeriodo}{notaDinero}.</p>
           </div>
           <div className="rn-tabla-wrap">
             <table className="rn-tabla">
@@ -1107,7 +1150,7 @@ export function ReunionPanel() {
       </div>
 
       <p className="rn-pie">
-        Caja y citas: Dentalink (exports del {data.cierreDatos}, deduplicado por pago — cuadra con la API).
+        Citas: Dentalink al {data.cierreDatos}. Caja: exports del {data.cierreCaja ?? data.cierreDatos} (deduplicado por pago — cuadra con la API). Publicidad: Windsor al {data.cierreAds ?? data.cierreDatos}.
         Impresiones, clics e inversión: Google Ads API y Meta en vivo ({data.notas.meta}).
         “Leads de plataforma” excluye la campaña de Maps. Atribución: campo Referencia de recepción, normalizado a canales y pilares.
       </p>
