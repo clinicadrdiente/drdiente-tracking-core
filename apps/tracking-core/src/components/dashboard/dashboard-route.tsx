@@ -480,7 +480,9 @@ export function DashboardRoute({
     );
   }
 
-  if (route === "reunion") {
+  // reunion-nueva es el MISMO panel; lo que cambia es el armazón que lo
+  // envuelve (ver AgndexShell en src/ui/main.tsx).
+  if (route === "reunion" || route === "reunion-nueva") {
     return <ReunionPanel />;
   }
 

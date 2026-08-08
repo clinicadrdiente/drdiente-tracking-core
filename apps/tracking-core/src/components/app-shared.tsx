@@ -50,6 +50,13 @@ export const navGroups: SidebarNavGroup[] = [
         icon: <PresentationIcon />,
       },
       {
+        // Mismo panel que "Reunión de Status" con el armazón nuevo, para poder
+        // compararlos. Se retira cuando el diseño nuevo reemplace al actual.
+        title: "Reunión (diseño nuevo)",
+        path: "#/reunion-nueva",
+        icon: <PresentationIcon />,
+      },
+      {
         title: "Dueños",
         path: "#/duenos",
         icon: <BriefcaseIcon />,
