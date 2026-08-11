@@ -1,15 +1,20 @@
 import {
   methodNotAllowed,
   send,
+  toHttpRequest,
   type VercelRequest,
   type VercelResponse,
 } from "../_lib/http.js";
+import { requireTrackingSecret } from "../../src/http/auth.js";
 import {
   createDentalinkClient,
   createWindsorClient,
   getDentalinkConfig,
 } from "../../src/index.js";
 import { trailingRange, previousRange, type RangeDays } from "../../src/lib/date-ranges.js";
+import { createGoogleAdsClient } from "../../src/modules/google-ads/client.js";
+import { mergeDirectGoogleAds } from "../../src/modules/google-ads/marketing-merge.js";
+import type { WindsorMarketingRow } from "../../src/modules/windsor/client.js";
 
 interface ReunionStatusLiveBody {
   ok: true;
@@ -21,6 +26,7 @@ interface ReunionStatusLiveBody {
   };
   sources: {
     windsor: "ok" | "not_configured" | "error";
+    googleAds: "ok" | "not_configured" | "error";
     dentalink: "ok" | "stub" | "error";
     supabase: "ok" | "not_configured" | "error";
   };
@@ -114,6 +120,12 @@ export default async function handler(
     return;
   }
 
+  const authError = requireTrackingSecret(toHttpRequest(request));
+  if (authError) {
+    send(response, authError);
+    return;
+  }
+
   const days = parseRangeDays(request.query?.rangeDays);
   const range = trailingRange(days, new Date());
   const previous = previousRange(range);
@@ -129,6 +141,7 @@ export default async function handler(
     },
     sources: {
       windsor: "not_configured",
+      googleAds: "not_configured",
       dentalink: "stub",
       supabase: "not_configured",
     },
@@ -200,29 +213,57 @@ async function hydrateMarketing(
   toIso: string,
 ) {
   const windsor = createWindsorClient();
+  let windsorRows: WindsorMarketingRow[] = [];
   if (!windsor.isConfigured()) {
     notes.push("Windsor no configurado en este entorno.");
+  } else {
+    try {
+      const result = await windsor.getMarketingSummary({
+        dateFrom: fromIso.slice(0, 10),
+        dateTo: toIso.slice(0, 10),
+      });
+      body.sources.windsor = "ok";
+      windsorRows = result.rows;
+      body.marketing.impressions = result.totals.impressions;
+      body.marketing.clicks = result.totals.clicks;
+      body.marketing.spend = result.totals.spend;
+      body.marketing.bySource = result.bySource.map((item) => ({
+        source: item.source,
+        impressions: item.impressions,
+        clicks: item.clicks,
+        spend: item.spend,
+      }));
+    } catch (error) {
+      body.sources.windsor = "error";
+      notes.push(`Windsor error: ${error instanceof Error ? error.message : "desconocido"}`);
+    }
+  }
+
+  const googleAds = createGoogleAdsClient();
+  if (!googleAds.isConfigured()) {
+    notes.push("Google Ads directo no configurado en este entorno.");
     return;
   }
 
   try {
-    const result = await windsor.getMarketingSummary({
-      dateFrom: fromIso.slice(0, 10),
-      dateTo: toIso.slice(0, 10),
+    const result = await googleAds.getSummary({
+      from: fromIso.slice(0, 10),
+      to: toIso.slice(0, 10),
     });
-    body.sources.windsor = "ok";
-    body.marketing.impressions = result.totals.impressions;
-    body.marketing.clicks = result.totals.clicks;
-    body.marketing.spend = result.totals.spend;
-    body.marketing.bySource = result.bySource.map((item) => ({
-      source: item.source,
-      impressions: item.impressions,
-      clicks: item.clicks,
-      spend: item.spend,
-    }));
+    const merged = mergeDirectGoogleAds(windsorRows, result.accounts);
+    body.sources.googleAds = "ok";
+    body.marketing.bySource = merged.bySource;
+    body.marketing.impressions = merged.totals.impressions;
+    body.marketing.clicks = merged.totals.clicks;
+    body.marketing.spend = merged.totals.spend;
+    for (const accountError of result.errors) {
+      notes.push(
+        `Google Ads ${accountError.name} no disponible (status ${accountError.status}).`,
+      );
+    }
   } catch (error) {
-    body.sources.windsor = "error";
-    notes.push(`Windsor error: ${error instanceof Error ? error.message : "desconocido"}`);
+    body.sources.googleAds = "error";
+    notes.push(`Google Ads error: ${error instanceof Error ? error.message : "desconocido"}`);
   }
 }
 

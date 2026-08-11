@@ -59,7 +59,13 @@ export function ReunionPanelExperimental() {
       setIsLoadingLive(true);
       setLiveError(null);
       try {
-        const response = await fetch("/api/dev/reunion-status-live?rangeDays=7");
+        const secret = window.localStorage.getItem("trackingSecret")?.trim() ?? "";
+        if (!secret) {
+          throw new Error("Configura el TRACKING_API_SECRET en Control para cargar datos live.");
+        }
+        const response = await fetch("/api/dev/reunion-status-live?rangeDays=7", {
+          headers: { "x-tracking-secret": secret },
+        });
         const body = (await response.json()) as ReunionStatusLive | { error?: string };
         if (!response.ok || !("range" in body)) {
           throw new Error("error" in body ? body.error ?? "No se pudo cargar la fase live." : "No se pudo cargar la fase live.");
