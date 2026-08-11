@@ -11,11 +11,5 @@
       "has": [{ "type": "host", "value": "cierre.clinicadrdiente.com" }],
       "destination": "/cierre.html"
     }
-  ],
-  "crons": [
-    {
-      "path": "/api/cron/payments-sync",
-      "schedule": "0 5 * * *"
-    }
   ]
 }
