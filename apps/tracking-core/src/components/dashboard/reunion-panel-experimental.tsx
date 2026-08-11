@@ -12,6 +12,7 @@ interface ReunionStatusLive {
   };
   sources: {
     windsor: string;
+    googleAds: string;
     dentalink: string;
     supabase: string;
   };
@@ -90,6 +91,7 @@ export function ReunionPanelExperimental() {
             <Badge variant="outline">Live</Badge>
             {liveData ? <Badge variant="secondary">Últimos {liveData.range.days} días</Badge> : null}
             {liveData ? <Badge variant="secondary">Windsor: {liveData.sources.windsor}</Badge> : null}
+            {liveData ? <Badge variant="secondary">Google Ads: {liveData.sources.googleAds}</Badge> : null}
             {liveData ? <Badge variant="secondary">Dentalink: {liveData.sources.dentalink}</Badge> : null}
             {liveData ? <Badge variant="secondary">Supabase: {liveData.sources.supabase}</Badge> : null}
           </div>
