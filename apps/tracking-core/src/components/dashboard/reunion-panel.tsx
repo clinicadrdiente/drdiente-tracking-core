@@ -299,6 +299,10 @@ export function ReunionPanel() {
     return corte < hasta ? corte : hasta;
   }, [data, hasta]);
   const dineroRecortado = Boolean(data) && finDinero !== hasta;
+  const finAtribucion = useMemo(() => {
+    const corte = data?.cierreAtribucion;
+    return corte && corte < hasta ? corte : hasta;
+  }, [data, hasta]);
   const desdeDinero = useMemo(
     () => (dineroRecortado && nDias ? sumarDias(-(nDias - 1), finDinero) : desde),
     [dineroRecortado, nDias, finDinero, desde],
@@ -316,13 +320,17 @@ export function ReunionPanel() {
   }, [data, dineroRecortado, desdeDinero, nDias, clinica, previo]);
 
   const canales = useMemo(() => (data ? porCanal(data.atribucion, desdeDinero, finDinero, clinica) : []), [data, desdeDinero, finDinero, clinica]);
+  const canalesAtribucion = useMemo(
+    () => (data ? porCanal(data.atribucion, desde, finAtribucion, clinica) : []),
+    [data, desde, finAtribucion, clinica],
+  );
   // Citas por canal con el rango pedido completo (las citas sí están frescas).
   const canalesCitas = useMemo(() => (data ? porCanal(data.atribucion, desde, hasta, clinica) : []), [data, desde, hasta, clinica]);
 
   const pilares = useMemo(() => {
     if (!data) return [] as { pilar: string; caja: number; pagos: number; pct: number }[];
     const mapa = new Map<string, { caja: number; pagos: number }>();
-    for (const c of canales) {
+    for (const c of canalesAtribucion) {
       const p = data.pilarDeCanal[c.canal] ?? "Otro";
       const item = mapa.get(p) ?? { caja: 0, pagos: 0 };
       item.caja += c.caja; item.pagos += c.pagos;
@@ -333,7 +341,7 @@ export function ReunionPanel() {
       pilar: p, caja: mapa.get(p)!.caja, pagos: mapa.get(p)!.pagos,
       pct: (100 * mapa.get(p)!.caja) / total,
     }));
-  }, [data, canales]);
+  }, [data, canalesAtribucion]);
 
   const citasDig = useMemo(() => canales
     .filter((c) => data?.pilarDeCanal[c.canal] === "Marketing")
@@ -341,20 +349,33 @@ export function ReunionPanel() {
 
   /* --- ROAS real por plataforma --- */
   const plataformas = useMemo(() => {
-    const actual = actualDinero;
-    if (!actual) return [] as { nombre: string; inversion: number; caja: number; citas: number; roas: number | null }[];
-    const cajaDe = (canal: string) => canales.find((c) => c.canal === canal)?.caja ?? 0;
-    const citasDe = (canal: string) => canales.find((c) => c.canal === canal)?.citas ?? 0;
+    if (!data) return [] as { nombre: string; inversion: number; caja: number; citas: number; roas: number | null; corte: string }[];
+    const clinicas = clinica === "todas" ? ["polanco", "roma"] : [clinica];
+    const corteDe = (fuente: "googleAds" | "metaAds"): string => {
+      const cortes = clinicas
+        .map((nombre) => data.cortesAdsPorClinica?.[nombre]?.[fuente])
+        .filter(Boolean) as string[];
+      const corteAds = cortes.length ? [...cortes].sort()[0] : hasta;
+      return [hasta, finAtribucion, corteAds].sort()[0];
+    };
+    const corteGoogle = corteDe("googleAds");
+    const corteMeta = corteDe("metaAds");
+    const datosGoogle = agregar(data.dias, desde, corteGoogle, clinica);
+    const datosMeta = agregar(data.dias, desde, corteMeta, clinica);
+    const canalesGoogle = porCanal(data.atribucion, desde, corteGoogle, clinica);
+    const canalesMeta = porCanal(data.atribucion, desde, corteMeta, clinica);
+    const cajaDe = (filas: CanalAgg[], canal: string) => filas.find((c) => c.canal === canal)?.caja ?? 0;
+    const citasDe = (filas: CanalAgg[], canal: string) => filas.find((c) => c.canal === canal)?.citas ?? 0;
     return [
-      { nombre: "Google", inversion: actual.invGoogle, caja: cajaDe("Google"), citas: citasDe("Google") },
-      { nombre: "Google Maps", inversion: actual.invMaps, caja: cajaDe("Google Maps"), citas: citasDe("Google Maps") },
-      { nombre: "Meta / Redes", inversion: actual.invMeta, caja: cajaDe("Meta / Redes"), citas: citasDe("Meta / Redes") },
-      { nombre: "TikTok", inversion: 0, caja: cajaDe("TikTok"), citas: citasDe("TikTok") },
-      { nombre: "IA (ChatGPT)", inversion: 0, caja: cajaDe("IA (ChatGPT)"), citas: citasDe("IA (ChatGPT)") },
+      { nombre: "Google", inversion: datosGoogle.invGoogle, caja: cajaDe(canalesGoogle, "Google"), citas: citasDe(canalesGoogle, "Google"), corte: corteGoogle },
+      { nombre: "Google Maps", inversion: datosGoogle.invMaps, caja: cajaDe(canalesGoogle, "Google Maps"), citas: citasDe(canalesGoogle, "Google Maps"), corte: corteGoogle },
+      { nombre: "Meta / Redes", inversion: datosMeta.invMeta, caja: cajaDe(canalesMeta, "Meta / Redes"), citas: citasDe(canalesMeta, "Meta / Redes"), corte: corteMeta },
+      { nombre: "TikTok", inversion: 0, caja: cajaDe(canalesAtribucion, "TikTok"), citas: citasDe(canalesAtribucion, "TikTok"), corte: finAtribucion },
+      { nombre: "IA (ChatGPT)", inversion: 0, caja: cajaDe(canalesAtribucion, "IA (ChatGPT)"), citas: citasDe(canalesAtribucion, "IA (ChatGPT)"), corte: finAtribucion },
     ].map((p) => ({ ...p, roas: p.inversion > 0 ? p.caja / p.inversion : null }))
       .filter((p) => p.inversion > 0 || p.caja > 0)
       .sort((a, b) => b.caja - a.caja);
-  }, [actualDinero, canales]);
+  }, [data, desde, hasta, finAtribucion, clinica, canalesAtribucion]);
 
   const recomendadores = useMemo(() => {
     if (!data) return [] as { quien: string; caja: number; pagos: number }[];
@@ -715,7 +736,7 @@ export function ReunionPanel() {
       <div className="rn-panel">
         <div className="rn-panel-head">
           <h3>¿A quién es atribuible el capital recolectado?</h3>
-          <p>La caja del periodo separada por pilar de origen (campo Referencia de recepción) · {etiquetaPeriodo}{notaDinero}.</p>
+          <p>La caja del periodo separada por pilar de origen (campo Referencia de recepción) · {fmtFecha(desde)} – {fmtFecha(finAtribucion)} · atribución actualizada al {fmtFecha(finAtribucion)}.</p>
         </div>
         <div className="rn-pilares-barra">
           {pilares.map((p) => (
@@ -739,8 +760,8 @@ export function ReunionPanel() {
         <div className="rn-panel-head">
           <h3>ROAS real por plataforma</h3>
           <p>
-            Inversión de la plataforma contra caja que recepción le atribuye · {etiquetaPeriodo}{notaDinero}
-            {data.cierreAtribucion ? ` · atribución actualizada al ${fmtFecha(data.cierreAtribucion)}` : ""}.
+            Inversión de la plataforma contra caja que recepción le atribuye · {fmtFecha(desde)} – {fmtFecha(finAtribucion)}.
+            Cada plataforma usa su último corte comparable de inversión y caja.
           </p>
         </div>
         <div className="rn-tabla-wrap">
@@ -749,7 +770,7 @@ export function ReunionPanel() {
             <tbody>
               {plataformas.map((p) => (
                 <tr key={p.nombre}>
-                  <td><i className="rn-dot" style={{ background: COLORES_CANAL[p.nombre] ?? "#AFA795" }} />{p.nombre}</td>
+                  <td><i className="rn-dot" style={{ background: COLORES_CANAL[p.nombre] ?? "#AFA795" }} />{p.nombre} <small>· al {fmtFecha(p.corte)}</small></td>
                   <td>{p.inversion > 0 ? fmtMoney(p.inversion) : "—"}</td>
                   <td>{fmtMoney(p.caja)}</td>
                   <td>{fmtInt(p.citas)}</td>
