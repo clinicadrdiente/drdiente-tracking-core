@@ -62,12 +62,7 @@ export function ReunionPanelExperimental() {
       setIsLoadingLive(true);
       setLiveError(null);
       try {
-        const secret = window.localStorage.getItem("trackingSecret")?.trim() ?? "";
-        if (!secret) {
-          throw new Error("Configura el TRACKING_API_SECRET en Control para cargar datos live.");
-        }
         const response = await fetch(`/api/dev/reunion-status-live?rangeDays=${rangeDays}`, {
-          headers: { "x-tracking-secret": secret },
           signal: controller.signal,
         });
         const body = (await response.json()) as ReunionStatusLive | { error?: string };

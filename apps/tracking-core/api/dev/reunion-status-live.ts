@@ -1,11 +1,9 @@
 import {
   methodNotAllowed,
   send,
-  toHttpRequest,
   type VercelRequest,
   type VercelResponse,
 } from "../_lib/http.js";
-import { requireTrackingSecret } from "../../src/http/auth.js";
 import {
   createDentalinkClient,
   createWindsorClient,
@@ -117,12 +115,6 @@ export default async function handler(
 ): Promise<void> {
   if (request.method !== "GET") {
     methodNotAllowed(response);
-    return;
-  }
-
-  const authError = requireTrackingSecret(toHttpRequest(request));
-  if (authError) {
-    send(response, authError);
     return;
   }
 
