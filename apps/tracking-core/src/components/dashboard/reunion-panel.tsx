@@ -301,8 +301,9 @@ export function ReunionPanel() {
   const dineroRecortado = Boolean(data) && finDinero !== hasta;
   const finAtribucion = useMemo(() => {
     const corte = data?.cierreAtribucion;
+    if (tipo === "mes" && mes && corte?.startsWith(`${mes}-`)) return corte;
     return corte && corte < hasta ? corte : hasta;
-  }, [data, hasta]);
+  }, [data, hasta, tipo, mes]);
   const desdeDinero = useMemo(
     () => (dineroRecortado && nDias ? sumarDias(-(nDias - 1), finDinero) : desde),
     [dineroRecortado, nDias, finDinero, desde],
@@ -355,8 +356,8 @@ export function ReunionPanel() {
       const cortes = clinicas
         .map((nombre) => data.cortesAdsPorClinica?.[nombre]?.[fuente])
         .filter(Boolean) as string[];
-      const corteAds = cortes.length ? [...cortes].sort()[0] : hasta;
-      return [hasta, finAtribucion, corteAds].sort()[0];
+      const corteAds = cortes.length ? [...cortes].sort()[0] : finAtribucion;
+      return [finAtribucion, corteAds].sort()[0];
     };
     const corteGoogle = corteDe("googleAds");
     const corteMeta = corteDe("metaAds");
