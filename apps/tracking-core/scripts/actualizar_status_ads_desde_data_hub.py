@@ -7,9 +7,8 @@ los cortes por plataforma para evitar presentar fuentes desfasadas como si
 fueran del mismo día.
 
 Uso:
-  uv run --with 'psycopg[binary]' python \
-    scripts/actualizar_status_ads_desde_data_hub.py \
-    --database-url "$ELEVATOR_SUPABASE_DATABASE_URL"
+  ELEVATOR_SUPABASE_DATABASE_URL='...' uv run --with 'psycopg[binary]' \
+    python scripts/actualizar_status_ads_desde_data_hub.py
 
 También acepta ``--secrets /ruta/elevator-data-hub.json``; el archivo debe
 contener ``ELEVATOR_SUPABASE_DATABASE_URL`` y nunca debe versionarse.
@@ -18,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 from collections import defaultdict
 from datetime import date, datetime, timedelta
@@ -35,6 +35,8 @@ ADS_FIELDS = (
     "gImp", "gClics", "gCosto", "gCostoMaps", "gConv", "gLeads",
     "mImp", "mClics", "mGasto", "mLeads",
 )
+GOOGLE_FIELDS = ("gImp", "gClics", "gCosto", "gCostoMaps", "gConv", "gLeads")
+META_FIELDS = ("mImp", "mClics", "mGasto", "mLeads")
 CLINICAL_FIELDS = (
     "citas", "atendidas", "presupN", "presupMonto", "presupIni", "caja", "pagosN",
 )
@@ -51,14 +53,18 @@ def pct_delta(current: float, previous: float) -> float | None:
 
 
 def load_database_url(args: argparse.Namespace) -> str:
-    if args.database_url:
-        return args.database_url
+    env_value = os.environ.get("ELEVATOR_SUPABASE_DATABASE_URL")
+    if env_value:
+        return env_value
     if args.secrets:
-        payload = json.loads(Path(args.secrets).expanduser().read_text(encoding="utf-8"))
+        path = Path(args.secrets).expanduser()
+        if path.stat().st_mode & 0o077:
+            raise SystemExit("El archivo de secretos debe tener permisos 600")
+        payload = json.loads(path.read_text(encoding="utf-8"))
         value = payload.get("ELEVATOR_SUPABASE_DATABASE_URL")
         if value:
             return str(value)
-    raise SystemExit("Falta --database-url o --secrets con ELEVATOR_SUPABASE_DATABASE_URL")
+    raise SystemExit("Falta ELEVATOR_SUPABASE_DATABASE_URL o --secrets")
 
 
 def query_rows(conn: Any, start: str, end: str) -> list[dict[str, Any]]:
@@ -110,15 +116,15 @@ def query_campaigns(conn: Any, start: str, end: str, previous_start: str, previo
 
 def merge_ads(data: dict[str, Any], rows: list[dict[str, Any]], campaign_rows: list[dict[str, Any]], today: str) -> dict[str, Any]:
     daily: dict[tuple[str, str], dict[str, float]] = defaultdict(lambda: {field: 0.0 for field in ADS_FIELDS})
-    cutoffs: dict[str, str] = {}
+    platforms_present: dict[tuple[str, str], set[str]] = defaultdict(set)
     clinic_cutoffs: dict[str, dict[str, str]] = {"polanco": {}, "roma": {}}
 
     for row in rows:
         clinic = CLINICS[row["slug"]]
         platform = row["platform"]
         metric_date = row["metric_date"].isoformat() if hasattr(row["metric_date"], "isoformat") else str(row["metric_date"])
-        cutoffs[platform] = max(cutoffs.get(platform, metric_date), metric_date)
         clinic_cutoffs[clinic][platform] = max(clinic_cutoffs[clinic].get(platform, metric_date), metric_date)
+        platforms_present[(metric_date, clinic)].add(platform)
         item = daily[(metric_date, clinic)]
         if platform == "google_ads":
             item["gImp"] += row["impressions"]
@@ -144,22 +150,28 @@ def merge_ads(data: dict[str, Any], rows: list[dict[str, Any]], campaign_rows: l
             base.setdefault(field, 0)
         fresh = daily.get(key)
         if fresh is not None:
-            for field in ADS_FIELDS:
+            fields: tuple[str, ...] = ()
+            if "google_ads" in platforms_present[key]:
+                fields += GOOGLE_FIELDS
+            if "meta_ads" in platforms_present[key]:
+                fields += META_FIELDS
+            for field in fields:
                 value = fresh[field]
                 base[field] = round(value, 6)
         merged_days.append(base)
     data["dias"] = merged_days
 
-    google_cutoff = cutoffs.get("google_ads")
-    meta_cutoff = cutoffs.get("meta_ads")
+    google_dates = [values["google_ads"] for values in clinic_cutoffs.values() if values.get("google_ads")]
+    meta_dates = [values["meta_ads"] for values in clinic_cutoffs.values() if values.get("meta_ads")]
+    google_cutoff = min(google_dates) if google_dates else None
+    meta_cutoff = min(meta_dates) if meta_dates else None
     if google_cutoff:
         data["cierreGoogleAds"] = google_cutoff
     if meta_cutoff:
         data["cierreMetaAds"] = meta_cutoff
     available = [value for value in (google_cutoff, meta_cutoff) if value]
     if available:
-        data["cierreAds"] = max(available)
-        data["rango"]["hasta"] = max(data["rango"].get("hasta", ""), max(available))
+        data["cierreAds"] = min(available)
     data["cortesAdsPorClinica"] = {
         clinic: {
             "googleAds": values.get("google_ads"),
@@ -183,7 +195,7 @@ def merge_ads(data: dict[str, Any], rows: list[dict[str, Any]], campaign_rows: l
             "deltaGasto": pct_delta(spend, float(row["previous_spend"])),
         })
 
-    window_end = google_cutoff or today
+    window_end = max(google_dates) if google_dates else today
     window_start = (date.fromisoformat(window_end) - timedelta(days=6)).isoformat()
     data["campanasSemana"] = {
         "ventana": {"desde": window_start, "hasta": window_end},
@@ -201,7 +213,6 @@ def merge_ads(data: dict[str, Any], rows: list[dict[str, Any]], campaign_rows: l
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--database-url")
     parser.add_argument("--secrets")
     parser.add_argument("--json", default=str(JSON_PATH))
     parser.add_argument("--hasta", default=date.today().isoformat())

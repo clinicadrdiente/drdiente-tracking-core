@@ -54,9 +54,10 @@ export function ReunionPanelExperimental() {
   const [liveData, setLiveData] = useState<ReunionStatusLive | null>(null);
   const [liveError, setLiveError] = useState<string | null>(null);
   const [isLoadingLive, setIsLoadingLive] = useState(false);
-  const [rangeDays, setRangeDays] = useState<7 | 30 | 180>(30);
+  const [rangeDays, setRangeDays] = useState<7 | 30>(30);
 
   useEffect(() => {
+    const controller = new AbortController();
     async function loadLive() {
       setIsLoadingLive(true);
       setLiveError(null);
@@ -67,6 +68,7 @@ export function ReunionPanelExperimental() {
         }
         const response = await fetch(`/api/dev/reunion-status-live?rangeDays=${rangeDays}`, {
           headers: { "x-tracking-secret": secret },
+          signal: controller.signal,
         });
         const body = (await response.json()) as ReunionStatusLive | { error?: string };
         if (!response.ok || !("range" in body)) {
@@ -74,14 +76,16 @@ export function ReunionPanelExperimental() {
         }
         setLiveData(body);
       } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return;
         setLiveError(error instanceof Error ? error.message : "Error desconocido.");
         setLiveData(null);
       } finally {
-        setIsLoadingLive(false);
+        if (!controller.signal.aborted) setIsLoadingLive(false);
       }
     }
 
     void loadLive();
+    return () => controller.abort();
   }, [rangeDays]);
 
   return (
@@ -105,14 +109,14 @@ export function ReunionPanelExperimental() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap gap-2" aria-label="Rango del resumen actualizado">
-            {([7, 30, 180] as const).map((days) => (
+            {([7, 30] as const).map((days) => (
               <button
                 className={`rounded-md border px-3 py-1.5 text-sm ${rangeDays === days ? "bg-foreground text-background" : "bg-background"}`}
                 key={days}
                 onClick={() => setRangeDays(days)}
                 type="button"
               >
-                {days === 7 ? "7 días" : days === 30 ? "30 días" : "6 meses"}
+                {days === 7 ? "7 días" : "30 días"}
               </button>
             ))}
           </div>
