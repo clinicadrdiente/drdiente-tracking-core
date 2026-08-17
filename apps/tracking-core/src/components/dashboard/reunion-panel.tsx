@@ -767,7 +767,7 @@ export function ReunionPanel() {
         </div>
         <div className="rn-tabla-wrap">
           <table className="rn-tabla">
-            <thead><tr><th>Plataforma</th><th>Inversión</th><th>Caja atribuida</th><th>Citas</th><th>ROAS real</th></tr></thead>
+            <thead><tr><th>Plataforma</th><th>Inversión</th><th>Caja atribuida</th><th>Citas <small>· al {fmtFecha(data.cierreDatos)}</small></th><th>ROAS real</th></tr></thead>
             <tbody>
               {plataformas.map((p) => (
                 <tr key={p.nombre}>
@@ -781,7 +781,7 @@ export function ReunionPanel() {
             </tbody>
           </table>
         </div>
-        <p className="rn-mini-nota">La atribución viene de recepción, no del pixel: es caja cobrada real.</p>
+        <p className="rn-mini-nota">La atribución viene de recepción, no del pixel: es caja cobrada real. Caja al {fmtFecha(finAtribucion)}; citas al {fmtFecha(data.cierreDatos)}.</p>
       </div>
 
       {/* ESFUERZOS DE MARKETING */}
