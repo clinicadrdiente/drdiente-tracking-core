@@ -72,7 +72,7 @@ interface StatusData {
   // Cortes por fuente: citas/pacientes pueden ir más frescos que publicidad
   // (Windsor) y caja (export de pagos). Cuando existen y van detrás de
   // cierreDatos, las vistas de dinero ventanean a su corte y lo etiquetan.
-  cierreAds?: string; cierreCaja?: string;
+  cierreAds?: string; cierreCaja?: string; cierreAtribucion?: string;
   cierreGoogleAds?: string; cierreMetaAds?: string;
   cortesAdsPorClinica?: Record<string, { googleAds?: string | null; metaAds?: string | null }>;
   rango: { desde: string; hasta: string };
@@ -738,7 +738,10 @@ export function ReunionPanel() {
       <div className="rn-panel">
         <div className="rn-panel-head">
           <h3>ROAS real por plataforma</h3>
-          <p>Inversión de la plataforma contra caja que recepción le atribuye · {etiquetaPeriodo}{notaDinero}.</p>
+          <p>
+            Inversión de la plataforma contra caja que recepción le atribuye · {etiquetaPeriodo}{notaDinero}
+            {data.cierreAtribucion ? ` · atribución actualizada al ${fmtFecha(data.cierreAtribucion)}` : ""}.
+          </p>
         </div>
         <div className="rn-tabla-wrap">
           <table className="rn-tabla">
