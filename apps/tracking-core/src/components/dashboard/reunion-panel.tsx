@@ -73,6 +73,8 @@ interface StatusData {
   // (Windsor) y caja (export de pagos). Cuando existen y van detrás de
   // cierreDatos, las vistas de dinero ventanean a su corte y lo etiquetan.
   cierreAds?: string; cierreCaja?: string;
+  cierreGoogleAds?: string; cierreMetaAds?: string;
+  cortesAdsPorClinica?: Record<string, { googleAds?: string | null; metaAds?: string | null }>;
   rango: { desde: string; hasta: string };
   pilarDeCanal: Record<string, string>;
   dias: Dia[];
@@ -457,6 +459,12 @@ export function ReunionPanel() {
     : clinica === "polanco"
       ? (data.campanasSemana.cuentas.polanco ?? [])
       : [...(data.campanasSemana.cuentas.polanco ?? []), ...(data.campanasSemana.cuentas.roma ?? [])];
+  const corteGoogleVisible = clinica === "todas"
+    ? data.cierreGoogleAds
+    : data.cortesAdsPorClinica?.[clinica]?.googleAds ?? data.cierreGoogleAds;
+  const corteMetaVisible = clinica === "todas"
+    ? data.cierreMetaAds
+    : data.cortesAdsPorClinica?.[clinica]?.metaAds ?? data.cierreMetaAds;
 
   const donutData = canales.filter((c) => c.caja > 0).map((c) => ({ name: c.canal, value: c.caja }));
   const sinNombre = recomendadores.find((r) => r.quien === "(sin nombre)");
@@ -508,7 +516,11 @@ export function ReunionPanel() {
           <h2 className="rn-titulo">Plataformas contra realidad,<br />en una sola vista.</h2>
           <p className="rn-sub">
             Viendo <b>{etiquetaPeriodo}</b> · citas y pacientes al {fmtFecha(data.cierreDatos)}
-            {dineroRecortado ? <> · <b>caja y publicidad al {fmtFecha(finDinero)}</b> (sus exports cierran después)</> : null}
+            {data.cierreCaja ? <> · caja al <b>{fmtFecha(data.cierreCaja)}</b></> : null}
+            {corteGoogleVisible ? <> · Google Ads al <b>{fmtFecha(corteGoogleVisible)}</b></> : null}
+            {clinica === "todas" && data.cortesAdsPorClinica ? (
+              <> · Meta: Polanco al <b>{fmtFecha(data.cortesAdsPorClinica.polanco?.metaAds ?? corteMetaVisible ?? data.cierreDatos)}</b>, Roma al <b>{fmtFecha(data.cortesAdsPorClinica.roma?.metaAds ?? corteMetaVisible ?? data.cierreDatos)}</b></>
+            ) : corteMetaVisible ? <> · Meta al <b>{fmtFecha(corteMetaVisible)}</b></> : null}
             {" "}· generado {data.generado.replace("T", " ")}
           </p>
         </div>
@@ -1150,7 +1162,8 @@ export function ReunionPanel() {
       </div>
 
       <p className="rn-pie">
-        Citas: Dentalink al {data.cierreDatos}. Caja: exports del {data.cierreCaja ?? data.cierreDatos} (deduplicado por pago — cuadra con la API). Publicidad: Windsor al {data.cierreAds ?? data.cierreDatos}.
+        Citas: Dentalink al {data.cierreDatos}. Caja: exports del {data.cierreCaja ?? data.cierreDatos} (deduplicado por pago — cuadra con la API).
+        Google Ads: {data.cierreGoogleAds ?? data.cierreAds ?? data.cierreDatos}. Meta/Windsor: Polanco {data.cortesAdsPorClinica?.polanco?.metaAds ?? data.cierreMetaAds ?? data.cierreDatos}; Roma {data.cortesAdsPorClinica?.roma?.metaAds ?? data.cierreMetaAds ?? data.cierreDatos}.
         Impresiones, clics e inversión: Google Ads API y Meta en vivo ({data.notas.meta}).
         “Leads de plataforma” excluye la campaña de Maps. Atribución: campo Referencia de recepción, normalizado a canales y pilares.
       </p>

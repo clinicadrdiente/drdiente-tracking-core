@@ -8,6 +8,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 node-compile-cache/
+__pycache__/
+*.pyc
 
 # Claude Code local preview/session config
 .claude/

@@ -54,6 +54,7 @@ export function ReunionPanelExperimental() {
   const [liveData, setLiveData] = useState<ReunionStatusLive | null>(null);
   const [liveError, setLiveError] = useState<string | null>(null);
   const [isLoadingLive, setIsLoadingLive] = useState(false);
+  const [rangeDays, setRangeDays] = useState<7 | 30 | 180>(30);
 
   useEffect(() => {
     async function loadLive() {
@@ -64,7 +65,7 @@ export function ReunionPanelExperimental() {
         if (!secret) {
           throw new Error("Configura el TRACKING_API_SECRET en Control para cargar datos live.");
         }
-        const response = await fetch("/api/dev/reunion-status-live?rangeDays=7", {
+        const response = await fetch(`/api/dev/reunion-status-live?rangeDays=${rangeDays}`, {
           headers: { "x-tracking-secret": secret },
         });
         const body = (await response.json()) as ReunionStatusLive | { error?: string };
@@ -81,14 +82,14 @@ export function ReunionPanelExperimental() {
     }
 
     void loadLive();
-  }, []);
+  }, [rangeDays]);
 
   return (
     <div className="flex flex-col gap-6">
       <Card>
         <CardHeader className="gap-3">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline">Live</Badge>
+            <Badge variant="outline">Actualización bajo demanda</Badge>
             {liveData ? <Badge variant="secondary">Últimos {liveData.range.days} días</Badge> : null}
             {liveData ? <Badge variant="secondary">Windsor: {liveData.sources.windsor}</Badge> : null}
             {liveData ? <Badge variant="secondary">Google Ads: {liveData.sources.googleAds}</Badge> : null}
@@ -96,13 +97,25 @@ export function ReunionPanelExperimental() {
             {liveData ? <Badge variant="secondary">Supabase: {liveData.sources.supabase}</Badge> : null}
           </div>
           <div>
-            <CardTitle className="text-xl">Resumen live</CardTitle>
+            <CardTitle className="text-xl">Resumen actualizado de operación</CardTitle>
             <CardDescription>
-              Lectura ejecutiva rápida arriba; la reunión original sigue intacta abajo.
+              Consulta las fuentes conectadas sin modificar campañas, pacientes ni cobros.
             </CardDescription>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="flex flex-wrap gap-2" aria-label="Rango del resumen actualizado">
+            {([7, 30, 180] as const).map((days) => (
+              <button
+                className={`rounded-md border px-3 py-1.5 text-sm ${rangeDays === days ? "bg-foreground text-background" : "bg-background"}`}
+                key={days}
+                onClick={() => setRangeDays(days)}
+                type="button"
+              >
+                {days === 7 ? "7 días" : days === 30 ? "30 días" : "6 meses"}
+              </button>
+            ))}
+          </div>
           {isLoadingLive ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <LoaderCircleIcon className="size-4 animate-spin" />
@@ -120,10 +133,17 @@ export function ReunionPanelExperimental() {
             <>
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                 <MetricCard label="Impresiones" value={formatInt(liveData.marketing.impressions)} />
-                <MetricCard label="Leads" value={formatInt(liveData.leads.total)} />
+                <MetricCard label="Clics" value={formatInt(liveData.marketing.clicks)} />
+                <MetricCard label="Inversión" value={formatMoney(liveData.marketing.spend)} />
+                <MetricCard label="Leads registrados" value={formatInt(liveData.leads.total)} />
                 <MetricCard label="Agendamientos" value={formatInt(liveData.appointments.total)} />
                 <MetricCard label="Revenue capturado" value={formatMoney(liveData.revenue.total)} />
               </div>
+
+              <p className="text-xs text-muted-foreground">
+                Consulta generada {new Date(liveData.generatedAt).toLocaleString("es-MX")} para el rango {liveData.range.days} días.
+                Cada fuente conserva su propio estado; “ok” confirma lectura, no que su proveedor haya cerrado el día actual.
+              </p>
 
               <div className="grid gap-3 xl:grid-cols-3">
                 <DetailCard

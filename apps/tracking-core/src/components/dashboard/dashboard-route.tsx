@@ -480,9 +480,14 @@ export function DashboardRoute({
     );
   }
 
-  // reunion-nueva es el MISMO panel; lo que cambia es el armazón que lo
-  // envuelve (ver AgndexShell en src/ui/main.tsx).
-  if (route === "reunion" || route === "reunion-nueva") {
+  // La vista principal abre con el resumen bajo demanda de las fuentes live y
+  // conserva debajo el panel histórico. reunion-nueva mantiene el armazón de
+  // comparación visual sin duplicar el resumen live.
+  if (route === "reunion") {
+    return <ReunionPanelExperimental />;
+  }
+
+  if (route === "reunion-nueva") {
     return <ReunionPanel />;
   }
 
